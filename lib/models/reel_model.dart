@@ -5,11 +5,11 @@ class ReelModel {
   final String caption;
   final String songId;
   final List<String> likes;
-
-  // Pexels fields
   final String creatorName;
   final String thumbnail;
-  final String pexelsUrl;
+  final int likesCount;
+  final int commentsCount;
+  final bool isLiked;
 
   ReelModel({
     required this.id,
@@ -20,58 +20,77 @@ class ReelModel {
     required this.likes,
     this.creatorName = '',
     this.thumbnail = '',
-    this.pexelsUrl = '',
+    this.likesCount = 0,
+    this.commentsCount = 0,
+    this.isLiked = false,
   });
 
   factory ReelModel.fromJson(Map<String, dynamic> json) {
-    // Pexels ke video_files
-    final List videoFiles = json['video_files'] ?? [];
-
-    String videoUrl = '';
-
-    // Pehle portrait video dhoondhenge
-    for (final file in videoFiles) {
-      final width = file['width'] ?? 0;
-      final height = file['height'] ?? 0;
-      final link = file['link'] ?? '';
-
-      if (height > width && link.isNotEmpty) {
-        videoUrl = link;
-        break;
-      }
-    }
-
-    // Agar portrait nahi mila to first video
-    if (videoUrl.isEmpty && videoFiles.isNotEmpty) {
-      videoUrl = videoFiles.first['link'] ?? '';
-    }
-
-    final user = json['user'] ?? {};
-
+    print("DEBUG Reel JSON: $json");
     return ReelModel(
-      id: json['id']?.toString() ?? '',
-      userId: user['id']?.toString() ?? '',
-      videoUrl: videoUrl,
-      caption: '',
-      songId: '',
+      id: (json['id'] ?? json['reelId'] ?? json['reel_id'] ?? '').toString(),
+      userId: (json['userId'] ?? json['user_id'] ?? '').toString(),
+      videoUrl:
+          json['videoUrl'] ??
+          json['video_url'] ??
+          json['url'] ??
+          json['media'] ??
+          '',
+      caption: json['caption'] ?? '',
+      songId: json['songId'] ?? json['song_name'] ?? '',
       likes: const [],
-      creatorName: user['name'] ?? 'Pexels Creator',
-      thumbnail: json['image'] ?? '',
-      pexelsUrl: json['url'] ?? '',
+      creatorName:
+          json['username'] ??
+          json['creator_name'] ??
+          json['full_name'] ??
+          'Anonymous',
+      thumbnail:
+          json['thumbnail'] ??
+          json['profileImage'] ??
+          json['profile_image'] ??
+          '',
+      likesCount: _toInt(json['likesCount'] ?? json['likes_count'] ?? json['likes']),
+      commentsCount: _toInt(json['commentsCount'] ?? json['comments_count'] ?? json['comments']),
+      isLiked:
+          json['isLiked'] == 1 ||
+          json['isLiked'] == true ||
+          json['is_liked'] == true ||
+          json['liked'] == true,
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'userId': userId,
-      'videoUrl': videoUrl,
-      'caption': caption,
-      'songId': songId,
-      'likes': likes,
-      'creatorName': creatorName,
-      'thumbnail': thumbnail,
-      'pexelsUrl': pexelsUrl,
-    };
+  static int _toInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  ReelModel copyWith({
+    String? id,
+    String? userId,
+    String? videoUrl,
+    String? caption,
+    String? songId,
+    List<String>? likes,
+    String? creatorName,
+    String? thumbnail,
+    int? likesCount,
+    int? commentsCount,
+    bool? isLiked,
+  }) {
+    return ReelModel(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      videoUrl: videoUrl ?? this.videoUrl,
+      caption: caption ?? this.caption,
+      songId: songId ?? this.songId,
+      likes: likes ?? this.likes,
+      creatorName: creatorName ?? this.creatorName,
+      thumbnail: thumbnail ?? this.thumbnail,
+      likesCount: likesCount ?? this.likesCount,
+      commentsCount: commentsCount ?? this.commentsCount,
+      isLiked: isLiked ?? this.isLiked,
+    );
   }
 }

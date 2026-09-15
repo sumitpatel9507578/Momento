@@ -1,14 +1,16 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../repositories/user_repository.dart';
 import '../routes/app_routes.dart';
+import '../services/api_service.dart';
 
 class SplashController extends GetxController
     with GetSingleTickerProviderStateMixin {
   late AnimationController animationController;
   late Animation<double> scaleAnimation;
   late Animation<double> fadeAnimation;
+  final UserRepository _userRepository = UserRepository();
 
   @override
   void onInit() {
@@ -35,10 +37,28 @@ class SplashController extends GetxController
   Future<void> _checkAuth() async {
     await Future.delayed(const Duration(seconds: 2));
 
-    final User? user = FirebaseAuth.instance.currentUser;
+    final apiService = Get.find<ApiService>();
+    final token = await apiService.getToken();
 
-    if (user != null) {
-      Get.offAllNamed(AppRoutes.home);
+    if (token != null) {
+      // Verify token with production backend
+      print("Splash: Verifying existing token...");
+      try {
+        final profile = await _userRepository.getMyProfile();
+
+        if (profile != null) {
+          print("Splash: Token valid. User: ${profile.username}");
+          Get.offAllNamed(AppRoutes.home);
+        } else {
+          // If profile is null but no 401 was thrown (rare), just go to login
+          print("Splash: Profile not found. Redirecting to login.");
+          Get.offAllNamed(AppRoutes.login);
+        }
+      } catch (e) {
+        // If ApiService already handled 401, this catch might not even be reached
+        // because of Get.offAllNamed, but it's safe to have.
+        print("Splash: Auth check failed: $e");
+      }
     } else {
       Get.offAllNamed(AppRoutes.login);
     }

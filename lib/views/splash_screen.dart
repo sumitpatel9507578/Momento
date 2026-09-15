@@ -22,14 +22,10 @@ class SplashScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: size.width * 0.24,
-                  height: size.width * 0.24,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: AppColors.primaryGradient,
-                  ),
-                  child: Image.asset('assets/images/momento_bgr.png'),
+                Image.asset(
+                  'assets/images/momento_bgr.png',
+                  height: 100,
+                  width: 100,
                 ),
 
                 SizedBox(height: size.height * 0.025),

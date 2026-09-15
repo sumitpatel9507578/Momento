@@ -1,22 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:momento/controllers/network_controller.dart';
+import 'package:momento/controllers/register_controller.dart';
+import 'package:momento/utils/api_constants.dart';
+import 'package:momento/utils/app_colors.dart';
 
-import '../controllers/network_controller.dart';
-import '../controllers/register_controller.dart';
-import '../utils/app_colors.dart';
-
-class RegisterScreen extends StatefulWidget {
+class RegisterScreen extends GetView<RegisterController> {
   const RegisterScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
-}
-
-class _RegisterScreenState extends State<RegisterScreen> {
-  final NetworkController networkController = Get.find<NetworkController>();
-  @override
   Widget build(BuildContext context) {
-    final controller = Get.find<RegisterController>();
+    final NetworkController networkController = Get.find<NetworkController>();
     final size = MediaQuery.sizeOf(context);
 
     return Scaffold(
@@ -54,7 +49,73 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     color: AppColors.grey,
                   ),
                 ),
-                SizedBox(height: size.height * 0.04),
+                SizedBox(height: size.height * 0.03),
+
+                // Dynamic Profile Image Picker
+                GestureDetector(
+                  onTap: () => _showImagePickerOptions(context),
+                  child: Obx(
+                    () => Stack(
+                      children: [
+                        Container(
+                          width: 100,
+                          height: 100,
+                          padding: const EdgeInsets.all(3),
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: AppColors.primaryGradient,
+                          ),
+                          child: CircleAvatar(
+                            backgroundColor: AppColors.surface,
+                            backgroundImage:
+                                controller.selectedLocalImage.value != null
+                                ? FileImage(
+                                        controller.selectedLocalImage.value!,
+                                      )
+                                      as ImageProvider
+                                : (controller
+                                          .profileImagePreview
+                                          .value
+                                          .isNotEmpty
+                                      ? NetworkImage(
+                                          controller.profileImagePreview.value,
+                                        )
+                                      : null),
+                            child:
+                                controller.selectedLocalImage.value == null &&
+                                    controller.profileImagePreview.value.isEmpty
+                                ? const Icon(
+                                    Icons.person_add_alt_1_outlined,
+                                    color: Colors.white24,
+                                    size: 40,
+                                  )
+                                : null,
+                          ),
+                        ),
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: AppColors.purple,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              controller.selectedLocalImage.value != null
+                                  ? Icons.edit_rounded
+                                  : Icons.add_a_photo_rounded,
+                              size: 18,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                SizedBox(height: size.height * 0.03),
 
                 TextField(
                   controller: controller.nameController,
@@ -136,7 +197,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     width: double.infinity,
                     height: size.height * 0.065,
                     decoration: BoxDecoration(
-                      gradient: networkController.isConnected.value
+                      gradient:
+                          (networkController.isConnected.value ||
+                              ApiConstants.useMockData)
                           ? AppColors.primaryGradient
                           : LinearGradient(
                               colors: [
@@ -150,7 +213,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       borderRadius: BorderRadius.circular(18),
                       onTap: controller.authController.isLoading.value
                           ? null
-                          : !networkController.isConnected.value
+                          : (!networkController.isConnected.value &&
+                                !ApiConstants.useMockData)
                           ? () {
                               Get.snackbar(
                                 'No Internet',
@@ -168,7 +232,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   color: Colors.white,
                                 ),
                               )
-                            : !networkController.isConnected.value
+                            : (!networkController.isConnected.value &&
+                                  !ApiConstants.useMockData)
                             ? const Text(
                                 'No Internet',
                                 style: TextStyle(
@@ -214,6 +279,92 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showImagePickerOptions(BuildContext context) {
+    Get.bottomSheet(
+      Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Profile Photo',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildPickerBtn(
+                  icon: Icons.camera_alt_rounded,
+                  label: 'Camera',
+                  onTap: () {
+                    Get.back();
+                    controller.pickImage(ImageSource.camera);
+                  },
+                ),
+                _buildPickerBtn(
+                  icon: Icons.photo_library_rounded,
+                  label: 'Gallery',
+                  onTap: () {
+                    Get.back();
+                    controller.pickImage(ImageSource.gallery);
+                  },
+                ),
+                if (controller.selectedLocalImage.value != null)
+                  _buildPickerBtn(
+                    icon: Icons.delete_outline_rounded,
+                    label: 'Remove',
+                    color: Colors.redAccent,
+                    onTap: () {
+                      Get.back();
+                      controller.removeSelectedImage();
+                    },
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPickerBtn({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color? color,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: (color ?? AppColors.purple).withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color ?? AppColors.purple, size: 30),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+        ],
       ),
     );
   }

@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class UserModel {
   final String uid;
   final String name;
@@ -10,6 +8,7 @@ class UserModel {
   final int followersCount;
   final int followingCount;
   final int postsCount;
+  final bool isFollowing;
   final DateTime createdAt;
 
   UserModel({
@@ -22,42 +21,35 @@ class UserModel {
     this.followersCount = 0,
     this.followingCount = 0,
     this.postsCount = 0,
+    this.isFollowing = false,
     required this.createdAt,
   });
 
-  factory UserModel.fromRandomUserJson(Map<String, dynamic> json) {
-    final name = json['name'] ?? {};
-    final picture = json['picture'] ?? {};
-
-    return UserModel(
-      uid: json['login']?['uuid'] ?? '',
-      name: '${name['first'] ?? ''} ${name['last'] ?? ''}'.trim(),
-      username: json['login']?['username'] ?? '',
-      email: json['email'] ?? '',
-      profileImage: picture['large'] ?? '',
-      bio: 'Welcome to my Momento profile.',
-      followersCount: 0,
-      followingCount: 0,
-      postsCount: 0,
-      createdAt: DateTime.now(),
-    );
-  }
-
   factory UserModel.fromMap(Map<String, dynamic> map) {
+    print("DEBUG User JSON: $map");
     return UserModel(
-      uid: map['uid'] ?? '',
-      name: map['name'] ?? '',
-      username: map['username'] ?? '',
+      uid: (map['uid'] ?? map['id'] ?? map['userId'] ?? map['user_id'] ?? '')
+          .toString(),
+      name: map['full_name'] ?? map['fullName'] ?? map['name'] ?? '',
+      username: map['username'] ?? map['user_name'] ?? '',
       email: map['email'] ?? '',
-      profileImage: map['profileImage'] ?? '',
+      profileImage:
+          map['profileImage'] ??
+          map['profile_image'] ??
+          map['profileimage'] ??
+          '',
       bio: map['bio'] ?? '',
-      followersCount: map['followersCount'] ?? 0,
-      followingCount: map['followingCount'] ?? 0,
-      postsCount: map['postsCount'] ?? 0,
-      createdAt: map['createdAt'] != null
-          ? (map['createdAt'] is String
-                ? DateTime.parse(map['createdAt'])
-                : (map['createdAt'] as Timestamp).toDate())
+      followersCount: map['followersCount'] ?? map['followers_count'] ?? 0,
+      followingCount: map['followingCount'] ?? map['following_count'] ?? 0,
+      postsCount: map['postsCount'] ?? map['posts_count'] ?? 0,
+      isFollowing:
+          map['isFollowing'] == 1 ||
+          map['isFollowing'] == true ||
+          map['is_following'] == true,
+      createdAt: map['created_at'] != null || map['createdAt'] != null
+          ? (map['created_at'] is String || map['createdAt'] is String
+                ? DateTime.parse(map['created_at'] ?? map['createdAt'])
+                : DateTime.now())
           : DateTime.now(),
     );
   }
@@ -65,7 +57,7 @@ class UserModel {
   Map<String, dynamic> toMap() {
     return {
       'uid': uid,
-      'name': name,
+      'full_name': name,
       'username': username,
       'email': email,
       'profileImage': profileImage,
@@ -73,7 +65,8 @@ class UserModel {
       'followersCount': followersCount,
       'followingCount': followingCount,
       'postsCount': postsCount,
-      'createdAt': createdAt.toIso8601String(),
+      'isFollowing': isFollowing,
+      'created_at': createdAt.toIso8601String(),
     };
   }
 
@@ -87,6 +80,7 @@ class UserModel {
     int? followersCount,
     int? followingCount,
     int? postsCount,
+    bool? isFollowing,
     DateTime? createdAt,
   }) {
     return UserModel(
@@ -99,6 +93,7 @@ class UserModel {
       followersCount: followersCount ?? this.followersCount,
       followingCount: followingCount ?? this.followingCount,
       postsCount: postsCount ?? this.postsCount,
+      isFollowing: isFollowing ?? this.isFollowing,
       createdAt: createdAt ?? this.createdAt,
     );
   }

@@ -1,36 +1,91 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';
+
+import 'package:get/get.dart';
 
 import '../models/user_model.dart';
+import '../services/api_service.dart';
+import '../utils/api_constants.dart';
 
 class UserRepository {
-  final FirebaseFirestore _firestore;
+  final ApiService _apiService = Get.find<ApiService>();
 
-  UserRepository({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
-
-  CollectionReference<Map<String, dynamic>> get _users =>
-      _firestore.collection('users');
-
-  Future<UserModel?> getUserById(String uid) async {
-    final doc = await _users.doc(uid).get();
-
-    if (!doc.exists || doc.data() == null) {
+  Future<UserModel?> getMyProfile() async {
+    try {
+      final response = await _apiService.get(ApiConstants.me);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true && data['data'] != null) {
+          return UserModel.fromMap(data['data']);
+        }
+      }
+      return null;
+    } catch (e) {
+      print("Error fetching my profile: $e");
       return null;
     }
-
-    return UserModel.fromMap(doc.data()!);
   }
 
-  Future<void> updateUser(String uid, Map<String, dynamic> data) async {
-    await _users.doc(uid).update(data);
+  Future<UserModel?> getUserById(String uid) async {
+    try {
+      final response = await _apiService.get("${ApiConstants.users}/$uid");
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true && data['data'] != null) {
+          return UserModel.fromMap(data['data']);
+        }
+      }
+      return null;
+    } catch (e) {
+      print("Error fetching user $uid: $e");
+      return null;
+    }
   }
 
-  Future<void> createUserProfile(UserModel user) async {
-    await _users.doc(user.uid).set(user.toMap(), SetOptions(merge: true));
+  Future<bool?> followUser(String userId) async {
+    try {
+      final response = await _apiService.post(
+        "${ApiConstants.follows}/$userId",
+        {},
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        return data['isFollowing']; // Return the actual toggle status from backend
+      }
+      return null;
+    } catch (e) {
+      print("Error following user: $e");
+      return null;
+    }
   }
 
-  Future<bool> userExists(String uid) async {
-    final doc = await _users.doc(uid).get();
-    return doc.exists;
+  Future<bool> updateProfile(
+    Map<String, String> data,
+    String? imagePath,
+  ) async {
+    try {
+      final userData = await _apiService.getUser();
+      if (userData == null) return false;
+
+      final userId = (userData['id'] ?? userData['uid']).toString();
+
+      final response = await _apiService.putMultipart(
+        "${ApiConstants.users}/$userId",
+        data,
+        imagePath != null ? "profileImage" : null,
+        imagePath,
+      );
+
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+        if (result['success'] == true && result['data'] != null) {
+          await _apiService.saveUser(result['data']);
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      print("Error updating profile: $e");
+      return false;
+    }
   }
 }

@@ -4,7 +4,7 @@ class PostModel {
   final String username;
   final String profileImage;
   final String mediaUrl;
-  final String mediaType; // 'image' or 'video'
+  final String mediaType;
   final String caption;
   final int likesCount;
   final int commentsCount;
@@ -30,6 +30,83 @@ class PostModel {
     required this.timestamp,
     this.location,
   });
+
+  factory PostModel.fromJson(Map<String, dynamic> json) {
+    // CRITICAL DEBUG: Print the JSON to see why images are broken
+    print("DEBUG Post JSON: $json");
+
+    return PostModel(
+      postId:
+          (json['id'] ??
+                  json['postId'] ??
+                  json['post_id'] ??
+                  json['postid'] ??
+                  '')
+              .toString(),
+      userId: (json['userId'] ?? json['user_id'] ?? json['userid'] ?? '')
+          .toString(),
+      username:
+          json['username'] ?? json['user_name'] ?? json['name'] ?? 'Anonymous',
+      profileImage:
+          json['profileImage'] ??
+          json['profile_image'] ??
+          json['profileimage'] ??
+          '',
+      mediaUrl:
+          json['mediaUrl'] ??
+          json['media_url'] ??
+          json['url'] ??
+          json['media'] ??
+          '',
+      mediaType: json['mediaType'] ?? json['media_type'] ?? 'image',
+      caption: json['caption'] ?? '',
+      likesCount: _toInt(
+        json['likesCount'] ?? json['likes_count'] ?? json['likes'],
+      ),
+      commentsCount: _toInt(
+        json['commentsCount'] ?? json['comments_count'] ?? json['comments'],
+      ),
+      isLiked:
+          json['isLiked'] == 1 ||
+          json['isLiked'] == true ||
+          json['is_liked'] == true ||
+          json['liked'] == true,
+      isSaved:
+          json['isSaved'] == 1 ||
+          json['isSaved'] == true ||
+          json['is_saved'] == true ||
+          json['saved'] == true,
+      isFollowing:
+          json['isFollowing'] == 1 ||
+          json['isFollowing'] == true ||
+          json['is_following'] == true ||
+          json['following'] == true,
+      timestamp: _parseDate(
+        json['createdAt'] ??
+            json['created_at'] ??
+            json['timestamp'] ??
+            json['date'],
+      ),
+      location: json['location'],
+    );
+  }
+
+  static int _toInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  static DateTime _parseDate(dynamic date) {
+    if (date == null) return DateTime.now();
+    try {
+      if (date is String) return DateTime.parse(date);
+      return DateTime.now();
+    } catch (_) {
+      return DateTime.now();
+    }
+  }
 
   PostModel copyWith({
     String? postId,

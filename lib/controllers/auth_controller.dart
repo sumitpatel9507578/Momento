@@ -1,36 +1,59 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:get/get.dart';
 
-import '../models/user_model.dart';
-import '../repositories/user_repository.dart';
-import '../services/auth_service.dart';
-import '../services/google_auth_service.dart';
+import '../services/api_service.dart';
+import '../utils/api_constants.dart';
 
 class AuthController extends GetxController {
-  final AuthService _authService;
-  final GoogleAuthService _googleAuthService;
-  final UserRepository _userRepository = UserRepository();
+  final ApiService _apiService;
 
-  AuthController({
-    required this._authService,
-    required this._googleAuthService,
-  });
+  AuthController({required ApiService apiService}) : _apiService = apiService;
 
   final isLoading = false.obs;
 
   Future<bool> login({required String email, required String password}) async {
     try {
       isLoading.value = true;
+      print("[AUTH] Login started for $email");
 
-      await _authService.login(email: email, password: password);
+      final response = await _apiService.post(ApiConstants.login, {
+        'email': email,
+        'password': password,
+      });
 
-      return true;
+      final body = jsonDecode(response.body);
+      print("[AUTH] Login response status: ${response.statusCode}");
+
+      if (body['success'] == true && body['data'] != null) {
+        final token = body['data']['token'];
+        final userData = body['data']['user'];
+
+        if (token != null) {
+          print("[AUTH] Token received, length: ${token.length}");
+          await _apiService.saveToken(token);
+          if (userData != null) {
+            await _apiService.saveUser(userData);
+          }
+          Get.snackbar('Success', 'Welcome back to Momento!');
+          return true;
+        } else {
+          print("[AUTH] Error: Success is true but token is null");
+          Get.snackbar('Error', 'Invalid server response: Missing token');
+          return false;
+        }
+      } else {
+        print("[AUTH] Login failed: ${body['message']}");
+        Get.snackbar('Error', body['message'] ?? 'Invalid credentials');
+        return false;
+      }
     } catch (e) {
+      print("[AUTH] Login exception: $e");
       Get.snackbar(
-        'Login Failed',
-        e.toString().replaceFirst('Exception: ', ''),
+        'Error',
+        'Something went wrong. Please check your connection.',
       );
-
       return false;
     } finally {
       isLoading.value = false;
@@ -42,98 +65,74 @@ class AuthController extends GetxController {
     required String username,
     required String email,
     required String password,
+    String? imagePath,
   }) async {
     try {
       isLoading.value = true;
+      print("[AUTH] Registration started for $email");
 
-      final credential = await _authService.register(
-        email: email,
-        password: password,
-      );
+      final gravatarUrl = getEmailAvatarUrl(email);
 
-      final user = credential.user;
-
-      if (user == null) {
-        throw Exception('User creation failed.');
-      }
-
-      final userModel = UserModel(
-        uid: user.uid,
-        name: name.trim(),
-        username: username.trim().toLowerCase(),
-        email: email.trim(),
-        profileImage: '',
-        bio: 'Every moment has a story ',
-        followersCount: 0,
-        followingCount: 0,
-        postsCount: 0,
-        createdAt: DateTime.now(),
-      );
-
-      await _userRepository.createUserProfile(userModel);
-
-      return true;
-    } catch (e) {
-      Get.snackbar(
-        'Registration Failed',
-        e.toString().replaceFirst('Exception: ', ''),
-      );
-
-      return false;
-    } finally {
-      isLoading.value = false;
-    }
-  }
-
-  Future<bool> googleLogin() async {
-    try {
-      isLoading.value = true;
-
-      final UserCredential credential = await _googleAuthService
-          .signInWithGoogle();
-
-      final User? user = credential.user;
-
-      if (user == null) {
-        throw Exception('Google user information not found.');
-      }
-
-      final existingUser = await _userRepository.getUserById(user.uid);
-
-      if (existingUser == null) {
-        final displayName = user.displayName?.trim() ?? '';
-        final email = user.email?.trim() ?? '';
-        final photoUrl = user.photoURL ?? '';
-
-        final baseUsername = _generateUsername(
-          displayName: displayName,
-          email: email,
-          uid: user.uid,
+      dynamic response;
+      if (imagePath != null) {
+        // Multipart if local file selected
+        response = await _apiService.postMultipart(
+          ApiConstants.register,
+          {
+            'username': username,
+            'email': email,
+            'password': password,
+            'name': name,
+            'full_name': name,
+          },
+          'profileimage',
+          imagePath,
         );
-
-        final userModel = UserModel(
-          uid: user.uid,
-          name: displayName.isEmpty ? 'Momento User' : displayName,
-          username: baseUsername,
-          email: email,
-          profileImage: photoUrl,
-          bio: 'Every moment has a story ✨',
-          followersCount: 0,
-          followingCount: 0,
-          postsCount: 0,
-          createdAt: DateTime.now(),
-        );
-
-        await _userRepository.createUserProfile(userModel);
+      } else {
+        // Regular JSON with Gravatar fallback
+        response = await _apiService.post(ApiConstants.register, {
+          'username': username,
+          'email': email,
+          'password': password,
+          'name': name,
+          'full_name': name,
+          'profileimage': gravatarUrl,
+          'profile_image': gravatarUrl,
+          'profileImage': gravatarUrl,
+        });
       }
 
-      return true;
-    } catch (e) {
-      Get.snackbar(
-        'Google Sign-In Failed',
-        e.toString().replaceFirst('Exception: ', ''),
-      );
+      final body = jsonDecode(response.body);
+      print("[AUTH] Register response status: ${response.statusCode}");
 
+      if (body['success'] == true && body['data'] != null) {
+        final token = body['data']['token'];
+        final userData = body['data']['user'];
+
+        if (token != null) {
+          print("[AUTH] Registration token received, length: ${token.length}");
+          await _apiService.saveToken(token);
+          if (userData != null) {
+            await _apiService.saveUser(userData);
+          }
+          Get.snackbar('Success', 'Registration successful');
+          return true;
+        } else {
+          print("[AUTH] Error: Success is true but token is null");
+          Get.snackbar('Error', 'Registration failed: Missing token');
+          return false;
+        }
+      } else {
+        print("[AUTH] Registration failed: ${body['message']}");
+        Get.snackbar('Error', body['message'] ?? 'Registration failed');
+        return false;
+      }
+    } catch (e) {
+      print("[AUTH] Register exception: $e");
+      Get.snackbar(
+        'Error',
+        'Something went wrong. Please check your connection.',
+      );
       return false;
     } finally {
       isLoading.value = false;
@@ -143,16 +142,13 @@ class AuthController extends GetxController {
   Future<bool> forgotPassword(String email) async {
     try {
       isLoading.value = true;
-
-      await _authService.forgotPassword(email);
-
-      return true;
-    } catch (e) {
-      Get.snackbar(
-        'Password Reset Failed',
-        e.toString().replaceFirst('Exception: ', ''),
+      final response = await _apiService.post(
+        "${ApiConstants.baseUrl}/auth/forgot-password",
+        {'email': email},
       );
-
+      return response.statusCode == 200;
+    } catch (e) {
+      Get.snackbar('Error', 'Failed to send reset email');
       return false;
     } finally {
       isLoading.value = false;
@@ -160,20 +156,14 @@ class AuthController extends GetxController {
   }
 
   Future<void> logout() async {
-    await _googleAuthService.signOut();
+    await _apiService.deleteToken();
+    Get.offAllNamed('/login');
   }
 
-  String _generateUsername({
-    required String displayName,
-    required String email,
-    required String uid,
-  }) {
-    String base = '';
-    if (displayName.isNotEmpty) {
-      base = displayName.toLowerCase().replaceAll(' ', '_');
-    } else {
-      base = email.split('@')[0].toLowerCase();
-    }
-    return '${base}_${uid.substring(0, 5)}';
+  String getEmailAvatarUrl(String email) {
+    final emailHash = md5
+        .convert(utf8.encode(email.trim().toLowerCase()))
+        .toString();
+    return 'https://www.gravatar.com/avatar/$emailHash?d=identicon&s=200';
   }
 }

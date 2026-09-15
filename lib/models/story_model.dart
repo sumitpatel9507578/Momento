@@ -19,6 +19,23 @@ class StoryModel {
     this.viewed = false,
   });
 
+  factory StoryModel.fromJson(Map<String, dynamic> json) {
+    print("DEBUG Story JSON: $json");
+    return StoryModel(
+      storyId: (json['id'] ?? json['storyId'] ?? json['story_id'] ?? '')
+          .toString(),
+      userId: (json['userId'] ?? json['user_id'] ?? '').toString(),
+      username: json['username'] ?? 'Anonymous',
+      profileImage: json['profileImage'] ?? json['profile_image'] ?? '',
+      mediaUrl: json['mediaUrl'] ?? json['media_url'] ?? '',
+      mediaType: json['mediaType'] ?? json['media_type'] ?? 'image',
+      timestamp: json['createdAt'] != null || json['created_at'] != null
+          ? DateTime.parse(json['createdAt'] ?? json['created_at'])
+          : DateTime.now(),
+      viewed: json['viewed'] == 1 || json['viewed'] == true,
+    );
+  }
+
   StoryModel copyWith({
     String? storyId,
     String? userId,

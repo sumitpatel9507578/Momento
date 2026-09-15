@@ -1,200 +1,137 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:momento/widgets/glass_container.dart';
-import 'package:momento/widgets/post_card.dart';
-import 'package:momento/widgets/story_bar.dart';
 
 import '../controllers/home_controller.dart';
-import '../controllers/network_controller.dart';
-import '../routes/app_routes.dart';
 import '../utils/app_colors.dart';
+import '../widgets/post_card.dart';
+import '../widgets/story_bar.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  @override
   Widget build(BuildContext context) {
     final HomeController homeController = Get.find<HomeController>();
-    final size = MediaQuery.sizeOf(context);
-    final width = size.width;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: Stack(
-        children: [
-          // Background Gradient blobs could go here for Liquid Glass effect
-          RefreshIndicator(
-            onRefresh: homeController.refreshPosts,
-            color: AppColors.purple,
-            backgroundColor: AppColors.surface,
-            edgeOffset: size.height * 0.1,
-            child: NotificationListener<ScrollNotification>(
-              onNotification: (ScrollNotification scrollInfo) {
-                if (scrollInfo.metrics.pixels >=
-                    scrollInfo.metrics.maxScrollExtent - 200) {
-                  homeController.loadMorePosts();
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        centerTitle: false,
+        title: const Text(
+          'Momento',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
+            letterSpacing: -1,
+          ),
+        ),
+        actions: [
+          IconButton(
+            onPressed: () => Get.toNamed('/notifications'),
+            icon: const Icon(
+              Icons.favorite_border,
+              color: Colors.white,
+              size: 28,
+            ),
+          ),
+          IconButton(
+            onPressed: () => Get.toNamed('/chat-list'),
+            icon: const Icon(
+              Icons.chat_bubble_outline_rounded,
+              color: Colors.white,
+              size: 26,
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: homeController.refreshPosts,
+        color: AppColors.purple,
+        backgroundColor: AppColors.surface,
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (ScrollNotification scrollInfo) {
+            if (scrollInfo.metrics.pixels >=
+                scrollInfo.metrics.maxScrollExtent - 200) {
+              homeController.loadMorePosts();
+            }
+            return true;
+          },
+          child: CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              const SliverToBoxAdapter(child: StoryBar()),
+              const SliverToBoxAdapter(
+                child: Divider(color: Colors.white10, height: 1),
+              ),
+              Obx(() {
+                if (homeController.isLoading.value &&
+                    homeController.posts.isEmpty) {
+                  return const SliverFillRemaining(
+                    child: Center(
+                      child: CircularProgressIndicator(color: AppColors.purple),
+                    ),
+                  );
                 }
-                return true;
-              },
-              child: CustomScrollView(
-                physics: const BouncingScrollPhysics(),
-                slivers: [
-                  // Top Spacing for Glass App Bar
-                  SliverToBoxAdapter(
-                    child: SizedBox(height: size.height * 0.12),
-                  ),
 
-                  // Stories
-                  const SliverToBoxAdapter(child: StoryBar()),
-
-                  const SliverToBoxAdapter(child: SizedBox(height: 10)),
-
-                  // Feed
-                  Obx(() {
-                    if (homeController.isLoading.value &&
-                        homeController.posts.isEmpty) {
-                      return const SliverFillRemaining(
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.purple,
+                if (homeController.posts.isEmpty) {
+                  return SliverFillRemaining(
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.photo_library_outlined,
+                            color: Colors.white24,
+                            size: 60,
                           ),
-                        ),
-                      );
-                    }
-
-                    if (homeController.errorMessage.isNotEmpty &&
-                        homeController.posts.isEmpty) {
-                      return SliverFillRemaining(
-                        child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.error_outline,
-                                color: Colors.white24,
-                                size: 48,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                homeController.errorMessage.value,
-                                style: const TextStyle(color: Colors.white70),
-                              ),
-                              const SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: homeController.loadPosts,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.purple,
-                                ),
-                                child: const Text('Retry'),
-                              ),
-                            ],
+                          const SizedBox(height: 16),
+                          const Text(
+                            'No posts yet',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 16,
+                            ),
                           ),
-                        ),
-                      );
-                    }
-
-                    if (homeController.posts.isEmpty) {
-                      return const SliverFillRemaining(
-                        child: Center(
-                          child: Text(
-                            'No posts found',
-                            style: TextStyle(color: Colors.white38),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: homeController.loadPosts,
+                            child: const Text(
+                              'Refresh Feed',
+                              style: TextStyle(color: AppColors.purple),
+                            ),
                           ),
-                        ),
-                      );
-                    }
-
-                    return SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: 0),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate((context, index) {
-                          final post = homeController.posts[index];
-                          return PostCard(
-                            post: post,
-                            onLike: () => homeController.toggleLike(index),
-                            onSave: () => homeController.toggleSave(index),
-                            onFollow: () => homeController.toggleFollow(index),
-                            onComment: () {
-                              // Simple comment sheet placeholder
-                              Get.bottomSheet(
-                                GlassContainer(
-                                  height: size.height * 0.5,
-                                  borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(32),
-                                  ),
-                                  child: const Center(
-                                    child: Text(
-                                      'Comments coming soon...',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                            onMore: () {
-                              Get.bottomSheet(
-                                GlassContainer(
-                                  height: size.height * 0.45,
-                                  borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(32),
-                                  ),
-                                  child: SingleChildScrollView(
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const SizedBox(height: 12),
-                                        Container(
-                                          width: 40,
-                                          height: 4,
-                                          decoration: BoxDecoration(
-                                            color: Colors.white24,
-                                            borderRadius: BorderRadius.circular(
-                                              2,
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 24),
-                                        _buildMenuOption(
-                                          Icons.report_gmailerrorred_rounded,
-                                          'Report',
-                                          Colors.redAccent,
-                                        ),
-                                        _buildMenuOption(
-                                          Icons.block_flipped,
-                                          'Block',
-                                          Colors.redAccent,
-                                        ),
-                                        _buildMenuOption(
-                                          Icons.visibility_off_outlined,
-                                          'Not Interested',
-                                          Colors.white,
-                                        ),
-                                        _buildMenuOption(
-                                          Icons.notifications_off_outlined,
-                                          'Mute',
-                                          Colors.white,
-                                        ),
-                                        _buildMenuOption(
-                                          Icons.link_rounded,
-                                          'Copy Link',
-                                          Colors.white,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
-                          );
-                        }, childCount: homeController.posts.length),
+                        ],
                       ),
-                    );
-                  }),
+                    ),
+                  );
+                }
 
-                  // Loading More Indicator
-                  Obx(() {
-                    if (homeController.isLoadingMore.value) {
-                      return const SliverToBoxAdapter(
+                return SliverList(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final post = homeController.posts[index];
+                    return PostCard(
+                      post: post,
+                      onLike: () => homeController.toggleLike(index),
+                      onSave: () => homeController.toggleSave(index),
+                      onFollow: () => homeController.toggleFollow(index),
+                      onComment: () {},
+                      onMore: () {},
+                    );
+                  }, childCount: homeController.posts.length),
+                );
+              }),
+              Obx(
+                () => homeController.isLoadingMore.value
+                    ? const SliverToBoxAdapter(
                         child: Padding(
                           padding: EdgeInsets.symmetric(vertical: 20),
                           child: Center(
@@ -204,14 +141,10 @@ class HomeScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                      );
-                    }
-                    return const SliverToBoxAdapter(
-                      child: SizedBox(height: 100),
-                    );
-                  }),
-                ],
+                      )
+                    : const SliverToBoxAdapter(child: SizedBox(height: 100)),
               ),
+<<<<<<< HEAD
             ),
           ),
 
@@ -399,20 +332,6 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildMenuOption(IconData icon, String title, Color color) {
-    return Material(
-      color: Colors.transparent,
-      child: ListTile(
-        leading: Icon(icon, color: color),
-        title: Text(
-          title,
-          style: TextStyle(color: color, fontWeight: FontWeight.w500),
-        ),
-        onTap: () => Get.back(),
       ),
     );
   }

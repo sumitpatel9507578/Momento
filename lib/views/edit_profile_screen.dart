@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../controllers/edit_profile_controller.dart';
+import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
 import '../widgets/glass_container.dart';
 
@@ -220,11 +221,8 @@ class EditProfileScreen extends StatelessWidget {
     }
 
     final user = controller.profileController.currentUser.value;
-
-    if (user != null &&
-        user.profileImage.isNotEmpty &&
-        !user.profileImage.startsWith('/')) {
-      return NetworkImage(user.profileImage);
+    if (user != null && user.profileImage.isNotEmpty) {
+      return NetworkImage(ApiConstants.getFullUrl(user.profileImage));
     }
 
     return null;

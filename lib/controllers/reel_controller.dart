@@ -2,24 +2,26 @@ import 'package:get/get.dart';
 import 'package:video_player/video_player.dart';
 
 import '../models/reel_model.dart';
-import '../services/pexels_service.dart';
+import '../services/reel_service.dart';
+import '../utils/api_constants.dart';
 
 class ReelController extends GetxController {
-  final PexelsService pexelsService;
-
-  ReelController({required this.pexelsService});
+  final ReelService _service = Get.find<ReelService>();
 
   final reels = <ReelModel>[].obs;
-
   final isLoading = false.obs;
+  final isRefreshing = false.obs;
   final isLoadingMore = false.obs;
   final errorMessage = ''.obs;
 
-  final _videoControllers = RxMap<String, VideoPlayerController>({});
-  Map<String, VideoPlayerController> get videoControllers => _videoControllers;
+  final currentIndex = 0.obs;
+  final videoControllers = <String, VideoPlayerController>{};
+  final failedInitializations = <String>{}.obs;
 
-  int currentPage = 1;
-  bool hasMore = true;
+  final savedReels = <String>{}.obs;
+
+  int _currentPage = 1;
+  bool _hasMore = true;
 
   @override
   void onInit() {
@@ -28,56 +30,72 @@ class ReelController extends GetxController {
   }
 
   Future<void> getReels() async {
-    if (isLoading.value) return;
-
     try {
       isLoading.value = true;
       errorMessage.value = '';
-      currentPage = 1;
-      hasMore = true;
+      _currentPage = 1;
+      _hasMore = true;
 
-      final result = await pexelsService.getPopularReels(
-        page: currentPage,
-        perPage: 10,
-      );
+      await _disposeVideos();
+      final result = await _service.fetchReels(page: _currentPage);
 
       reels.assignAll(result);
-
       if (reels.isNotEmpty) {
         await initializeVideo(0);
-        await playVideo(0);
+        playVideo(0);
       }
 
-      hasMore = result.length == 10;
+      if (result.length < 10) _hasMore = false;
     } catch (e) {
-      errorMessage.value = e.toString();
+      errorMessage.value = 'Failed to load reels. Please try again.';
     } finally {
       isLoading.value = false;
     }
   }
 
+  Future<void> refreshReels() async {
+    try {
+      isRefreshing.value = true;
+      _currentPage = 1;
+      _hasMore = true;
+
+      await _disposeVideos();
+      final result = await _service.fetchReels(page: _currentPage);
+
+      reels.assignAll(result);
+      currentIndex.value = 0;
+      if (reels.isNotEmpty) {
+        await initializeVideo(0);
+        playVideo(0);
+      }
+    } catch (e) {
+      Get.snackbar('Error', 'Unable to refresh reels');
+    } finally {
+      isRefreshing.value = false;
+    }
+  }
+
   Future<void> loadMore() async {
-    if (isLoadingMore.value || !hasMore) return;
+    if (isLoadingMore.value || !_hasMore) return;
 
     try {
       isLoadingMore.value = true;
+      _currentPage++;
 
-      final nextPage = currentPage + 1;
-
-      final result = await pexelsService.getPopularReels(
-        page: nextPage,
-        perPage: 10,
-      );
+      final result = await _service.fetchReels(page: _currentPage);
 
       if (result.isEmpty) {
-        hasMore = false;
-        return;
+        _hasMore = false;
+      } else {
+        final existingIds = reels.map((r) => r.id).toSet();
+        final newReels = result
+            .where((r) => !existingIds.contains(r.id))
+            .toList();
+        reels.addAll(newReels);
+        if (result.length < 10) _hasMore = false;
       }
-
-      currentPage = nextPage;
-      reels.addAll(result);
     } catch (e) {
-      errorMessage.value = e.toString();
+      _currentPage--;
     } finally {
       isLoadingMore.value = false;
     }
@@ -87,101 +105,168 @@ class ReelController extends GetxController {
     if (index < 0 || index >= reels.length) return;
 
     final reel = reels[index];
+    if (videoControllers.containsKey(reel.id)) return;
+    if (failedInitializations.contains(reel.id)) return;
 
-    if (_videoControllers.containsKey(reel.id)) {
-      return;
-    }
-
-    final videoController = VideoPlayerController.networkUrl(
-      Uri.parse(reel.videoUrl),
-    );
-
-    _videoControllers[reel.id] = videoController;
-
+    final videoUrl = ApiConstants.getFullUrl(reel.videoUrl);
+    print("ReelController: Initializing Video -> $videoUrl");
+    final controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
     try {
-      await videoController.initialize();
-      await videoController.setLooping(true);
-      _videoControllers.refresh();
+      await controller.initialize().timeout(const Duration(seconds: 15));
+      await controller.setLooping(true);
+      videoControllers[reel.id] = controller;
+      failedInitializations.remove(reel.id);
+      update(); // Update UI for initialized state
     } catch (e) {
-      _videoControllers.remove(reel.id);
-      await videoController.dispose();
+      print("Video Init Error for ${reel.id} ($videoUrl): $e");
+      failedInitializations.add(reel.id);
+      update();
     }
   }
 
-  Future<void> playVideo(int index) async {
+  Future<void> retryVideo(int index) async {
+    if (index < 0 || index >= reels.length) return;
+    final reel = reels[index];
+    failedInitializations.remove(reel.id);
+    update();
+    await initializeVideo(index);
+    playVideo(index);
+  }
+
+  void playVideo(int index) async {
     if (index < 0 || index >= reels.length) return;
 
-    await initializeVideo(index);
-
+    currentIndex.value = index;
     final currentReel = reels[index];
-    final currentController = _videoControllers[currentReel.id];
 
-    if (currentController == null) return;
+    // Ensure initialized
+    if (!videoControllers.containsKey(currentReel.id)) {
+      await initializeVideo(index);
+    }
 
-    for (final controller in _videoControllers.values) {
-      if (controller != currentController) {
-        await controller.pause();
+    final controller = videoControllers[currentReel.id];
+    if (controller != null) {
+      // Pause others
+      videoControllers.forEach((id, ctrl) {
+        if (id != currentReel.id) ctrl.pause();
+      });
+      controller.play();
+    }
+
+    // Preload next
+    if (index + 1 < reels.length) {
+      initializeVideo(index + 1);
+    }
+
+    // Cleanup old controllers (keep 3 around current)
+    _cleanupOldControllers(index);
+  }
+
+  void _cleanupOldControllers(int currentIndex) {
+    final idsToKeep = <String>{};
+    for (int i = currentIndex - 1; i <= currentIndex + 1; i++) {
+      if (i >= 0 && i < reels.length) {
+        idsToKeep.add(reels[i].id);
       }
     }
 
-    if (currentController.value.isInitialized) {
-      await currentController.play();
-    }
-
-    // Next reel preload
-    final nextIndex = index + 1;
-
-    if (nextIndex < reels.length) {
-      await initializeVideo(nextIndex);
+    final keysToRemove = videoControllers.keys
+        .where((id) => !idsToKeep.contains(id))
+        .toList();
+    for (var key in keysToRemove) {
+      videoControllers[key]?.dispose();
+      videoControllers.remove(key);
     }
   }
 
-  Future<void> pauseVideo(int index) async {
-    if (index < 0 || index >= reels.length) return;
-
+  void togglePlayPause(int index) {
     final reel = reels[index];
-    final controller = _videoControllers[reel.id];
-
-    if (controller != null) {
-      await controller.pause();
-    }
-  }
-
-  Future<void> togglePlayPause(int index) async {
-    if (index < 0 || index >= reels.length) return;
-
-    await initializeVideo(index);
-
-    final reel = reels[index];
-    final controller = _videoControllers[reel.id];
-
+    final controller = videoControllers[reel.id];
     if (controller == null) return;
 
     if (controller.value.isPlaying) {
-      await controller.pause();
+      controller.pause();
     } else {
-      await playVideo(index);
+      controller.play();
     }
+    update();
   }
 
   VideoPlayerController? getVideoController(int index) {
-    if (index < 0 || index >= reels.length) {
-      return null;
+    if (index < 0 || index >= reels.length) return null;
+    return videoControllers[reels[index].id];
+  }
+
+  void pauseAllVideos() {
+    videoControllers.forEach((id, controller) {
+      controller.pause();
+    });
+    update();
+  }
+
+  void resumeCurrentVideo() {
+    if (reels.isEmpty) return;
+    final reelId = reels[currentIndex.value].id;
+    final controller = videoControllers[reelId];
+    if (controller != null && !controller.value.isPlaying) {
+      controller.play();
+      update();
     }
+  }
+
+  Future<void> toggleLike(int index) async {
+    if (index < 0 || index >= reels.length) return;
 
     final reel = reels[index];
+    final originalState = reel.isLiked;
+    final originalLikes = reel.likesCount;
 
-    return _videoControllers[reel.id];
+    // Optimistic UI update
+    reels[index] = reel.copyWith(
+      isLiked: !reel.isLiked,
+      likesCount: reel.isLiked ? reel.likesCount - 1 : reel.likesCount + 1,
+    );
+
+    try {
+      final success = await _service.toggleLike(reel.id);
+      if (!success) throw Exception('Failed to update like');
+    } catch (e) {
+      // Revert on error
+      reels[index] = reel.copyWith(
+        isLiked: originalState,
+        likesCount: originalLikes,
+      );
+      Get.snackbar('Error', 'Could not update like status');
+    }
+  }
+
+  bool isLiked(int index) {
+    if (index < 0 || index >= reels.length) return false;
+    return reels[index].isLiked;
+  }
+
+  void toggleSave(int index) {
+    final reelId = reels[index].id;
+    if (savedReels.contains(reelId)) {
+      savedReels.remove(reelId);
+    } else {
+      savedReels.add(reelId);
+    }
+  }
+
+  bool isSaved(String reelId) => savedReels.contains(reelId);
+
+  Future<void> _disposeVideos() async {
+    for (final controller in videoControllers.values) {
+      await controller.dispose();
+    }
+    videoControllers.clear();
+    failedInitializations.clear();
   }
 
   @override
   void onClose() {
-    for (final controller in _videoControllers.values) {
-      controller.dispose();
-    }
-
-    _videoControllers.clear();
-
+    _disposeVideos();
     super.onClose();
   }
 }

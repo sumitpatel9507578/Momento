@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../controllers/login_controller.dart';
 import '../controllers/network_controller.dart';
 import '../routes/app_routes.dart';
+import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
 import 'register_screen.dart';
 
@@ -94,7 +95,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(18),
                         onTap: controller.authController.isLoading.value
                             ? null
-                            : !networkController.isConnected.value
+                            : (!networkController.isConnected.value &&
+                                  !ApiConstants.useMockData)
                             ? () {
                                 Get.snackbar(
                                   'No Internet',
@@ -112,7 +114,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                     color: Colors.white,
                                   ),
                                 )
-                              : !networkController.isConnected.value
+                              : (!networkController.isConnected.value &&
+                                    !ApiConstants.useMockData)
                               ? const Text(
                                   'No Internet',
                                   style: TextStyle(
@@ -146,57 +149,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     style: TextStyle(color: AppColors.cyan),
                   ),
                 ),
-                const SizedBox(height: 10),
-                Obx(
-                  () => SizedBox(
-                    width: double.infinity,
-                    height: size.height * 0.06,
-                    child: OutlinedButton(
-                      onPressed: controller.authController.isLoading.value
-                          ? null
-                          : () async {
-                              final success = await controller.authController
-                                  .googleLogin();
 
-                              if (success) {
-                                Get.offAllNamed(AppRoutes.home);
-                              }
-                            },
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(
-                          color: Colors.white.withValues(alpha: 0.15),
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                      ),
-                      child: controller.authController.isLoading.value
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Image.asset(
-                                  'assets/images/google.png',
-                                  width: 22,
-                                  height: 22,
-                                ),
-                                const SizedBox(width: 12),
-                                const Text(
-                                  'Continue with Google',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                    ),
-                  ),
-                ),
+                const SizedBox(height: 10),
+
                 TextButton(
                   onPressed: () => Get.to(() => const RegisterScreen()),
                   child: const Text(

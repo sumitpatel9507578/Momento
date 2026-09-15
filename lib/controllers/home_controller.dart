@@ -1,10 +1,13 @@
 import 'package:get/get.dart';
 
+import '../controllers/reel_controller.dart';
 import '../models/post_model.dart';
-import '../services/fake_post_service.dart';
+import '../repositories/user_repository.dart';
+import '../services/post_service.dart';
 
 class HomeController extends GetxController {
-  final FakePostService _postService = FakePostService();
+  final PostService _postService = Get.find<PostService>();
+  final UserRepository _userRepository = UserRepository();
 
   final posts = <PostModel>[].obs;
   final isLoading = false.obs;
@@ -13,19 +16,31 @@ class HomeController extends GetxController {
   final errorMessage = ''.obs;
 
   final currentIndex = 0.obs;
-
-  void changeTab(int index) {
-    currentIndex.value = index;
-  }
-
   int _currentPage = 1;
-  final int _pageSize = 10;
   bool _hasMore = true;
 
   @override
   void onInit() {
     super.onInit();
     loadPosts();
+  }
+
+  void changeTab(int index) {
+    currentIndex.value = index;
+
+    // Handle Reel playback when switching tabs
+    if (Get.isRegistered<ReelController>()) {
+      final reelController = Get.find<ReelController>();
+      if (index == 3) {
+        reelController.resumeCurrentVideo();
+      } else {
+        reelController.pauseAllVideos();
+      }
+    }
+
+    if (index == 0) {
+      // Optionally refresh feed if needed, or just switch
+    }
   }
 
   Future<void> loadPosts() async {
@@ -37,14 +52,19 @@ class HomeController extends GetxController {
       _currentPage = 1;
       _hasMore = true;
 
-      final result = await _postService.fetchPosts(
-        page: _currentPage,
-        limit: _pageSize,
-      );
-
+      final result = await _postService.fetchPosts(page: _currentPage);
       posts.assignAll(result);
+
+      if (result.isEmpty && !isLoading.value) {
+        errorMessage.value = 'Feed is empty. Start following users!';
+      }
+
+      if (result.length < 10) {
+        _hasMore = false;
+      }
     } catch (e) {
-      errorMessage.value = 'Unable to load posts. Please try again.';
+      print("Home Load Error: $e");
+      errorMessage.value = 'Something went wrong. Pull to refresh.';
     } finally {
       isLoading.value = false;
     }
@@ -57,19 +77,18 @@ class HomeController extends GetxController {
       isLoadingMore.value = true;
       _currentPage++;
 
-      final result = await _postService.fetchPosts(
-        page: _currentPage,
-        limit: _pageSize,
-      );
+      final result = await _postService.fetchPosts(page: _currentPage);
 
       if (result.isEmpty) {
         _hasMore = false;
       } else {
         posts.addAll(result);
+        if (result.length < 10) {
+          _hasMore = false;
+        }
       }
     } catch (e) {
       _currentPage--;
-      Get.snackbar('Error', 'Failed to load more posts.');
     } finally {
       isLoadingMore.value = false;
     }
@@ -81,40 +100,70 @@ class HomeController extends GetxController {
       _currentPage = 1;
       _hasMore = true;
 
-      final result = await _postService.fetchPosts(
-        page: _currentPage,
-        limit: _pageSize,
-      );
-
+      final result = await _postService.fetchPosts(page: _currentPage);
       posts.assignAll(result);
+
+      if (result.length < 10) {
+        _hasMore = false;
+      }
     } catch (e) {
-      errorMessage.value = 'Unable to refresh posts.';
+      print("Home Refresh Error: $e");
     } finally {
       isRefreshing.value = false;
     }
   }
 
-  void toggleLike(int index) {
+  Future<void> toggleLike(int index) async {
     if (index < 0 || index >= posts.length) return;
 
     final post = posts[index];
+    final originalState = post.isLiked;
+    final originalLikes = post.likesCount;
+
+    // Optimistic UI update
     posts[index] = post.copyWith(
       isLiked: !post.isLiked,
       likesCount: post.isLiked ? post.likesCount - 1 : post.likesCount + 1,
     );
+
+    try {
+      final success = await _postService.toggleLike(post.postId);
+      if (!success) throw Exception('Failed to update like');
+    } catch (e) {
+      // Revert on error
+      posts[index] = post.copyWith(
+        isLiked: originalState,
+        likesCount: originalLikes,
+      );
+      Get.snackbar('Error', 'Could not update like status');
+    }
   }
 
   void toggleSave(int index) {
     if (index < 0 || index >= posts.length) return;
-
     final post = posts[index];
     posts[index] = post.copyWith(isSaved: !post.isSaved);
+    // TODO: Implement real save API
   }
 
-  void toggleFollow(int index) {
+  Future<void> toggleFollow(int index) async {
     if (index < 0 || index >= posts.length) return;
-
     final post = posts[index];
+    final originalState = post.isFollowing;
+
+    // Optimistic UI update
     posts[index] = post.copyWith(isFollowing: !post.isFollowing);
+
+    try {
+      final isFollowing = await _userRepository.followUser(post.userId);
+      if (isFollowing == null) throw Exception('API failure');
+
+      // Sync UI with actual server state
+      posts[index] = post.copyWith(isFollowing: isFollowing);
+    } catch (e) {
+      // Revert on error
+      posts[index] = post.copyWith(isFollowing: originalState);
+      Get.snackbar('Error', 'Could not update follow status');
+    }
   }
 }

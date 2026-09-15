@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 
 import '../models/story_model.dart';
+import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
 
 class StoryItem extends StatelessWidget {
   final StoryModel? story;
   final bool isCurrentUser;
+  final String? profileImage;
   final VoidCallback onTap;
 
   const StoryItem({
     super.key,
     this.story,
     this.isCurrentUser = false,
+    this.profileImage,
     required this.onTap,
   });
 
@@ -42,10 +45,15 @@ class StoryItem extends StatelessWidget {
                     radius: size.width * 0.08,
                     backgroundColor: AppColors.surface,
                     backgroundImage: isCurrentUser
-                        ? null
-                        : NetworkImage(story!.profileImage),
-                    child: isCurrentUser
-                        ? Icon(Icons.person, color: Colors.white54, size: 30)
+                        ? (profileImage != null && profileImage!.isNotEmpty
+                              ? NetworkImage(ApiConstants.getFullUrl(profileImage!))
+                              : null)
+                        : (story != null && story!.profileImage.isNotEmpty
+                              ? NetworkImage(ApiConstants.getFullUrl(story!.profileImage))
+                              : null),
+                    child: ((isCurrentUser && (profileImage == null || profileImage!.isEmpty)) || 
+                            (!isCurrentUser && (story == null || story!.profileImage.isEmpty)))
+                        ? const Icon(Icons.person, color: Colors.white54, size: 28)
                         : null,
                   ),
                 ),

@@ -3,57 +3,63 @@ import 'package:get/get.dart';
 
 import '../controllers/profile_controller.dart';
 import '../routes/app_routes.dart';
+import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
-import '../widgets/glass_container.dart';
 
 class ProfileScreen extends StatelessWidget {
-  ProfileScreen({super.key});
-
-  final ProfileController controller = Get.find<ProfileController>();
+  final String? tag;
+  const ProfileScreen({super.key, this.tag});
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
+    // If an ID is passed, we use a NEW controller instance for that user,
+    // but GetX by default shares the same instance if we use find.
+    // For now, let's use the arguments to trigger the correct data load.
+    final ProfileController controller =
+        Get.isRegistered<ProfileController>(tag: tag ?? 'me')
+        ? Get.find<ProfileController>(tag: tag ?? 'me')
+        : (Get.isRegistered<ProfileController>()
+              ? Get.find<ProfileController>()
+              : Get.put(ProfileController()));
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Obx(() {
-        if (controller.isLoading.value) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (controller.errorMessage.value.isNotEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  controller.errorMessage.value,
-                  style: const TextStyle(color: Colors.white),
-                ),
-                const SizedBox(height: 12),
-                ElevatedButton(
-                  onPressed: controller.refreshUsers,
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
+        if (controller.isLoading.value &&
+            controller.currentUser.value == null) {
+          return const Center(
+            child: CircularProgressIndicator(color: AppColors.purple),
           );
         }
 
         final user = controller.currentUser.value;
 
         if (user == null) {
-          return const Center(
-            child: Text(
-              'No profile found',
-              style: TextStyle(color: Colors.white),
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  'No profile found',
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () => Get.offAllNamed(AppRoutes.login),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.purple,
+                  ),
+                  child: const Text('Go to Login'),
+                ),
+              ],
             ),
           );
         }
 
+        final isMe = Get.arguments == null;
+
         return RefreshIndicator(
-          onRefresh: controller.refreshUsers,
+          onRefresh: controller.refreshProfile,
           color: AppColors.purple,
           backgroundColor: AppColors.surface,
           child: CustomScrollView(
@@ -64,253 +70,191 @@ class ProfileScreen extends StatelessWidget {
                 floating: false,
                 elevation: 0,
                 backgroundColor: AppColors.background,
-                title: Text(
-                  '@${user.username}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
+                leading: isMe
+                    ? null
+                    : IconButton(
+                        icon: const Icon(
+                          Icons.arrow_back_ios_new,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                        onPressed: () => Get.back(),
+                      ),
+                title: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isMe)
+                      const Icon(
+                        Icons.lock_outline,
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                    if (isMe) const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        user.username,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isMe)
+                      const Icon(
+                        Icons.keyboard_arrow_down,
+                        size: 18,
+                        color: Colors.white,
+                      ),
+                  ],
                 ),
                 actions: [
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(
-                      Icons.more_vert_rounded,
-                      color: Colors.white,
+                  if (isMe)
+                    IconButton(
+                      onPressed: () => Get.toNamed(AppRoutes.create),
+                      icon: const Icon(
+                        Icons.add_box_outlined,
+                        color: Colors.white,
+                      ),
                     ),
+                  IconButton(
+                    onPressed: () => Get.toNamed(AppRoutes.settings),
+                    icon: const Icon(Icons.menu_rounded, color: Colors.white),
                   ),
                 ],
               ),
 
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: size.width * 0.05,
-                    vertical: size.height * 0.015,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
                   ),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(height: size.height * 0.01),
-
-                      Hero(
-                        tag: 'profile_${user.uid}',
-                        child: Container(
-                          width: size.width * 0.28,
-                          height: size.width * 0.28,
-                          padding: const EdgeInsets.all(3),
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: AppColors.primaryGradient,
+                      Row(
+                        children: [
+                          Hero(
+                            tag: 'profile_${user.uid}',
+                            child: Container(
+                              width: 80,
+                              height: 80,
+                              padding: const EdgeInsets.all(2),
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: AppColors.primaryGradient,
+                              ),
+                              child: CircleAvatar(
+                                backgroundColor: AppColors.surface,
+                                backgroundImage: user.profileImage.isNotEmpty
+                                    ? NetworkImage(
+                                        ApiConstants.getFullUrl(
+                                          user.profileImage,
+                                        ),
+                                      )
+                                    : null,
+                                child: user.profileImage.isEmpty
+                                    ? const Icon(
+                                        Icons.person,
+                                        color: Colors.white54,
+                                        size: 36,
+                                      )
+                                    : null,
+                              ),
+                            ),
                           ),
-                          child: CircleAvatar(
-                            backgroundColor: AppColors.surface,
-                            backgroundImage: NetworkImage(user.profileImage),
+                          const SizedBox(width: 20),
+                          Expanded(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                _buildStatItem(user.postsCount, 'Posts'),
+                                _buildStatItem(
+                                  user.followersCount,
+                                  'Followers',
+                                ),
+                                _buildStatItem(
+                                  user.followingCount,
+                                  'Following',
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                        ],
                       ),
 
-                      SizedBox(height: size.height * 0.018),
-
+                      const SizedBox(height: 12),
                       Text(
                         user.name,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.white,
-                          fontSize: size.width * 0.06,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-
-                      SizedBox(height: size.height * 0.005),
-
+                      const SizedBox(height: 2),
                       Text(
-                        '@${user.username}',
-                        style: TextStyle(
-                          color: AppColors.grey,
-                          fontSize: size.width * 0.035,
+                        user.bio.isEmpty
+                            ? 'Every moment has a story ✨'
+                            : user.bio,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
                         ),
                       ),
 
-                      SizedBox(height: size.height * 0.012),
-
-                      Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: size.width * 0.08,
-                        ),
-                        child: Text(
-                          user.bio.isEmpty
-                              ? 'Every moment has a story ✨'
-                              : user.bio,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: size.width * 0.035,
-                            height: 1.4,
-                          ),
-                        ),
-                      ),
-
-                      SizedBox(height: size.height * 0.025),
-
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildStat(
-                            context,
-                            value: user.postsCount,
-                            label: 'Posts',
-                          ),
-                          GestureDetector(
-                            onTap: () {
-                              Get.toNamed(AppRoutes.followers);
-                            },
-                            child: _buildStat(
-                              context,
-                              value: user.followersCount,
-                              label: 'Followers',
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () {
-                              Get.toNamed(AppRoutes.following);
-                            },
-                            child: _buildStat(
-                              context,
-                              value: user.followingCount,
-                              label: 'Following',
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      SizedBox(height: size.height * 0.025),
-
+                      const SizedBox(height: 20),
                       Row(
                         children: [
                           Expanded(
-                            child: GestureDetector(
-                              onTap: () {
-                                // Edit Profile next.
+                            child: _buildProfileButton(
+                              isMe
+                                  ? 'Edit profile'
+                                  : (user.isFollowing ? 'Unfollow' : 'Follow'),
+                              () {
+                                if (isMe) {
+                                  Get.toNamed(AppRoutes.editProfile);
+                                } else {
+                                  controller.toggleFollowUser(user.uid);
+                                }
                               },
-                              child: GlassContainer(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
-                                ),
-                                borderRadius: BorderRadius.circular(16),
-                                child: const Center(
-                                  child: Text(
-                                    'Edit Profile',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ),
+                              isPrimary: !isMe && !user.isFollowing,
                             ),
                           ),
-
-                          SizedBox(width: size.width * 0.025),
-
+                          const SizedBox(width: 8),
                           Expanded(
-                            child: GestureDetector(
-                              onTap: () {},
-                              child: Container(
-                                height: size.height * 0.055,
-                                decoration: BoxDecoration(
-                                  gradient: AppColors.primaryGradient,
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: const Center(
-                                  child: Text(
-                                    'Share Profile',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
+                            child: _buildProfileButton('Share profile', () {}),
                           ),
                         ],
                       ),
 
-                      SizedBox(height: size.height * 0.025),
-
-                      Obx(
-                        () => Row(
-                          children: [
-                            _profileTab(
-                              context,
-                              index: 0,
-                              icon: Icons.grid_on_rounded,
-                            ),
-                            _profileTab(
-                              context,
-                              index: 1,
-                              icon: Icons.video_library_outlined,
-                            ),
-                            _profileTab(
-                              context,
-                              index: 2,
-                              icon: Icons.bookmark_border_rounded,
-                            ),
-                            _profileTab(
-                              context,
-                              index: 3,
-                              icon: Icons.person_pin_outlined,
-                            ),
-                          ],
-                        ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          _buildTabItem(controller, 0, Icons.grid_on_rounded),
+                          _buildTabItem(
+                            controller,
+                            1,
+                            Icons.video_library_outlined,
+                          ),
+                          _buildTabItem(
+                            controller,
+                            2,
+                            Icons.person_pin_outlined,
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
               ),
 
+              // Grid Content
               SliverPadding(
                 padding: const EdgeInsets.all(2),
-                sliver: Obx(() {
-                  final images = controller.currentTabImages;
-
-                  if (images.isEmpty) {
-                    return const SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.all(40),
-                        child: Center(
-                          child: Text(
-                            'No content yet',
-                            style: TextStyle(color: Colors.white70),
-                          ),
-                        ),
-                      ),
-                    );
-                  }
-
-                  return SliverGrid(
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      return Image.network(
-                        images[index],
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) {
-                          return Container(
-                            color: AppColors.surface,
-                            child: const Icon(
-                              Icons.image_not_supported_outlined,
-                              color: Colors.white54,
-                            ),
-                          );
-                        },
-                      );
-                    }, childCount: images.length),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          crossAxisSpacing: 2,
-                          mainAxisSpacing: 2,
-                        ),
-                  );
-                }),
+                sliver: _buildGridContent(controller),
               ),
             ],
           ),
@@ -319,62 +263,125 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStat(
-    BuildContext context, {
-    required int value,
-    required String label,
+  Widget _buildProfileButton(
+    String text,
+    VoidCallback onTap, {
+    bool isPrimary = false,
   }) {
-    final width = MediaQuery.sizeOf(context).width;
-
-    return Column(
-      children: [
-        Text(
-          '$value',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: width * 0.045,
-            fontWeight: FontWeight.w800,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color: isPrimary
+              ? AppColors.purple
+              : Colors.white.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Center(
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
           ),
         ),
-        const SizedBox(height: 4),
+      ),
+    );
+  }
+
+  Widget _buildStatItem(int count, String label) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
         Text(
-          label,
-          style: TextStyle(color: AppColors.grey, fontSize: width * 0.03),
+          '$count',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
         ),
+        Text(label, style: const TextStyle(color: Colors.white, fontSize: 12)),
       ],
     );
   }
 
-  Widget _profileTab(
-    BuildContext context, {
-    required int index,
-    required IconData icon,
-  }) {
-    final size = MediaQuery.sizeOf(context);
-
-    final isSelected = controller.selectedProfileTab.value == index;
-
+  Widget _buildTabItem(ProfileController controller, int index, IconData icon) {
     return Expanded(
       child: GestureDetector(
-        onTap: () {
-          controller.changeProfileTab(index);
-        },
+        onTap: () => controller.changeProfileTab(index),
         child: Container(
-          padding: EdgeInsets.symmetric(vertical: size.height * 0.015),
+          padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                color: isSelected ? AppColors.purple : Colors.transparent,
-                width: 2,
+                color: controller.selectedProfileTab.value == index
+                    ? Colors.white
+                    : Colors.transparent,
+                width: 1,
               ),
             ),
           ),
           child: Icon(
             icon,
-            color: isSelected ? Colors.white : AppColors.grey,
-            size: size.width * 0.06,
+            color: controller.selectedProfileTab.value == index
+                ? Colors.white
+                : Colors.white38,
+            size: 24,
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildGridContent(ProfileController controller) {
+    final images = controller.currentTabImages;
+
+    if (images.isEmpty) {
+      return const SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 100),
+          child: Center(
+            child: Column(
+              children: [
+                Icon(Icons.camera_alt_outlined, color: Colors.white, size: 60),
+                SizedBox(height: 12),
+                Text(
+                  'No posts yet',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SliverGrid(
+      delegate: SliverChildBuilderDelegate((context, index) {
+        return Image.network(
+          ApiConstants.getFullUrl(images[index]),
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => Container(
+            color: AppColors.surface,
+            child: const Icon(
+              Icons.image_not_supported_outlined,
+              color: Colors.white54,
+            ),
+          ),
+        );
+      }, childCount: images.length),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 2,
+        mainAxisSpacing: 2,
       ),
     );
   }

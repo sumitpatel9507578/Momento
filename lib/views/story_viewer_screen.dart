@@ -1,9 +1,10 @@
-import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../controllers/story_controller.dart';
+import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
 
 class StoryViewerScreen extends StatefulWidget {
@@ -15,36 +16,18 @@ class StoryViewerScreen extends StatefulWidget {
 
 class _StoryViewerScreenState extends State<StoryViewerScreen> {
   final StoryController controller = Get.find<StoryController>();
-  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _startTimer();
-
-    // Mark initial story as viewed
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (controller.stories.isNotEmpty) {
-        final currentStory =
-            controller.stories[controller.currentStoryIndex.value];
-        controller.markAsViewed(currentStory.storyId);
-      }
-    });
+    controller.progress.value = 0.0;
+    controller.startTimer();
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    controller.stopTimer();
     super.dispose();
-  }
-
-  void _startTimer() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
-      if (mounted) {
-        controller.updateProgress(controller.progress.value + 0.01);
-      }
-    });
   }
 
   @override
@@ -77,22 +60,35 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
           children: [
             // Media Content
             Obx(() {
+              if (controller.stories.isEmpty) return const SizedBox.shrink();
+
               final story =
                   controller.stories[controller.currentStoryIndex.value];
 
+              final isLocal = story.mediaUrl.startsWith('/');
+
               return Center(
-                child: Image.network(
-                  story.mediaUrl,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return const Center(
-                      child: CircularProgressIndicator(color: AppColors.purple),
-                    );
-                  },
-                ),
+                child: isLocal
+                    ? Image.file(
+                        File(story.mediaUrl),
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                      )
+                    : Image.network(
+                        ApiConstants.getFullUrl(story.mediaUrl),
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return const Center(
+                            child: CircularProgressIndicator(
+                              color: AppColors.purple,
+                            ),
+                          );
+                        },
+                      ),
               );
             }),
 
@@ -141,13 +137,19 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
                       vertical: 8,
                     ),
                     child: Obx(() {
+                      if (controller.stories.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+
                       final story = controller
                           .stories[controller.currentStoryIndex.value];
                       return Row(
                         children: [
                           CircleAvatar(
                             radius: 18,
-                            backgroundImage: NetworkImage(story.profileImage),
+                            backgroundImage: NetworkImage(
+                              ApiConstants.getFullUrl(story.profileImage),
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Text(
@@ -178,8 +180,6 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
                 ],
               ),
             ),
-
-            // Reply Input could go here
           ],
         ),
       ),

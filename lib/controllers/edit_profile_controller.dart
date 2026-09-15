@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../repositories/user_repository.dart';
 import 'profile_controller.dart';
 
 class EditProfileController extends GetxController {
-  final ProfileController profileController = Get.find<ProfileController>();
-
+  // Edit profile is always for the current user ('me')
+  final ProfileController profileController = Get.find<ProfileController>(tag: 'me');
+  final UserRepository _userRepository = UserRepository();
   final ImagePicker _picker = ImagePicker();
 
   late final TextEditingController nameController;
@@ -21,13 +23,9 @@ class EditProfileController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-
     final user = profileController.currentUser.value;
-
     nameController = TextEditingController(text: user?.name ?? '');
-
     usernameController = TextEditingController(text: user?.username ?? '');
-
     bioController = TextEditingController(text: user?.bio ?? '');
   }
 
@@ -35,16 +33,14 @@ class EditProfileController extends GetxController {
     try {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 85,
-        maxWidth: 1200,
-        maxHeight: 1200,
+        imageQuality: 70,
+        maxWidth: 1000,
+        maxHeight: 1000,
       );
 
-      if (image == null) {
-        return;
+      if (image != null) {
+        selectedImage.value = File(image.path);
       }
-
-      selectedImage.value = File(image.path);
     } catch (e) {
       Get.snackbar('Error', 'Unable to select image.');
     }
@@ -56,51 +52,36 @@ class EditProfileController extends GetxController {
 
   Future<void> saveProfile() async {
     final user = profileController.currentUser.value;
-
-    if (user == null) {
-      Get.snackbar('Error', 'Profile not found.');
-      return;
-    }
+    if (user == null) return;
 
     final name = nameController.text.trim();
     final username = usernameController.text.trim().toLowerCase();
     final bio = bioController.text.trim();
 
-    if (name.isEmpty) {
-      Get.snackbar('Required', 'Name cannot be empty.');
-      return;
-    }
-
-    if (username.isEmpty) {
-      Get.snackbar('Required', 'Username cannot be empty.');
+    if (name.isEmpty || username.isEmpty) {
+      Get.snackbar('Required', 'Name and Username are required.');
       return;
     }
 
     try {
       isSaving.value = true;
 
-      String profileImage = user.profileImage;
+      final Map<String, String> updates = {'full_name': name, 'bio': bio};
 
-      // Temporary:
-      // RandomUser API ke saath local image preview use kar rahe hain.
-      if (selectedImage.value != null) {
-        profileImage = selectedImage.value!.path;
-      }
-
-      final updatedUser = user.copyWith(
-        name: name,
-        username: username,
-        bio: bio,
-        profileImage: profileImage,
+      final success = await _userRepository.updateProfile(
+        updates,
+        selectedImage.value?.path,
       );
 
-      profileController.currentUser.value = updatedUser;
-
-      Get.snackbar('Success', 'Profile updated successfully.');
-
-      Get.back();
+      if (success) {
+        await profileController.loadProfile(); // Refresh main profile state
+        Get.back();
+        Get.snackbar('Success', 'Profile updated successfully.');
+      } else {
+        Get.snackbar('Error', 'Failed to update profile on server.');
+      }
     } catch (e) {
-      Get.snackbar('Error', 'Unable to update profile.');
+      Get.snackbar('Error', 'Something went wrong.');
     } finally {
       isSaving.value = false;
     }
@@ -111,7 +92,6 @@ class EditProfileController extends GetxController {
     nameController.dispose();
     usernameController.dispose();
     bioController.dispose();
-
     super.onClose();
   }
 }
