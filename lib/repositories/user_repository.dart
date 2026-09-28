@@ -27,7 +27,12 @@ class UserRepository {
 
   Future<UserModel?> getUserById(String uid) async {
     try {
-      final response = await _apiService.get("${ApiConstants.users}/$uid");
+      var response = await _apiService.get("${ApiConstants.users}/$uid");
+      if (response.statusCode == 404) {
+        // Fallback for API variants that place user ID after different path or in search
+        response = await _apiService.get("${ApiConstants.users}/profile/$uid");
+      }
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['success'] == true && data['data'] != null) {
@@ -49,7 +54,17 @@ class UserRepository {
       );
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        return data['isFollowing']; // Return the actual toggle status from backend
+        print("DEBUG follow response: $data");
+        final dynamic rawStatus =
+            data['isFollowing'] ??
+            data['is_following'] ??
+            data['data']?['isFollowing'] ??
+            data['data']?['is_following'] ??
+            data['following'];
+        if (rawStatus != null) {
+          return rawStatus == true || rawStatus == 1 || rawStatus == 'true';
+        }
+        return true;
       }
       return null;
     } catch (e) {
@@ -68,24 +83,151 @@ class UserRepository {
 
       final userId = (userData['id'] ?? userData['uid']).toString();
 
-      final response = await _apiService.putMultipart(
-        "${ApiConstants.users}/$userId",
-        data,
-        imagePath != null ? "profileImage" : null,
-        imagePath,
-      );
+      if (imagePath == null) {
+        final response = await _apiService.putMultipart(
+          "${ApiConstants.users}/$userId",
+          data,
+          null,
+          null,
+        );
+        if (response.statusCode == 200) {
+          final result = jsonDecode(response.body);
+          if (result['success'] == true && result['data'] != null) {
+            await _apiService.saveUser(result['data']);
+            return true;
+          }
+        }
+        return false;
+      }
 
-      if (response.statusCode == 200) {
-        final result = jsonDecode(response.body);
-        if (result['success'] == true && result['data'] != null) {
-          await _apiService.saveUser(result['data']);
-          return true;
+      final keysToTry = [
+        'profile_image',
+        'profileImage',
+        'profileimage',
+        'image',
+        'file',
+        'media',
+      ];
+
+      for (int i = 0; i < keysToTry.length; i++) {
+        final key = keysToTry[i];
+        final response = await _apiService.putMultipart(
+          "${ApiConstants.users}/$userId",
+          data,
+          key,
+          imagePath,
+        );
+
+        if (response.statusCode == 200) {
+          final result = jsonDecode(response.body);
+          if (result['success'] == true && result['data'] != null) {
+            final updatedUser = result['data'];
+            final newImage =
+                (updatedUser['profileImage'] ??
+                        updatedUser['profile_image'] ??
+                        '')
+                    .toString();
+
+            if (!newImage.contains('gravatar') || i == keysToTry.length - 1) {
+              await _apiService.saveUser(updatedUser);
+              return true;
+            }
+          }
         }
       }
+
       return false;
     } catch (e) {
       print("Error updating profile: $e");
       return false;
+    }
+  }
+
+  Future<List<UserModel>> getFollowers(String userId) async {
+    try {
+      var response = await _apiService.get(
+        "${ApiConstants.users}/$userId/followers",
+      );
+      if (response.statusCode == 404) {
+        response = await _apiService.get(
+          "${ApiConstants.follows}/$userId/followers",
+        );
+      }
+      if (response.statusCode == 404) {
+        response = await _apiService.get(
+          "${ApiConstants.baseUrl}/followers/$userId",
+        );
+      }
+      if (response.statusCode == 404) {
+        response = await _apiService.get(
+          "${ApiConstants.users}/followers/$userId",
+        );
+      }
+      if (response.statusCode == 404) {
+        response = await _apiService.get(
+          "${ApiConstants.baseUrl}/users/followers/$userId",
+        );
+      }
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        List userJson = [];
+        if (decoded is List) {
+          userJson = decoded;
+        } else if (decoded is Map) {
+          userJson =
+              decoded['data'] ?? decoded['followers'] ?? decoded['users'] ?? [];
+        }
+        return userJson.map((json) => UserModel.fromMap(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      print("Error fetching followers: $e");
+      return [];
+    }
+  }
+
+  Future<List<UserModel>> getFollowing(String userId) async {
+    try {
+      var response = await _apiService.get(
+        "${ApiConstants.users}/$userId/following",
+      );
+      if (response.statusCode == 404) {
+        response = await _apiService.get(
+          "${ApiConstants.follows}/$userId/following",
+        );
+      }
+      if (response.statusCode == 404) {
+        response = await _apiService.get(
+          "${ApiConstants.baseUrl}/following/$userId",
+        );
+      }
+      if (response.statusCode == 404) {
+        response = await _apiService.get(
+          "${ApiConstants.users}/following/$userId",
+        );
+      }
+      if (response.statusCode == 404) {
+        response = await _apiService.get(
+          "${ApiConstants.baseUrl}/users/following/$userId",
+        );
+      }
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        List userJson = [];
+        if (decoded is List) {
+          userJson = decoded;
+        } else if (decoded is Map) {
+          userJson =
+              decoded['data'] ?? decoded['following'] ?? decoded['users'] ?? [];
+        }
+        return userJson.map((json) => UserModel.fromMap(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      print("Error fetching following: $e");
+      return [];
     }
   }
 }

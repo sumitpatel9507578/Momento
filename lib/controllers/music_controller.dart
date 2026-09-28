@@ -24,8 +24,15 @@ class MusicController extends GetxController {
     super.onInit();
     loadPopularSongs();
 
+    _audioPlayer.setVolume(1.0);
+
     _audioPlayer.onPlayerStateChanged.listen((state) {
-      if (state == PlayerState.completed) {
+      if (state == PlayerState.playing) {
+        isPlaying.value = true;
+      } else if (state == PlayerState.paused) {
+        isPlaying.value = false;
+      } else if (state == PlayerState.completed ||
+          state == PlayerState.stopped) {
         playingSongId.value = null;
         isPlaying.value = false;
       }
@@ -81,10 +88,19 @@ class MusicController extends GetxController {
 
   void playSong(SongModel song) async {
     try {
+      print(
+        "MusicController: Playing '${song.title}' from URL: '${song.audioUrl}'",
+      );
+      if (song.audioUrl.isEmpty) {
+        Get.snackbar('Error', 'No audio source available for this track');
+        return;
+      }
+
       if (playingSongId.value == song.id) {
         if (isPlaying.value) {
           await pauseSong();
         } else {
+          await _audioPlayer.setVolume(1.0);
           await _audioPlayer.resume();
           isPlaying.value = true;
         }
@@ -95,7 +111,14 @@ class MusicController extends GetxController {
       playingSongId.value = song.id;
       isPlaying.value = true;
 
-      await _audioPlayer.play(UrlSource(song.audioUrl));
+      await _audioPlayer.setVolume(1.0);
+      _audioPlayer.play(UrlSource(song.audioUrl)).catchError((e) {
+        print("Audio Play Async Error: $e");
+        if (playingSongId.value == song.id) {
+          playingSongId.value = null;
+          isPlaying.value = false;
+        }
+      });
     } catch (e) {
       print("Audio Play Error: $e");
       playingSongId.value = null;

@@ -2,20 +2,37 @@ import 'package:get/get.dart';
 
 import '../controllers/edit_profile_controller.dart';
 import '../controllers/profile_controller.dart';
+import '../models/user_model.dart';
 
 class ProfileBinding extends Bindings {
   @override
   void dependencies() {
-    // We use the userId from arguments as a tag to allow multiple
-    // profile controller instances in the navigation stack.
-    // If no argument is provided, it defaults to 'me' which is
-    // registered in HomeBinding.
-    final String? tag = Get.arguments?.toString();
+    String? tag;
+    final args = Get.arguments;
+    if (args is String && args.isNotEmpty) {
+      tag = args;
+    } else if (args is UserModel && args.uid.isNotEmpty) {
+      tag = args.uid;
+    } else if (args is Map) {
+      tag =
+          (args['uid'] ??
+                  args['id'] ??
+                  args['_id'] ??
+                  args['userId'] ??
+                  args['user_id'])
+              ?.toString();
+    }
 
-    if (tag != null) {
+    if (tag != null && tag.isNotEmpty && tag != 'me') {
       Get.lazyPut<ProfileController>(
         () => ProfileController(),
         tag: tag,
+        fenix: true,
+      );
+    } else {
+      Get.lazyPut<ProfileController>(
+        () => ProfileController(),
+        tag: 'me',
         fenix: true,
       );
     }

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../controllers/auth_controller.dart';
+import 'auth_controller.dart';
 import '../routes/app_routes.dart';
 
 class RegisterController extends GetxController {
@@ -20,38 +20,20 @@ class RegisterController extends GetxController {
   final obscureConfirmPassword = true.obs;
 
   // Image handling
-  final profileImagePreview = ''.obs; // Gravatar URL
   final Rx<File?> selectedLocalImage = Rx<File?>(null);
   final ImagePicker _picker = ImagePicker();
-
-  @override
-  void onInit() {
-    super.onInit();
-    // Update Gravatar preview as user types email
-    emailController.addListener(() {
-      if (selectedLocalImage.value == null) {
-        if (emailController.text.isNotEmpty &&
-            emailController.text.contains('@')) {
-          profileImagePreview.value = authController.getEmailAvatarUrl(
-            emailController.text,
-          );
-        } else {
-          profileImagePreview.value = '';
-        }
-      }
-    });
-  }
 
   Future<void> pickImage(ImageSource source) async {
     try {
       final XFile? image = await _picker.pickImage(
         source: source,
-        imageQuality: 70,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 50,
       );
 
       if (image != null) {
         selectedLocalImage.value = File(image.path);
-        profileImagePreview.value = '';
       }
     } catch (e) {
       Get.snackbar('Error', 'Failed to pick image');
@@ -60,11 +42,6 @@ class RegisterController extends GetxController {
 
   void removeSelectedImage() {
     selectedLocalImage.value = null;
-    if (emailController.text.isNotEmpty && emailController.text.contains('@')) {
-      profileImagePreview.value = authController.getEmailAvatarUrl(
-        emailController.text,
-      );
-    }
   }
 
   void togglePasswordVisibility() {
@@ -76,9 +53,11 @@ class RegisterController extends GetxController {
   }
 
   Future<void> register() async {
+    if (authController.isLoading.value) return;
+
     final name = nameController.text.trim();
-    final username = usernameController.text.trim();
-    final email = emailController.text.trim();
+    final username = usernameController.text.trim().toLowerCase();
+    final email = emailController.text.trim().toLowerCase();
     final password = passwordController.text;
     final confirmPassword = confirmPasswordController.text;
 
@@ -88,6 +67,21 @@ class RegisterController extends GetxController {
         password.isEmpty ||
         confirmPassword.isEmpty) {
       Get.snackbar('Required', 'Please fill all fields.');
+      return;
+    }
+
+    if (username.contains(' ')) {
+      Get.snackbar('Invalid Username', 'Username cannot contain spaces.');
+      return;
+    }
+
+    if (!GetUtils.isEmail(email)) {
+      Get.snackbar('Invalid Email', 'Please enter a valid email address.');
+      return;
+    }
+
+    if (password.length < 6) {
+      Get.snackbar('Weak Password', 'Password must be at least 6 characters.');
       return;
     }
 
@@ -104,7 +98,7 @@ class RegisterController extends GetxController {
       imagePath: selectedLocalImage.value?.path,
     );
     if (success) {
-      Get.offAllNamed(AppRoutes.home);
+      Get.offAllNamed(AppRoutes.completeProfile);
     }
   }
 

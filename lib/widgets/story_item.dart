@@ -46,14 +46,26 @@ class StoryItem extends StatelessWidget {
                     backgroundColor: AppColors.surface,
                     backgroundImage: isCurrentUser
                         ? (profileImage != null && profileImage!.isNotEmpty
-                              ? NetworkImage(ApiConstants.getFullUrl(profileImage!))
+                              ? NetworkImage(
+                                  ApiConstants.getFullUrl(profileImage!),
+                                )
                               : null)
                         : (story != null && story!.profileImage.isNotEmpty
-                              ? NetworkImage(ApiConstants.getFullUrl(story!.profileImage))
+                              ? NetworkImage(
+                                  ApiConstants.getFullUrl(story!.profileImage),
+                                )
                               : null),
-                    child: ((isCurrentUser && (profileImage == null || profileImage!.isEmpty)) || 
-                            (!isCurrentUser && (story == null || story!.profileImage.isEmpty)))
-                        ? const Icon(Icons.person, color: Colors.white54, size: 28)
+                    child:
+                        ((isCurrentUser &&
+                                (profileImage == null ||
+                                    profileImage!.isEmpty)) ||
+                            (!isCurrentUser &&
+                                (story == null || story!.profileImage.isEmpty)))
+                        ? const Icon(
+                            Icons.person,
+                            color: Colors.white54,
+                            size: 28,
+                          )
                         : null,
                   ),
                 ),

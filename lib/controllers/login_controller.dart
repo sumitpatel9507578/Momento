@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../controllers/auth_controller.dart';
+import 'auth_controller.dart';
 import '../routes/app_routes.dart';
+import '../services/api_service.dart';
 
 class LoginController extends GetxController {
   final AuthController authController = Get.find<AuthController>();
@@ -25,7 +26,16 @@ class LoginController extends GetxController {
     );
 
     if (success) {
-      Get.offAllNamed(AppRoutes.home);
+      final apiService = Get.find<ApiService>();
+      final user = await apiService.getUser();
+      final bio = user?['bio']?.toString().trim() ?? '';
+
+      // If bio is empty, assume profile is not completed yet
+      if (bio.isEmpty) {
+        Get.offAllNamed(AppRoutes.completeProfile);
+      } else {
+        Get.offAllNamed(AppRoutes.home);
+      }
     }
   }
 

@@ -13,17 +13,44 @@ class ChatListScreen extends GetView<ChatController> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.background,
         elevation: 0,
-        title: const Text(
-          'Messages',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        titleSpacing: 0,
+        centerTitle: false,
+        leadingWidth: 0,
+        leading: const SizedBox.shrink(),
+        title: Row(
+          children: [
+            const SizedBox(width: 4),
+            const Text(
+              'yourusername',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 20,
+              ),
+            ),
+            const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
+          ],
         ),
         actions: [
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.add_comment_outlined),
+            icon: const Icon(
+              Icons.videocam_outlined,
+              color: Colors.white,
+              size: 26,
+            ),
           ),
+          IconButton(
+            onPressed: () {},
+            icon: const Icon(Icons.edit_square, color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 4),
         ],
       ),
       body: Obx(() {
@@ -38,15 +65,32 @@ class ChatListScreen extends GetView<ChatController> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.chat_bubble_outline_rounded,
-                  size: 60,
-                  color: Colors.white12,
+                Container(
+                  width: 90,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white24, width: 1.5),
+                  ),
+                  child: const Icon(
+                    Icons.chat_bubble_outline_rounded,
+                    size: 40,
+                    color: Colors.white38,
+                  ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 const Text(
                   'No messages yet',
-                  style: TextStyle(color: Colors.white38),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Start a conversation with someone.',
+                  style: TextStyle(color: Colors.white38, fontSize: 13),
                 ),
               ],
             ),
@@ -56,43 +100,118 @@ class ChatListScreen extends GetView<ChatController> {
         return RefreshIndicator(
           onRefresh: controller.fetchConversations,
           color: AppColors.purple,
+          backgroundColor: AppColors.surface,
           child: ListView.builder(
+            padding: const EdgeInsets.only(top: 4),
             itemCount: controller.conversations.length,
             itemBuilder: (context, index) {
               final convo = controller.conversations[index];
-              return ListTile(
+              final hasImage =
+                  convo['profile_image'] != null &&
+                  convo['profile_image'].toString().isNotEmpty;
+              final isUnread = convo['unread'] == true || convo['unread'] == 1;
+              final isOnline =
+                  convo['is_online'] == true || convo['is_online'] == 1;
+
+              return InkWell(
                 onTap: () => Get.toNamed('/chat', arguments: convo),
-                leading: CircleAvatar(
-                  radius: 26,
-                  backgroundImage:
-                      convo['profile_image'] != null &&
-                          convo['profile_image'].isNotEmpty
-                      ? NetworkImage(
-                          ApiConstants.getFullUrl(convo['profile_image']),
-                        )
-                      : null,
-                  child:
-                      convo['profile_image'] == null ||
-                          convo['profile_image'].isEmpty
-                      ? const Icon(Icons.person)
-                      : null,
-                ),
-                title: Text(
-                  convo['full_name'] ?? convo['username'] ?? 'User',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
                   ),
-                ),
-                subtitle: Text(
-                  convo['lastMessage'] ?? 'Tap to chat',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white54, fontSize: 13),
-                ),
-                trailing: Text(
-                  _formatTime(convo['lastMessageTime']),
-                  style: const TextStyle(color: Colors.white24, fontSize: 11),
+                  child: Row(
+                    children: [
+                      Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          CircleAvatar(
+                            radius: 29,
+                            backgroundColor: AppColors.darkGrey,
+                            backgroundImage: hasImage
+                                ? NetworkImage(
+                                    ApiConstants.getFullUrl(
+                                      convo['profile_image'],
+                                    ),
+                                  )
+                                : null,
+                            child: !hasImage
+                                ? const Icon(
+                                    Icons.person,
+                                    color: Colors.white38,
+                                  )
+                                : null,
+                          ),
+                          if (isOnline)
+                            Positioned(
+                              bottom: 2,
+                              right: 2,
+                              child: Container(
+                                width: 14,
+                                height: 14,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: const Color(0xFF2ED573),
+                                  border: Border.all(
+                                    color: AppColors.background,
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              convo['full_name'] ?? convo['username'] ?? 'User',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: isUnread
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              _subtitleText(convo),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: isUnread ? Colors.white : Colors.white38,
+                                fontWeight: isUnread
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      if (isUnread)
+                        Container(
+                          width: 8,
+                          height: 8,
+                          margin: const EdgeInsets.only(right: 10),
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.purple,
+                          ),
+                        ),
+                      const Icon(
+                        Icons.camera_alt_outlined,
+                        color: Colors.white54,
+                        size: 22,
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
@@ -100,6 +219,13 @@ class ChatListScreen extends GetView<ChatController> {
         );
       }),
     );
+  }
+
+  String _subtitleText(Map<String, dynamic> convo) {
+    final msg = convo['lastMessage'] ?? 'Tap to chat';
+    final time = _formatTime(convo['lastMessageTime']);
+    if (time.isEmpty) return msg;
+    return '$msg · $time';
   }
 
   String _formatTime(dynamic time) {

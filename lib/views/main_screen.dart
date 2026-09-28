@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 
 import '../controllers/home_controller.dart';
 import '../controllers/network_controller.dart';
+import '../controllers/profile_controller.dart';
+import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
 import 'create_post_screen.dart';
 import 'home_screen.dart';
@@ -72,8 +74,8 @@ class MainScreen extends StatelessWidget {
       bottomNavigationBar: Obx(
         () => Container(
           decoration: const BoxDecoration(
-            color: AppColors.background,
-            border: Border(top: BorderSide(color: Colors.white10, width: 0.5)),
+            color: Colors.black,
+            border: Border(top: BorderSide(color: Colors.white10, width: 0.3)),
           ),
           child: SafeArea(
             child: Padding(
@@ -87,25 +89,20 @@ class MainScreen extends StatelessWidget {
                     Icons.home_outlined,
                     controller,
                   ),
-                  _buildNavItem(1, Icons.search, Icons.search, controller),
-                  _buildNavItem(
-                    2,
-                    Icons.add_box_outlined,
-                    Icons.add_box_outlined,
-                    controller,
-                  ),
                   _buildNavItem(
                     3,
-                    Icons.video_library,
-                    Icons.video_library_outlined,
+                    Icons.play_circle_fill,
+                    Icons.play_circle_outline,
                     controller,
                   ),
                   _buildNavItem(
-                    4,
-                    Icons.person,
-                    Icons.person_outline,
+                    2,
+                    Icons.add_box,
+                    Icons.add_box_outlined,
                     controller,
                   ),
+                  _buildNavItem(1, Icons.search, Icons.search, controller),
+                  _buildProfileNavItem(4, controller),
                 ],
               ),
             ),
@@ -124,10 +121,42 @@ class MainScreen extends StatelessWidget {
     final isSelected = controller.currentIndex.value == index;
     return IconButton(
       onPressed: () => controller.changeTab(index),
+      highlightColor: Colors.transparent,
+      splashColor: Colors.transparent,
       icon: Icon(
         isSelected ? activeIcon : inactiveIcon,
-        size: 30,
+        size: 28,
         color: Colors.white,
+      ),
+    );
+  }
+
+  Widget _buildProfileNavItem(int index, HomeController controller) {
+    final isSelected = controller.currentIndex.value == index;
+    return GestureDetector(
+      onTap: () => controller.changeTab(index),
+      child: Container(
+        padding: const EdgeInsets.all(2),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: isSelected ? Colors.white : Colors.transparent,
+            width: 1,
+          ),
+        ),
+        child: Obx(() {
+          final user = Get.find<ProfileController>(tag: 'me').currentUser.value;
+          return CircleAvatar(
+            radius: 12,
+            backgroundColor: Colors.grey[900],
+            backgroundImage: user != null && user.profileImage.isNotEmpty
+                ? NetworkImage(ApiConstants.getFullUrl(user.profileImage))
+                : null,
+            child: user == null || user.profileImage.isEmpty
+                ? const Icon(Icons.person, size: 18, color: Colors.white)
+                : null,
+          );
+        }),
       ),
     );
   }

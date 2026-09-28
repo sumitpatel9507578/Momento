@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../controllers/auth_controller.dart';
+import 'auth_controller.dart';
 
 class ForgotPasswordController extends GetxController {
   final AuthController authController = Get.find<AuthController>();
@@ -36,7 +36,6 @@ class ForgotPasswordController extends GetxController {
 
       emailController.clear();
     } catch (_) {
-      // AuthController already handles the error message.
     } finally {
       isLoading.value = false;
     }

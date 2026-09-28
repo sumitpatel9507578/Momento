@@ -1,5 +1,7 @@
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
+
 import '../models/song_model.dart';
 
 class JamendoService {
@@ -9,7 +11,7 @@ class JamendoService {
   Future<List<SongModel>> getPopularSongs({int limit = 20}) async {
     try {
       final url = Uri.parse(
-        '$baseUrl?client_id=$clientId&format=json&limit=$limit&order=popularity_total',
+        '$baseUrl?client_id=$clientId&format=json&limit=$limit&order=popularity_total&audioformat=mp32',
       );
       final response = await http.get(url);
 
@@ -28,7 +30,7 @@ class JamendoService {
   Future<List<SongModel>> searchSongs(String query, {int limit = 20}) async {
     try {
       final url = Uri.parse(
-        '$baseUrl?client_id=$clientId&format=json&search=${Uri.encodeComponent(query)}&limit=$limit',
+        '$baseUrl?client_id=$clientId&format=json&search=${Uri.encodeComponent(query)}&limit=$limit&audioformat=mp32',
       );
       final response = await http.get(url);
 

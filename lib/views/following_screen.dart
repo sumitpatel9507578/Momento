@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../controllers/profile_controller.dart';
 import '../repositories/user_repository.dart';
+import '../routes/app_routes.dart';
 import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
 
@@ -14,8 +15,14 @@ class FollowingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String? effectiveTag = Get.arguments?.toString() ?? 'me';
-    final ProfileController controller = Get.find<ProfileController>(tag: effectiveTag);
+    final ProfileController controller = Get.find<ProfileController>(
+      tag: effectiveTag,
+    );
     final size = MediaQuery.sizeOf(context);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.refreshProfile();
+    });
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -28,16 +35,16 @@ class FollowingScreen extends StatelessWidget {
         ),
       ),
       body: Obx(() {
-        if (controller.users.isEmpty) {
+        final following = controller.following;
+
+        if (following.isEmpty) {
           return const Center(
             child: Text(
-              'No following users found',
+              'You are not following anyone yet',
               style: TextStyle(color: Colors.white38),
             ),
           );
         }
-
-        final following = controller.users;
 
         return ListView.separated(
           padding: EdgeInsets.symmetric(
@@ -54,40 +61,48 @@ class FollowingScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: size.width * 0.065,
-                    backgroundImage: user.profileImage.isNotEmpty
-                        ? NetworkImage(
-                            ApiConstants.getFullUrl(user.profileImage),
-                          )
-                        : null,
-                    child: user.profileImage.isEmpty
-                        ? const Icon(Icons.person, color: Colors.white24)
-                        : null,
+                  GestureDetector(
+                    onTap: () =>
+                        Get.toNamed(AppRoutes.profile, arguments: user.uid),
+                    child: CircleAvatar(
+                      radius: size.width * 0.065,
+                      backgroundImage: user.profileImage.isNotEmpty
+                          ? NetworkImage(
+                              ApiConstants.getFullUrl(user.profileImage),
+                            )
+                          : null,
+                      child: user.profileImage.isEmpty
+                          ? const Icon(Icons.person, color: Colors.white24)
+                          : null,
+                    ),
                   ),
 
                   SizedBox(width: size.width * 0.035),
 
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '@${user.username}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
+                    child: GestureDetector(
+                      onTap: () =>
+                          Get.toNamed(AppRoutes.profile, arguments: user.uid),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '@${user.username}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          user.name,
-                          style: const TextStyle(
-                            color: AppColors.grey,
-                            fontSize: 12,
+                          const SizedBox(height: 4),
+                          Text(
+                            user.name,
+                            style: const TextStyle(
+                              color: AppColors.grey,
+                              fontSize: 12,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
 

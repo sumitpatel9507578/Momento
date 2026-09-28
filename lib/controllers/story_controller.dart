@@ -98,7 +98,12 @@ class StoryController extends GetxController {
 
   Future<void> pickStoryImage(ImageSource source) async {
     try {
-      final XFile? image = await _picker.pickImage(source: source);
+      final XFile? image = await _picker.pickImage(
+        source: source,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 50,
+      );
       if (image != null) {
         selectedImage.value = File(image.path);
         selectedSong.value = null;
@@ -123,8 +128,8 @@ class StoryController extends GetxController {
       if (success) {
         selectedImage.value = null;
         selectedSong.value = null;
+        await loadStories();
         Get.offAllNamed('/home');
-        Get.snackbar('Success', 'Story shared!');
       } else {
         Get.snackbar('Error', 'Failed to post story. Try again.');
       }

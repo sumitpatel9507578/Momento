@@ -25,11 +25,38 @@ class UserModel {
     required this.createdAt,
   });
 
+  static int _toInt(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  static DateTime _parseDate(dynamic date) {
+    if (date == null) return DateTime.now();
+    try {
+      if (date is String) return DateTime.tryParse(date) ?? DateTime.now();
+      return DateTime.now();
+    } catch (_) {
+      return DateTime.now();
+    }
+  }
+
   factory UserModel.fromMap(Map<String, dynamic> map) {
     print("DEBUG User JSON: $map");
+    final String extractedUid = (map['uid'] ??
+            map['id'] ??
+            map['_id'] ??
+            map['userId'] ??
+            map['user_id'] ??
+            map['user']?['_id'] ??
+            map['user']?['id'] ??
+            '')
+        .toString();
+
     return UserModel(
-      uid: (map['uid'] ?? map['id'] ?? map['userId'] ?? map['user_id'] ?? '')
-          .toString(),
+      uid: extractedUid,
       name: map['full_name'] ?? map['fullName'] ?? map['name'] ?? '',
       username: map['username'] ?? map['user_name'] ?? '',
       email: map['email'] ?? '',
@@ -37,20 +64,24 @@ class UserModel {
           map['profileImage'] ??
           map['profile_image'] ??
           map['profileimage'] ??
+          map['image'] ??
           '',
       bio: map['bio'] ?? '',
-      followersCount: map['followersCount'] ?? map['followers_count'] ?? 0,
-      followingCount: map['followingCount'] ?? map['following_count'] ?? 0,
-      postsCount: map['postsCount'] ?? map['posts_count'] ?? 0,
+      followersCount: _toInt(
+        map['followersCount'] ?? map['followers_count'] ?? map['followers'],
+      ),
+      followingCount: _toInt(
+        map['followingCount'] ?? map['following_count'] ?? map['following'],
+      ),
+      postsCount: _toInt(
+        map['postsCount'] ?? map['posts_count'] ?? map['posts'],
+      ),
       isFollowing:
           map['isFollowing'] == 1 ||
           map['isFollowing'] == true ||
-          map['is_following'] == true,
-      createdAt: map['created_at'] != null || map['createdAt'] != null
-          ? (map['created_at'] is String || map['createdAt'] is String
-                ? DateTime.parse(map['created_at'] ?? map['createdAt'])
-                : DateTime.now())
-          : DateTime.now(),
+          map['is_following'] == true ||
+          map['following'] == true,
+      createdAt: _parseDate(map['created_at'] ?? map['createdAt']),
     );
   }
 

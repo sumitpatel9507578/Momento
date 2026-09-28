@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:momento/controllers/network_controller.dart';
-import 'package:momento/controllers/register_controller.dart';
-import 'package:momento/utils/api_constants.dart';
-import 'package:momento/utils/app_colors.dart';
+import '../controllers/network_controller.dart';
+import '../controllers/register_controller.dart';
+import '../utils/api_constants.dart';
+import '../utils/app_colors.dart';
 
 class RegisterScreen extends GetView<RegisterController> {
   const RegisterScreen({super.key});
@@ -51,62 +51,57 @@ class RegisterScreen extends GetView<RegisterController> {
                 ),
                 SizedBox(height: size.height * 0.03),
 
-                // Dynamic Profile Image Picker
+                // Profile Image Picker
                 GestureDetector(
                   onTap: () => _showImagePickerOptions(context),
                   child: Obx(
                     () => Stack(
                       children: [
                         Container(
-                          width: 100,
-                          height: 100,
-                          padding: const EdgeInsets.all(3),
-                          decoration: const BoxDecoration(
+                          decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: AppColors.primaryGradient,
+                            border: Border.all(
+                              color: AppColors.cyan.withValues(alpha: 0.6),
+                              width: 2,
+                            ),
                           ),
                           child: CircleAvatar(
+                            radius: 50,
                             backgroundColor: AppColors.surface,
                             backgroundImage:
                                 controller.selectedLocalImage.value != null
                                 ? FileImage(
-                                        controller.selectedLocalImage.value!,
-                                      )
-                                      as ImageProvider
-                                : (controller
-                                          .profileImagePreview
-                                          .value
-                                          .isNotEmpty
-                                      ? NetworkImage(
-                                          controller.profileImagePreview.value,
-                                        )
-                                      : null),
-                            child:
-                                controller.selectedLocalImage.value == null &&
-                                    controller.profileImagePreview.value.isEmpty
+                                    controller.selectedLocalImage.value!,
+                                  )
+                                : null,
+                            child: controller.selectedLocalImage.value == null
                                 ? const Icon(
-                                    Icons.person_add_alt_1_outlined,
-                                    color: Colors.white24,
+                                    Icons.person_add_alt_1,
+                                    color: Colors.white54,
                                     size: 40,
                                   )
                                 : null,
                           ),
                         ),
                         Positioned(
-                          right: 0,
-                          bottom: 0,
+                          bottom: 2,
+                          right: 2,
                           child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(
-                              color: AppColors.purple,
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: AppColors.cyan,
                               shape: BoxShape.circle,
+                              border: Border.all(
+                                color: AppColors.background,
+                                width: 2,
+                              ),
                             ),
                             child: Icon(
                               controller.selectedLocalImage.value != null
-                                  ? Icons.edit_rounded
-                                  : Icons.add_a_photo_rounded,
-                              size: 18,
-                              color: Colors.white,
+                                  ? Icons.edit
+                                  : Icons.camera_alt,
+                              color: Colors.black,
+                              size: 16,
                             ),
                           ),
                         ),
@@ -213,14 +208,6 @@ class RegisterScreen extends GetView<RegisterController> {
                       borderRadius: BorderRadius.circular(18),
                       onTap: controller.authController.isLoading.value
                           ? null
-                          : (!networkController.isConnected.value &&
-                                !ApiConstants.useMockData)
-                          ? () {
-                              Get.snackbar(
-                                'No Internet',
-                                'Please check your internet connection.',
-                              );
-                            }
                           : () => controller.register(),
                       child: Center(
                         child: controller.authController.isLoading.value
@@ -230,16 +217,6 @@ class RegisterScreen extends GetView<RegisterController> {
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
                                   color: Colors.white,
-                                ),
-                              )
-                            : (!networkController.isConnected.value &&
-                                  !ApiConstants.useMockData)
-                            ? const Text(
-                                'No Internet',
-                                style: TextStyle(
-                                  color: Colors.white54,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
                                 ),
                               )
                             : const Text(
@@ -286,85 +263,52 @@ class RegisterScreen extends GetView<RegisterController> {
   void _showImagePickerOptions(BuildContext context) {
     Get.bottomSheet(
       Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: const BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        child: Wrap(
           children: [
-            const Text(
-              'Profile Photo',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: Colors.white),
+              title: const Text(
+                'Take Photo',
+                style: TextStyle(color: Colors.white),
               ),
+              onTap: () {
+                Get.back();
+                controller.pickImage(ImageSource.camera);
+              },
             ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildPickerBtn(
-                  icon: Icons.camera_alt_rounded,
-                  label: 'Camera',
-                  onTap: () {
-                    Get.back();
-                    controller.pickImage(ImageSource.camera);
-                  },
-                ),
-                _buildPickerBtn(
-                  icon: Icons.photo_library_rounded,
-                  label: 'Gallery',
-                  onTap: () {
-                    Get.back();
-                    controller.pickImage(ImageSource.gallery);
-                  },
-                ),
-                if (controller.selectedLocalImage.value != null)
-                  _buildPickerBtn(
-                    icon: Icons.delete_outline_rounded,
-                    label: 'Remove',
-                    color: Colors.redAccent,
-                    onTap: () {
-                      Get.back();
-                      controller.removeSelectedImage();
-                    },
-                  ),
-              ],
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: Colors.white),
+              title: const Text(
+                'Choose from Gallery',
+                style: TextStyle(color: Colors.white),
+              ),
+              onTap: () {
+                Get.back();
+                controller.pickImage(ImageSource.gallery);
+              },
             ),
-            const SizedBox(height: 16),
+            if (controller.selectedLocalImage.value != null)
+              ListTile(
+                leading: const Icon(
+                  Icons.delete_outline,
+                  color: Colors.redAccent,
+                ),
+                title: const Text(
+                  'Remove Photo',
+                  style: TextStyle(color: Colors.redAccent),
+                ),
+                onTap: () {
+                  Get.back();
+                  controller.removeSelectedImage();
+                },
+              ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildPickerBtn({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-    Color? color,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: (color ?? AppColors.purple).withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color ?? AppColors.purple, size: 30),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: const TextStyle(color: Colors.white70, fontSize: 13),
-          ),
-        ],
       ),
     );
   }

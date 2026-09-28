@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../controllers/home_controller.dart';
+import '../controllers/profile_controller.dart';
 import '../models/post_model.dart';
+import '../services/api_service.dart';
 import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
 import 'comment_bottom_sheet.dart';
@@ -13,7 +16,7 @@ class PostCard extends StatelessWidget {
   final VoidCallback onSave;
   final VoidCallback onFollow;
   final VoidCallback onComment;
-  final VoidCallback onMore;
+  final VoidCallback? onMore;
 
   PostCard({
     super.key,
@@ -22,7 +25,7 @@ class PostCard extends StatelessWidget {
     required this.onSave,
     required this.onFollow,
     required this.onComment,
-    required this.onMore,
+    this.onMore,
   });
 
   final _showHeart = false.obs;
@@ -46,17 +49,24 @@ class PostCard extends StatelessWidget {
                     radius: 17,
                     backgroundColor: AppColors.surface,
                     backgroundImage: post.profileImage.isNotEmpty
-                        ? NetworkImage(ApiConstants.getFullUrl(post.profileImage))
+                        ? NetworkImage(
+                            ApiConstants.getFullUrl(post.profileImage),
+                          )
                         : null,
                     child: post.profileImage.isEmpty
-                        ? const Icon(Icons.person, color: Colors.white54, size: 19)
+                        ? const Icon(
+                            Icons.person,
+                            color: Colors.white54,
+                            size: 19,
+                          )
                         : null,
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: GestureDetector(
-                    onTap: () => Get.toNamed('/profile', arguments: post.userId),
+                    onTap: () =>
+                        Get.toNamed('/profile', arguments: post.userId),
                     child: Text(
                       post.username,
                       style: const TextStyle(
@@ -68,8 +78,42 @@ class PostCard extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  onPressed: onMore,
-                  icon: const Icon(Icons.more_horiz, color: Colors.white, size: 22),
+                  onPressed:
+                      onMore ??
+                      () {
+                        PostCard.showPostOptionsBottomSheet(
+                          context,
+                          post,
+                          onDelete: () {
+                            if (Get.isRegistered<HomeController>()) {
+                              Get.find<HomeController>().deletePost(
+                                post.postId,
+                              );
+                            }
+                            if (Get.isRegistered<ProfileController>()) {
+                              dynamic pc = Get.find<ProfileController>();
+                              pc.deletePost(post.postId);
+                            }
+                          },
+                          onUpdateCaption: (newCaption) {
+                            if (Get.isRegistered<HomeController>()) {
+                              Get.find<HomeController>().updatePostCaption(
+                                post.postId,
+                                newCaption,
+                              );
+                            }
+                            if (Get.isRegistered<ProfileController>()) {
+                              dynamic pc = Get.find<ProfileController>();
+                              pc.updatePostCaption(post.postId, newCaption);
+                            }
+                          },
+                        );
+                      },
+                  icon: const Icon(
+                    Icons.more_horiz,
+                    color: Colors.white,
+                    size: 22,
+                  ),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                 ),
@@ -82,12 +126,16 @@ class PostCard extends StatelessWidget {
             onDoubleTap: () {
               if (!post.isLiked) onLike();
               _showHeart.value = true;
-              Future.delayed(const Duration(milliseconds: 700), () => _showHeart.value = false);
+              Future.delayed(
+                const Duration(milliseconds: 700),
+                () => _showHeart.value = false,
+              );
             },
             child: Stack(
               alignment: Alignment.center,
               children: [
-                if (post.mediaUrl.toLowerCase().endsWith('.mp4') || post.mediaType == 'video')
+                if (post.mediaUrl.toLowerCase().endsWith('.mp4') ||
+                    post.mediaType == 'video')
                   Container(
                     height: 350,
                     width: double.infinity,
@@ -97,7 +145,10 @@ class PostCard extends StatelessWidget {
                       children: [
                         Icon(Icons.videocam, color: Colors.white24, size: 50),
                         SizedBox(height: 12),
-                        Text('Video Post', style: TextStyle(color: Colors.white24)),
+                        Text(
+                          'Video Post',
+                          style: TextStyle(color: Colors.white24),
+                        ),
                       ],
                     ),
                   )
@@ -111,20 +162,34 @@ class PostCard extends StatelessWidget {
                       return Container(
                         height: 350,
                         color: AppColors.surface,
-                        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                        child: const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
                       );
                     },
                     errorBuilder: (context, error, stackTrace) => Container(
                       height: 250,
                       color: AppColors.surface,
-                      child: const Center(child: Icon(Icons.image_not_supported_outlined, color: Colors.white24, size: 40)),
+                      child: const Center(
+                        child: Icon(
+                          Icons.image_not_supported_outlined,
+                          color: Colors.white24,
+                          size: 40,
+                        ),
+                      ),
                     ),
                   ),
-                Obx(() => AnimatedScale(
-                  duration: const Duration(milliseconds: 200),
-                  scale: _showHeart.value ? 1.0 : 0.0,
-                  child: const Icon(Icons.favorite, color: Colors.white, size: 110),
-                )),
+                Obx(
+                  () => AnimatedScale(
+                    duration: const Duration(milliseconds: 200),
+                    scale: _showHeart.value ? 1.0 : 0.0,
+                    child: const Icon(
+                      Icons.favorite,
+                      color: Colors.white,
+                      size: 110,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -143,12 +208,25 @@ class PostCard extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  onPressed: () => Get.bottomSheet(CommentBottomSheet(id: post.postId), isScrollControlled: true),
-                  icon: const Icon(Icons.mode_comment_outlined, color: Colors.white, size: 24),
+                  onPressed: () => Get.bottomSheet(
+                    CommentBottomSheet(id: post.postId),
+                    isScrollControlled: true,
+                  ),
+                  icon: const Icon(
+                    Icons.mode_comment_outlined,
+                    color: Colors.white,
+                    size: 24,
+                  ),
                 ),
                 IconButton(
-                  onPressed: () => Get.bottomSheet(const ShareBottomSheet()),
-                  icon: const Icon(Icons.send_outlined, color: Colors.white, size: 24),
+                  onPressed: () => Get.bottomSheet(
+                    ShareBottomSheet(contentUrl: post.mediaUrl),
+                  ),
+                  icon: const Icon(
+                    Icons.send_outlined,
+                    color: Colors.white,
+                    size: 24,
+                  ),
                 ),
                 const Spacer(),
                 IconButton(
@@ -172,7 +250,11 @@ class PostCard extends StatelessWidget {
                 if (post.likesCount > 0)
                   Text(
                     '${post.likesCount} likes',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13.5),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13.5,
+                    ),
                   ),
                 const SizedBox(height: 5),
                 RichText(
@@ -191,10 +273,16 @@ class PostCard extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 5),
                     child: GestureDetector(
-                      onTap: () => Get.bottomSheet(CommentBottomSheet(id: post.postId), isScrollControlled: true),
+                      onTap: () => Get.bottomSheet(
+                        CommentBottomSheet(id: post.postId),
+                        isScrollControlled: true,
+                      ),
                       child: Text(
                         'View all ${post.commentsCount} comments',
-                        style: const TextStyle(color: Colors.white54, fontSize: 13),
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   ),
@@ -218,5 +306,162 @@ class PostCard extends StatelessWidget {
     if (diff.inHours > 0) return '${diff.inHours}h ago';
     if (diff.inMinutes > 0) return '${diff.inMinutes}m ago';
     return 'Just now';
+  }
+
+  static void showPostOptionsBottomSheet(
+    BuildContext context,
+    PostModel post, {
+    VoidCallback? onDelete,
+    Function(String)? onUpdateCaption,
+  }) async {
+    final apiService = Get.find<ApiService>();
+    final currentUserId = await apiService.getUserId();
+    final myProfile = Get.isRegistered<ProfileController>(tag: 'me')
+        ? Get.find<ProfileController>(tag: 'me').currentUser.value
+        : null;
+    final myUid = currentUserId ?? myProfile?.uid ?? '';
+
+    final bool isMyPost = myUid.isNotEmpty && post.userId == myUid;
+
+    Get.bottomSheet(
+      Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        child: Wrap(
+          children: [
+            if (isMyPost) ...[
+              ListTile(
+                leading: const Icon(Icons.edit, color: Colors.white),
+                title: const Text(
+                  'Edit Caption',
+                  style: TextStyle(color: Colors.white),
+                ),
+                onTap: () {
+                  Get.back();
+                  _showEditCaptionDialog(context, post, onUpdateCaption);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: Colors.redAccent),
+                title: const Text(
+                  'Delete Post',
+                  style: TextStyle(color: Colors.redAccent),
+                ),
+                onTap: () {
+                  Get.back();
+                  _showDeleteConfirmationDialog(context, post, onDelete);
+                },
+              ),
+            ],
+            ListTile(
+              leading: const Icon(Icons.share, color: Colors.white),
+              title: const Text(
+                'Share Link',
+                style: TextStyle(color: Colors.white),
+              ),
+              onTap: () {
+                Get.back();
+                Get.snackbar('Share', 'Link copied to clipboard!');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.cancel, color: Colors.white54),
+              title: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.white54),
+              ),
+              onTap: () => Get.back(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static void _showEditCaptionDialog(
+    BuildContext context,
+    PostModel post,
+    Function(String)? onUpdateCaption,
+  ) {
+    final textController = TextEditingController(text: post.caption);
+    Get.dialog(
+      AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text(
+          'Edit Caption',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: TextField(
+          controller: textController,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'Enter new caption...',
+            hintStyle: TextStyle(color: Colors.white38),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: AppColors.purple),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white54),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Get.back();
+              final newCaption = textController.text.trim();
+              if (onUpdateCaption != null) {
+                onUpdateCaption(newCaption);
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.purple),
+            child: const Text('Save', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static void _showDeleteConfirmationDialog(
+    BuildContext context,
+    PostModel post,
+    VoidCallback? onDelete,
+  ) {
+    Get.dialog(
+      AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Delete Post', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Are you sure you want to delete this post? This action cannot be undone.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white54),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Get.back();
+              if (onDelete != null) {
+                onDelete();
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 }

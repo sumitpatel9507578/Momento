@@ -72,12 +72,19 @@ class _StoryEditorScreenState extends State<StoryEditorScreen> {
               if (song == null) return const SizedBox.shrink();
               return Center(
                 child: GlassContainer(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   borderRadius: BorderRadius.circular(20),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.music_note, color: AppColors.cyan, size: 18),
+                      const Icon(
+                        Icons.music_note,
+                        color: AppColors.cyan,
+                        size: 18,
+                      ),
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
@@ -93,7 +100,11 @@ class _StoryEditorScreenState extends State<StoryEditorScreen> {
                       const SizedBox(width: 8),
                       GestureDetector(
                         onTap: () => controller.selectedSong.value = null,
-                        child: const Icon(Icons.close, color: Colors.white54, size: 16),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white54,
+                          size: 16,
+                        ),
                       ),
                     ],
                   ),

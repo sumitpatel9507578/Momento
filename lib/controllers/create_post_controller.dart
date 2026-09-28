@@ -10,6 +10,8 @@ import '../services/reel_service.dart';
 import '../services/story_service.dart';
 import 'home_controller.dart';
 import 'profile_controller.dart';
+import 'reel_controller.dart';
+import 'story_controller.dart';
 
 class CreatePostController extends GetxController {
   final PostService _postService = Get.find<PostService>();
@@ -28,7 +30,9 @@ class CreatePostController extends GetxController {
     try {
       final XFile? image = await _picker.pickImage(
         source: source,
-        imageQuality: 80,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 50,
       );
 
       if (image != null) {
@@ -96,11 +100,17 @@ class CreatePostController extends GetxController {
       }
 
       if (success) {
-        // Refresh Home Feed
+        // Refresh Feed, Stories, or Reels depending on uploaded type
         if (Get.isRegistered<HomeController>()) {
           final homeController = Get.find<HomeController>();
           homeController.changeTab(0);
           homeController.loadPosts();
+        }
+        if (Get.isRegistered<StoryController>()) {
+          Get.find<StoryController>().loadStories();
+        }
+        if (Get.isRegistered<ReelController>()) {
+          Get.find<ReelController>().refreshReels();
         }
         if (Get.isRegistered<ProfileController>(tag: 'me')) {
           Get.find<ProfileController>(
@@ -108,7 +118,10 @@ class CreatePostController extends GetxController {
           ).loadProfile(forceRefresh: true);
         }
 
-        Get.snackbar('Success', 'Your moment has been shared!');
+        final typeName = selectedType.value == 2
+            ? 'Story'
+            : (selectedType.value == 3 ? 'Reel' : 'Post');
+        Get.snackbar('Success', '$typeName shared successfully!');
         removeFile();
         captionController.clear();
       } else {

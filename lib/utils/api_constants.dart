@@ -3,7 +3,7 @@ class ApiConstants {
   static const bool isProduction = true;
 
   // Official Momento Backend (Production)
-  static const String prodServerUrl = "https://momento-api-20.onrender.com";
+  static const String prodServerUrl = "https://momento-api-7-suis.onrender.com";
 
   // Local Machine IP (Development) - Using the IP from your logs
   static const String devServerUrl = "http://192.168.31.240:5000";
@@ -40,11 +40,27 @@ class ApiConstants {
   static String getFullUrl(String? path) {
     if (path == null || path.isEmpty || path == "null") return "";
 
-    // If it's already a full URL (like Gravatar or external links)
-    if (path.startsWith("http")) return path;
+    String normalizedPath = path.replaceAll('\\', '/');
+
+    // Handle legacy or dev local server URLs stored in DB
+    if (normalizedPath.contains("localhost:") ||
+        normalizedPath.contains("192.168.") ||
+        normalizedPath.contains(":5000") ||
+        (normalizedPath.startsWith("http://") &&
+            !normalizedPath.contains("https://"))) {
+      try {
+        final uri = Uri.parse(normalizedPath);
+        normalizedPath = uri.path;
+      } catch (_) {}
+    }
+
+    // If it's already a full URL (like Gravatar or external HTTPS links)
+    if (normalizedPath.startsWith("http")) return normalizedPath;
 
     // Ensure path starts with a single slash
-    String cleanPath = path.startsWith("/") ? path : "/$path";
+    String cleanPath = normalizedPath.startsWith("/")
+        ? normalizedPath
+        : "/$normalizedPath";
 
     // Construct final URL
     final fullUrl = "$serverUrl$cleanPath";

@@ -20,4 +20,6 @@ class AppRoutes {
   static const String chat = '/chat';
   static const String music = '/music';
   static const String musicPicker = '/music-picker';
+  static const String completeProfile = '/complete-profile';
+  static const String findPeople = '/find-people';
 }

@@ -7,177 +7,198 @@ import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
 
 class ProfileScreen extends StatelessWidget {
-  final String? tag;
   const ProfileScreen({super.key, this.tag});
+
+  final String? tag;
 
   @override
   Widget build(BuildContext context) {
-    // If an ID is passed, we use a NEW controller instance for that user,
-    // but GetX by default shares the same instance if we use find.
-    // For now, let's use the arguments to trigger the correct data load.
-    final ProfileController controller =
-        Get.isRegistered<ProfileController>(tag: tag ?? 'me')
-        ? Get.find<ProfileController>(tag: tag ?? 'me')
-        : (Get.isRegistered<ProfileController>()
-              ? Get.find<ProfileController>()
-              : Get.put(ProfileController()));
+    String effectiveTag = 'me';
+    if (tag != null && tag!.isNotEmpty) {
+      effectiveTag = tag!;
+    } else {
+      final extracted = ProfileController.extractUserId(Get.arguments);
+      if (extracted != null && extracted.isNotEmpty) {
+        effectiveTag = extracted;
+      }
+    }
+
+    final controller = Get.isRegistered<ProfileController>(tag: effectiveTag)
+        ? Get.find<ProfileController>(tag: effectiveTag)
+        : Get.put(ProfileController(), tag: effectiveTag);
+
+    if (controller.currentUser.value == null && !controller.isLoading.value) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        controller.loadProfile(userId: effectiveTag);
+      });
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Obx(() {
-        if (controller.isLoading.value &&
-            controller.currentUser.value == null) {
+        final user = controller.currentUser.value;
+
+        // Loading state
+        if (controller.isLoading.value && user == null) {
           return const Center(
             child: CircularProgressIndicator(color: AppColors.purple),
           );
         }
 
-        final user = controller.currentUser.value;
-
+        // Error / Null state
         if (user == null) {
           return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text(
-                  'No profile found',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () => Get.offAllNamed(AppRoutes.login),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.purple,
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.account_circle_outlined,
+                    size: 72,
+                    color: Colors.white38,
                   ),
-                  child: const Text('Go to Login'),
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  Text(
+                    controller.errorMessage.value.isNotEmpty
+                        ? controller.errorMessage.value
+                        : 'Profile not found',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton.icon(
+                    onPressed: () => controller.loadProfile(forceRefresh: true),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.purple,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         }
 
-        final isMe = Get.arguments == null;
+        // Check if viewing own profile
+        final myProfileController =
+            Get.isRegistered<ProfileController>(tag: 'me')
+            ? Get.find<ProfileController>(tag: 'me')
+            : null;
+        final myUid = myProfileController?.currentUser.value?.uid;
+
+        final isMe =
+            effectiveTag == 'me' ||
+            (myUid != null &&
+                myUid.isNotEmpty &&
+                user.uid.isNotEmpty &&
+                user.uid == myUid);
 
         return RefreshIndicator(
-          onRefresh: controller.refreshProfile,
           color: AppColors.purple,
           backgroundColor: AppColors.surface,
+          onRefresh: controller.refreshProfile,
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               SliverAppBar(
                 pinned: true,
-                floating: false,
-                elevation: 0,
                 backgroundColor: AppColors.background,
-                leading: isMe
-                    ? null
-                    : IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back_ios_new,
-                          color: Colors.white,
-                          size: 20,
-                        ),
-                        onPressed: () => Get.back(),
-                      ),
-                title: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (isMe)
-                      const Icon(
-                        Icons.lock_outline,
-                        size: 14,
-                        color: Colors.white,
-                      ),
-                    if (isMe) const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        user.username,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (isMe)
-                      const Icon(
-                        Icons.keyboard_arrow_down,
-                        size: 18,
-                        color: Colors.white,
-                      ),
-                  ],
+                elevation: 0,
+                title: Text(
+                  user.username.isNotEmpty ? '@${user.username}' : 'Profile',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
                 actions: [
-                  if (isMe)
-                    IconButton(
-                      onPressed: () => Get.toNamed(AppRoutes.create),
-                      icon: const Icon(
-                        Icons.add_box_outlined,
-                        color: Colors.white,
-                      ),
-                    ),
                   IconButton(
                     onPressed: () => Get.toNamed(AppRoutes.settings),
-                    icon: const Icon(Icons.menu_rounded, color: Colors.white),
+                    icon: const Icon(Icons.menu, color: Colors.white),
                   ),
                 ],
               ),
-
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
-                    vertical: 10,
+                    vertical: 8,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Avatar and Stats Row
                       Row(
                         children: [
-                          Hero(
-                            tag: 'profile_${user.uid}',
-                            child: Container(
-                              width: 80,
-                              height: 80,
-                              padding: const EdgeInsets.all(2),
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: AppColors.primaryGradient,
-                              ),
-                              child: CircleAvatar(
-                                backgroundColor: AppColors.surface,
-                                backgroundImage: user.profileImage.isNotEmpty
-                                    ? NetworkImage(
-                                        ApiConstants.getFullUrl(
-                                          user.profileImage,
-                                        ),
-                                      )
-                                    : null,
-                                child: user.profileImage.isEmpty
-                                    ? const Icon(
-                                        Icons.person,
-                                        color: Colors.white54,
-                                        size: 36,
-                                      )
-                                    : null,
-                              ),
+                          Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: AppColors.primaryGradient,
+                            ),
+                            child: CircleAvatar(
+                              radius: 38,
+                              backgroundColor: AppColors.surface,
+                              backgroundImage: user.profileImage.isNotEmpty
+                                  ? NetworkImage(
+                                      ApiConstants.getFullUrl(
+                                        user.profileImage,
+                                      ),
+                                    )
+                                  : null,
+                              child: user.profileImage.isEmpty
+                                  ? const Icon(
+                                      Icons.person,
+                                      size: 40,
+                                      color: Colors.white54,
+                                    )
+                                  : null,
                             ),
                           ),
-                          const SizedBox(width: 20),
                           Expanded(
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
-                                _buildStatItem(user.postsCount, 'Posts'),
-                                _buildStatItem(
-                                  user.followersCount,
-                                  'Followers',
+                                _buildStat(
+                                  'Posts',
+                                  user.postsCount,
+                                  onTap: () => controller.changeProfileTab(0),
                                 ),
-                                _buildStatItem(
-                                  user.followingCount,
+                                _buildStat(
+                                  'Followers',
+                                  controller.followers.length >
+                                          user.followersCount
+                                      ? controller.followers.length
+                                      : user.followersCount,
+                                  onTap: () => Get.toNamed(
+                                    AppRoutes.followers,
+                                    arguments: effectiveTag,
+                                  ),
+                                ),
+                                _buildStat(
                                   'Following',
+                                  controller.following.length >
+                                          user.followingCount
+                                      ? controller.following.length
+                                      : user.followingCount,
+                                  onTap: () => Get.toNamed(
+                                    AppRoutes.following,
+                                    arguments: effectiveTag,
+                                  ),
                                 ),
                               ],
                             ),
@@ -186,63 +207,194 @@ class ProfileScreen extends StatelessWidget {
                       ),
 
                       const SizedBox(height: 12),
-                      Text(
-                        user.name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        user.bio.isEmpty
-                            ? 'Every moment has a story ✨'
-                            : user.bio,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                        ),
-                      ),
 
-                      const SizedBox(height: 20),
+                      // Full Name
+                      if (user.name.isNotEmpty)
+                        Text(
+                          user.name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+
+                      // Bio
+                      if (user.bio.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          user.bio,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 16),
+
+                      // Action Buttons
                       Row(
                         children: [
                           Expanded(
-                            child: _buildProfileButton(
-                              isMe
-                                  ? 'Edit profile'
-                                  : (user.isFollowing ? 'Unfollow' : 'Follow'),
-                              () {
-                                if (isMe) {
-                                  Get.toNamed(AppRoutes.editProfile);
-                                } else {
-                                  controller.toggleFollowUser(user.uid);
-                                }
-                              },
-                              isPrimary: !isMe && !user.isFollowing,
-                            ),
+                            child: isMe
+                                ? OutlinedButton(
+                                    onPressed: () =>
+                                        Get.toNamed(AppRoutes.editProfile),
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(
+                                        color: Colors.white24,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Edit Profile',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  )
+                                : ElevatedButton(
+                                    onPressed: () =>
+                                        controller.toggleFollowUser(user.uid),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: user.isFollowing
+                                          ? Colors.white12
+                                          : AppColors.purple,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      user.isFollowing ? 'Unfollow' : 'Follow',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: _buildProfileButton('Share profile', () {}),
+                            child: isMe
+                                ? OutlinedButton(
+                                    onPressed: () {
+                                      Get.snackbar(
+                                        'Profile',
+                                        'Profile link copied to clipboard!',
+                                        snackPosition: SnackPosition.BOTTOM,
+                                        backgroundColor: AppColors.surface,
+                                        colorText: Colors.white,
+                                      );
+                                    },
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(
+                                        color: Colors.white24,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Share Profile',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  )
+                                : OutlinedButton(
+                                    onPressed: () {
+                                      Get.toNamed(
+                                        AppRoutes.chat,
+                                        arguments: user,
+                                      );
+                                    },
+                                    style: OutlinedButton.styleFrom(
+                                      side: const BorderSide(
+                                        color: Colors.white24,
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Message',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
                           ),
                         ],
                       ),
 
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 16),
+
+                      // Tab Selector Bar (Posts / Reels)
                       Row(
                         children: [
-                          _buildTabItem(controller, 0, Icons.grid_on_rounded),
-                          _buildTabItem(
-                            controller,
-                            1,
-                            Icons.video_library_outlined,
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => controller.changeProfileTab(0),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color:
+                                          controller.selectedProfileTab.value ==
+                                              0
+                                          ? AppColors.purple
+                                          : Colors.transparent,
+                                      width: 2,
+                                    ),
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.grid_on_rounded,
+                                  color:
+                                      controller.selectedProfileTab.value == 0
+                                      ? Colors.white
+                                      : Colors.white38,
+                                ),
+                              ),
+                            ),
                           ),
-                          _buildTabItem(
-                            controller,
-                            2,
-                            Icons.person_pin_outlined,
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => controller.changeProfileTab(1),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color:
+                                          controller.selectedProfileTab.value ==
+                                              1
+                                          ? AppColors.purple
+                                          : Colors.transparent,
+                                      width: 2,
+                                    ),
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.movie_outlined,
+                                  color:
+                                      controller.selectedProfileTab.value == 1
+                                      ? Colors.white
+                                      : Colors.white38,
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -251,11 +403,11 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
 
-              // Grid Content
-              SliverPadding(
-                padding: const EdgeInsets.all(2),
-                sliver: _buildGridContent(controller),
-              ),
+              // Posts or Reels Grid View
+              if (controller.selectedProfileTab.value == 0)
+                _buildPostsGrid(controller)
+              else
+                _buildReelsGrid(controller),
             ],
           ),
         );
@@ -263,126 +415,162 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileButton(
-    String text,
-    VoidCallback onTap, {
-    bool isPrimary = false,
-  }) {
+  Widget _buildStat(String label, int count, {VoidCallback? onTap}) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          color: isPrimary
-              ? AppColors.purple
-              : Colors.white.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Center(
-          child: Text(
-            text,
+      child: Column(
+        children: [
+          Text(
+            '$count',
             style: const TextStyle(
               color: Colors.white,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
             ),
           ),
-        ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildStatItem(int count, String label) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          '$count',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Text(label, style: const TextStyle(color: Colors.white, fontSize: 12)),
-      ],
-    );
-  }
+  Widget _buildPostsGrid(ProfileController controller) {
+    final posts = controller.userPosts;
 
-  Widget _buildTabItem(ProfileController controller, int index, IconData icon) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => controller.changeProfileTab(index),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(
-                color: controller.selectedProfileTab.value == index
-                    ? Colors.white
-                    : Colors.transparent,
-                width: 1,
-              ),
-            ),
-          ),
-          child: Icon(
-            icon,
-            color: controller.selectedProfileTab.value == index
-                ? Colors.white
-                : Colors.white38,
-            size: 24,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGridContent(ProfileController controller) {
-    final images = controller.currentTabImages;
-
-    if (images.isEmpty) {
+    if (posts.isEmpty) {
       return const SliverToBoxAdapter(
         child: Padding(
-          padding: EdgeInsets.symmetric(vertical: 100),
-          child: Center(
-            child: Column(
-              children: [
-                Icon(Icons.camera_alt_outlined, color: Colors.white, size: 60),
-                SizedBox(height: 12),
-                Text(
-                  'No posts yet',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
+          padding: EdgeInsets.symmetric(vertical: 48),
+          child: Column(
+            children: [
+              Icon(
+                Icons.photo_library_outlined,
+                size: 48,
+                color: Colors.white24,
+              ),
+              SizedBox(height: 8),
+              Text(
+                'No posts yet',
+                style: TextStyle(color: Colors.white38, fontSize: 14),
+              ),
+            ],
           ),
         ),
       );
     }
 
     return SliverGrid(
-      delegate: SliverChildBuilderDelegate((context, index) {
-        return Image.network(
-          ApiConstants.getFullUrl(images[index]),
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => Container(
-            color: AppColors.surface,
-            child: const Icon(
-              Icons.image_not_supported_outlined,
-              color: Colors.white54,
-            ),
-          ),
-        );
-      }, childCount: images.length),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
         crossAxisSpacing: 2,
         mainAxisSpacing: 2,
       ),
+      delegate: SliverChildBuilderDelegate((context, index) {
+        final post = posts[index];
+        final fullUrl = ApiConstants.getFullUrl(post.mediaUrl);
+
+        return GestureDetector(
+          onTap: () => Get.toNamed('/post-details', arguments: post),
+          child: Image.network(
+            fullUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                color: AppColors.surface,
+                child: const Icon(
+                  Icons.broken_image_outlined,
+                  color: Colors.white24,
+                ),
+              );
+            },
+          ),
+        );
+      }, childCount: posts.length),
+    );
+  }
+
+  Widget _buildReelsGrid(ProfileController controller) {
+    final reels = controller.userReels;
+
+    if (reels.isEmpty) {
+      return const SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 48),
+          child: Column(
+            children: [
+              Icon(
+                Icons.video_collection_outlined,
+                size: 48,
+                color: Colors.white24,
+              ),
+              SizedBox(height: 8),
+              Text(
+                'No reels yet',
+                style: TextStyle(color: Colors.white38, fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return SliverGrid(
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 2,
+        mainAxisSpacing: 2,
+        childAspectRatio: 0.75,
+      ),
+      delegate: SliverChildBuilderDelegate((context, index) {
+        final reel = reels[index];
+        final imageUrl = ApiConstants.getFullUrl(
+          reel.thumbnail.isNotEmpty ? reel.thumbnail : reel.videoUrl,
+        );
+
+        return GestureDetector(
+          onTap: () => Get.toNamed(AppRoutes.reels, arguments: reel),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: AppColors.surface,
+                    child: const Icon(
+                      Icons.videocam_outlined,
+                      color: Colors.white24,
+                    ),
+                  );
+                },
+              ),
+              Positioned(
+                bottom: 6,
+                left: 6,
+                child: Row(
+                  children: [
+                    const Icon(Icons.play_arrow, color: Colors.white, size: 16),
+                    const SizedBox(width: 2),
+                    Text(
+                      '${reel.likesCount}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      }, childCount: reels.length),
     );
   }
 }

@@ -9,7 +9,9 @@ import 'profile_controller.dart';
 
 class EditProfileController extends GetxController {
   // Edit profile is always for the current user ('me')
-  final ProfileController profileController = Get.find<ProfileController>(tag: 'me');
+  final ProfileController profileController = Get.find<ProfileController>(
+    tag: 'me',
+  );
   final UserRepository _userRepository = UserRepository();
   final ImagePicker _picker = ImagePicker();
 
@@ -27,6 +29,14 @@ class EditProfileController extends GetxController {
     nameController = TextEditingController(text: user?.name ?? '');
     usernameController = TextEditingController(text: user?.username ?? '');
     bioController = TextEditingController(text: user?.bio ?? '');
+
+    ever(profileController.currentUser, (newUser) {
+      if (newUser != null) {
+        if (nameController.text.isEmpty) nameController.text = newUser.name;
+        if (usernameController.text.isEmpty) usernameController.text = newUser.username;
+        if (bioController.text.isEmpty) bioController.text = newUser.bio;
+      }
+    });
   }
 
   Future<void> pickProfileImage() async {
@@ -74,7 +84,7 @@ class EditProfileController extends GetxController {
       );
 
       if (success) {
-        await profileController.loadProfile(); // Refresh main profile state
+        await profileController.loadProfile(forceRefresh: true); // Refresh main profile state
         Get.back();
         Get.snackbar('Success', 'Profile updated successfully.');
       } else {

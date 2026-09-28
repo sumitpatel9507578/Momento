@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../utils/app_colors.dart';
-import '../widgets/glass_container.dart';
 
 import '../controllers/auth_controller.dart';
-import '../routes/app_routes.dart';
+import '../utils/app_colors.dart';
+import '../widgets/glass_container.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -100,8 +99,8 @@ class SettingsScreen extends StatelessWidget {
                       ),
                       TextButton(
                         onPressed: () async {
+                          Get.back();
                           await authController.logout();
-                          Get.offAllNamed(AppRoutes.login);
                         },
                         child: const Text(
                           'Logout',

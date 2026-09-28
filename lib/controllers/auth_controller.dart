@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:get/get.dart';
 
+import '../repositories/user_repository.dart';
 import '../services/api_service.dart';
 import '../utils/api_constants.dart';
 
@@ -32,10 +33,11 @@ class AuthController extends GetxController {
 
         if (token != null) {
           print("[AUTH] Token received, length: ${token.length}");
-          await _apiService.saveToken(token);
+          await _apiService.saveToken(token.toString());
           if (userData != null) {
             await _apiService.saveUser(userData);
           }
+          print("[AUTH] Token saved successfully in FlutterSecureStorage");
           Get.snackbar('Success', 'Welcome back to Momento!');
           return true;
         } else {
@@ -45,7 +47,12 @@ class AuthController extends GetxController {
         }
       } else {
         print("[AUTH] Login failed: ${body['message']}");
-        Get.snackbar('Error', body['message'] ?? 'Invalid credentials');
+        final msg =
+            (body['error_detail'] == 'ETIMEDOUT' ||
+                body['message'] == 'Server Error: ')
+            ? 'Server is starting up. Please try again in a few seconds.'
+            : (body['message'] ?? 'Invalid credentials');
+        Get.snackbar('Error', msg);
         return false;
       }
     } catch (e) {
@@ -73,36 +80,27 @@ class AuthController extends GetxController {
 
       final gravatarUrl = getEmailAvatarUrl(email);
 
-      dynamic response;
-      if (imagePath != null) {
-        // Multipart if local file selected
-        response = await _apiService.postMultipart(
-          ApiConstants.register,
-          {
-            'username': username,
-            'email': email,
-            'password': password,
-            'name': name,
-            'full_name': name,
-          },
-          'profileimage',
-          imagePath,
-        );
-      } else {
-        // Regular JSON with Gravatar fallback
-        response = await _apiService.post(ApiConstants.register, {
-          'username': username,
-          'email': email,
-          'password': password,
-          'name': name,
-          'full_name': name,
-          'profileimage': gravatarUrl,
-          'profile_image': gravatarUrl,
-          'profileImage': gravatarUrl,
-        });
-      }
+      // Backend /auth/register is a JSON endpoint expecting application/json
+      final response = await _apiService.post(ApiConstants.register, {
+        'username': username,
+        'email': email,
+        'password': password,
+        'name': name,
+        'full_name': name,
+        'profileimage': gravatarUrl,
+        'profile_image': gravatarUrl,
+        'profileImage': gravatarUrl,
+      });
 
-      final body = jsonDecode(response.body);
+      Map<String, dynamic> body;
+      try {
+        body = jsonDecode(response.body);
+      } catch (_) {
+        body = {
+          'success': false,
+          'message': 'Server response invalid. Please try again.',
+        };
+      }
       print("[AUTH] Register response status: ${response.statusCode}");
 
       if (body['success'] == true && body['data'] != null) {
@@ -111,10 +109,18 @@ class AuthController extends GetxController {
 
         if (token != null) {
           print("[AUTH] Registration token received, length: ${token.length}");
-          await _apiService.saveToken(token);
+          await _apiService.saveToken(token.toString());
           if (userData != null) {
             await _apiService.saveUser(userData);
           }
+
+          // If user picked a custom profile image, upload it via PUT /users/:id (which has Multer)
+          if (imagePath != null && imagePath.isNotEmpty) {
+            print("[AUTH] Uploading selected profile image via UserRepository...");
+            final userRepository = UserRepository();
+            await userRepository.updateProfile({}, imagePath);
+          }
+
           Get.snackbar('Success', 'Registration successful');
           return true;
         } else {
@@ -124,7 +130,12 @@ class AuthController extends GetxController {
         }
       } else {
         print("[AUTH] Registration failed: ${body['message']}");
-        Get.snackbar('Error', body['message'] ?? 'Registration failed');
+        final msg =
+            (body['error_detail'] == 'ETIMEDOUT' ||
+                body['message'] == 'Server Error: ')
+            ? 'Server is starting up. Please try again in a few seconds.'
+            : (body['message'] ?? 'Registration failed');
+        Get.snackbar('Error', msg);
         return false;
       }
     } catch (e) {

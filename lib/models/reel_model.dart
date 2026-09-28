@@ -27,9 +27,50 @@ class ReelModel {
 
   factory ReelModel.fromJson(Map<String, dynamic> json) {
     print("DEBUG Reel JSON: $json");
+
+    final rawUser =
+        json['user'] ??
+        json['userId'] ??
+        json['user_id'] ??
+        json['creator'] ??
+        json['author'];
+    String extractedUserId = '';
+    String extractedCreatorName =
+        json['username'] ?? json['creator_name'] ?? json['full_name'] ?? '';
+
+    if (rawUser is Map) {
+      extractedUserId =
+          (rawUser['uid'] ??
+                  rawUser['id'] ??
+                  rawUser['_id'] ??
+                  rawUser['userId'] ??
+                  rawUser['user_id'] ??
+                  '')
+              .toString();
+      if (extractedCreatorName.isEmpty) {
+        extractedCreatorName =
+            (rawUser['username'] ??
+                    rawUser['user_name'] ??
+                    rawUser['full_name'] ??
+                    rawUser['name'] ??
+                    '')
+                .toString();
+      }
+    } else if (rawUser != null && rawUser.toString().isNotEmpty) {
+      extractedUserId = rawUser.toString();
+    }
+
+    if (extractedUserId.isEmpty) {
+      extractedUserId =
+          (json['userId'] ?? json['user_id'] ?? json['_id'] ?? json['id'] ?? '')
+              .toString();
+    }
+    if (extractedCreatorName.isEmpty) extractedCreatorName = 'Anonymous';
+
     return ReelModel(
-      id: (json['id'] ?? json['reelId'] ?? json['reel_id'] ?? '').toString(),
-      userId: (json['userId'] ?? json['user_id'] ?? '').toString(),
+      id: (json['reelId'] ?? json['reel_id'] ?? json['_id'] ?? json['id'] ?? '')
+          .toString(),
+      userId: extractedUserId,
       videoUrl:
           json['videoUrl'] ??
           json['video_url'] ??
@@ -39,18 +80,18 @@ class ReelModel {
       caption: json['caption'] ?? '',
       songId: json['songId'] ?? json['song_name'] ?? '',
       likes: const [],
-      creatorName:
-          json['username'] ??
-          json['creator_name'] ??
-          json['full_name'] ??
-          'Anonymous',
+      creatorName: extractedCreatorName,
       thumbnail:
           json['thumbnail'] ??
           json['profileImage'] ??
           json['profile_image'] ??
           '',
-      likesCount: _toInt(json['likesCount'] ?? json['likes_count'] ?? json['likes']),
-      commentsCount: _toInt(json['commentsCount'] ?? json['comments_count'] ?? json['comments']),
+      likesCount: _toInt(
+        json['likesCount'] ?? json['likes_count'] ?? json['likes'],
+      ),
+      commentsCount: _toInt(
+        json['commentsCount'] ?? json['comments_count'] ?? json['comments'],
+      ),
       isLiked:
           json['isLiked'] == 1 ||
           json['isLiked'] == true ||

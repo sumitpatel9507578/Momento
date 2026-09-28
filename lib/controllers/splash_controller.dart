@@ -40,6 +40,10 @@ class SplashController extends GetxController
     final apiService = Get.find<ApiService>();
     final token = await apiService.getToken();
 
+    if (animationController.isAnimating) {
+      animationController.stop();
+    }
+
     if (token != null) {
       // Verify token with production backend
       print("Splash: Verifying existing token...");
@@ -48,7 +52,11 @@ class SplashController extends GetxController
 
         if (profile != null) {
           print("Splash: Token valid. User: ${profile.username}");
-          Get.offAllNamed(AppRoutes.home);
+          if (profile.bio.trim().isEmpty) {
+            Get.offAllNamed(AppRoutes.completeProfile);
+          } else {
+            Get.offAllNamed(AppRoutes.home);
+          }
         } else {
           // If profile is null but no 401 was thrown (rare), just go to login
           print("Splash: Profile not found. Redirecting to login.");
@@ -58,6 +66,7 @@ class SplashController extends GetxController
         // If ApiService already handled 401, this catch might not even be reached
         // because of Get.offAllNamed, but it's safe to have.
         print("Splash: Auth check failed: $e");
+        Get.offAllNamed(AppRoutes.login);
       }
     } else {
       Get.offAllNamed(AppRoutes.login);

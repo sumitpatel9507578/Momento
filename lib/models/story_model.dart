@@ -21,16 +21,38 @@ class StoryModel {
 
   factory StoryModel.fromJson(Map<String, dynamic> json) {
     print("DEBUG Story JSON: $json");
+    final user = json['user'] is Map ? json['user'] : null;
     return StoryModel(
       storyId: (json['id'] ?? json['storyId'] ?? json['story_id'] ?? '')
           .toString(),
-      userId: (json['userId'] ?? json['user_id'] ?? '').toString(),
-      username: json['username'] ?? 'Anonymous',
-      profileImage: json['profileImage'] ?? json['profile_image'] ?? '',
-      mediaUrl: json['mediaUrl'] ?? json['media_url'] ?? '',
-      mediaType: json['mediaType'] ?? json['media_type'] ?? 'image',
+      userId:
+          (json['userId'] ??
+                  json['user_id'] ??
+                  user?['id'] ??
+                  user?['uid'] ??
+                  '')
+              .toString(),
+      username:
+          json['username'] ?? user?['username'] ?? user?['name'] ?? 'User',
+      profileImage:
+          json['profileImage'] ??
+          json['profile_image'] ??
+          user?['profileImage'] ??
+          user?['profile_image'] ??
+          '',
+      mediaUrl:
+          json['mediaUrl'] ??
+          json['media_url'] ??
+          json['url'] ??
+          json['image'] ??
+          '',
+      mediaType:
+          json['mediaType'] ?? json['media_type'] ?? json['type'] ?? 'image',
       timestamp: json['createdAt'] != null || json['created_at'] != null
-          ? DateTime.parse(json['createdAt'] ?? json['created_at'])
+          ? DateTime.tryParse(
+                  (json['createdAt'] ?? json['created_at']).toString(),
+                ) ??
+                DateTime.now()
           : DateTime.now(),
       viewed: json['viewed'] == 1 || json['viewed'] == true,
     );

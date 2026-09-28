@@ -29,7 +29,6 @@ class PostService {
         print("PostService: Backend error ${response.statusCode} on Feed");
         return [];
       }
-      return [];
     } catch (e) {
       print("PostService Error: $e");
       return [];
@@ -61,33 +60,92 @@ class PostService {
     String filePath,
     String mediaType,
   ) async {
-    final response = await _apiService.postMultipart(
+    final user = await _apiService.getUser();
+    final userId = (user?['id'] ?? user?['uid'] ?? user?['userId'] ?? '')
+        .toString();
+    final username = (user?['username'] ?? user?['name'] ?? 'User').toString();
+
+    final bodyFields = <String, String>{
+      'caption': caption.isEmpty ? 'Momento' : caption,
+      'mediaType': mediaType,
+      'media_type': mediaType,
+      'type': mediaType,
+      if (userId.isNotEmpty) 'userId': userId,
+      if (userId.isNotEmpty) 'user_id': userId,
+      if (username.isNotEmpty) 'username': username,
+    };
+
+    // 1. Try Multipart key 'media'
+    var response = await _apiService.postMultipart(
       ApiConstants.posts,
-      {'caption': caption, 'mediaType': mediaType},
-      'media', // Key used for posts
+      bodyFields,
+      'media',
       filePath,
     );
-    return response.statusCode == 201 || response.statusCode == 200;
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      _logMediaUrl(response.body);
+      return true;
+    }
+
+    // 2. Try Multipart key 'file'
+    response = await _apiService.postMultipart(
+      ApiConstants.posts,
+      bodyFields,
+      'file',
+      filePath,
+    );
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      _logMediaUrl(response.body);
+      return true;
+    }
+
+    // 3. Try Multipart key 'image'
+    response = await _apiService.postMultipart(
+      ApiConstants.posts,
+      bodyFields,
+      'image',
+      filePath,
+    );
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      _logMediaUrl(response.body);
+      return true;
+    }
+
+    // Base64 logic removed per backend update instruction
+    return false;
+  }
+
+  void _logMediaUrl(String responseBody) {
+    try {
+      final data = jsonDecode(responseBody);
+      final mediaUrl =
+          data['data']?['mediaUrl'] ??
+          data['mediaUrl'] ??
+          data['url'] ??
+          data['data']?['url'];
+      print("☁️ Post Media Stored URL: $mediaUrl");
+    } catch (_) {}
   }
 
   Future<bool> toggleLike(String postId) async {
     try {
-      var response = await _apiService.post(ApiConstants.likes, {
-        'postId': postId,
-      });
-      if (response.statusCode == 200 || response.statusCode == 201) return true;
-
-      response = await _apiService.post(
-        "${ApiConstants.posts}/$postId/like",
-        {},
-      );
-      if (response.statusCode == 200 || response.statusCode == 201) return true;
-
-      response = await _apiService.post(
+      final response = await _apiService.post(
         "${ApiConstants.likes}/post/$postId",
         {},
       );
-      return response.statusCode == 200 || response.statusCode == 201;
+
+      print(
+        "PostService toggleLike -> status ${response.statusCode}, body: ${response.body}",
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return true;
+      }
+
+      print(
+        "PostService toggleLike FAILED: ${response.statusCode} ${response.body}",
+      );
+      return false;
     } catch (e) {
       print("PostService toggleLike error: $e");
       return false;

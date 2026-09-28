@@ -1,23 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../controllers/reel_controller.dart';
 import 'package:video_player/video_player.dart';
 
-import '../controllers/reel_controller.dart';
+import '../controllers/profile_controller.dart';
+import '../models/reel_model.dart';
+import '../services/api_service.dart';
 import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
-import '../widgets/comment_bottom_sheet.dart';
 import '../widgets/share_bottom_sheet.dart';
 
-class ReelsScreen extends StatelessWidget {
+class ReelsScreen extends GetView<ReelController> {
   const ReelsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final ReelController controller = Get.find<ReelController>();
-    final size = MediaQuery.sizeOf(context);
-    final width = size.width;
-    final height = size.height;
-
     return Scaffold(
       backgroundColor: Colors.black,
       body: Obx(() {
@@ -27,60 +24,54 @@ class ReelsScreen extends StatelessWidget {
           );
         }
 
-        if (controller.errorMessage.value.isNotEmpty &&
-            controller.reels.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.wifi_off_rounded,
-                  color: Colors.white54,
-                  size: 50,
-                ),
-                const SizedBox(height: 15),
-                Text(
-                  controller.errorMessage.value,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white70),
-                ),
-                const SizedBox(height: 15),
-                ElevatedButton(
-                  onPressed: controller.getReels,
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
-          );
-        }
-
         if (controller.reels.isEmpty) {
-          return const Center(
-            child: Text(
-              'No reels found',
-              style: TextStyle(color: Colors.white),
+          return RefreshIndicator(
+            onRefresh: controller.refreshReels,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.8,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.movie_creation_outlined,
+                        color: Colors.white38,
+                        size: 60,
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'No reels found',
+                        style: TextStyle(color: Colors.white54, fontSize: 16),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: controller.refreshReels,
+                        child: const Text('Refresh'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           );
         }
 
-        return PageView.builder(
-          scrollDirection: Axis.vertical,
-          itemCount: controller.reels.length,
-          onPageChanged: (index) {
-            controller.playVideo(index);
-            if (index >= controller.reels.length - 3) {
-              controller.loadMore();
-            }
-          },
-          itemBuilder: (context, index) {
-            final reel = controller.reels[index];
-            final videoController = controller.getVideoController(index);
+        return RefreshIndicator(
+          onRefresh: controller.refreshReels,
+          child: PageView.builder(
+            scrollDirection: Axis.vertical,
+            itemCount: controller.reels.length,
+            onPageChanged: (index) {
+              controller.playVideo(index);
+              if (index >= controller.reels.length - 2) controller.loadMore();
+            },
+            itemBuilder: (context, index) {
+              final reel = controller.reels[index];
+              final videoController = controller.getVideoController(index);
 
-            return GestureDetector(
-              onTap: () {
-                controller.togglePlayPause(index);
-              },
-              child: Stack(
+              return Stack(
                 fit: StackFit.expand,
                 children: [
                   if (videoController != null &&
@@ -93,236 +84,213 @@ class ReelsScreen extends StatelessWidget {
                         child: VideoPlayer(videoController),
                       ),
                     )
-                  else if (controller.failedInitializations.contains(reel.id))
-                    Container(
-                      color: Colors.black,
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.error_outline,
-                              color: Colors.white54,
-                              size: 50,
-                            ),
-                            const SizedBox(height: 10),
-                            const Text(
-                              "Video unavailable",
-                              style: TextStyle(color: Colors.white70),
-                            ),
-                            const SizedBox(height: 15),
-                            ElevatedButton(
-                              onPressed: () => controller.retryVideo(index),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.purple,
-                                foregroundColor: Colors.white,
-                              ),
-                              child: const Text('Tap to Retry'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
                   else
-                    Container(
-                      color: Colors.black,
-                      child: const Center(
-                        child: CircularProgressIndicator(color: Colors.white),
-                      ),
+                    const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
                     ),
 
-                  // Header info
-                  Positioned(
-                    top: height * 0.05,
-                    left: width * 0.04,
-                    child: const Text(
-                      'Reels',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
+                  // Bottom Gradient for text visibility
+                  const Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.transparent, Colors.black54],
+                          begin: Alignment.center,
+                          end: Alignment.bottomCenter,
+                        ),
                       ),
                     ),
                   ),
 
-                  // Bottom info
+                  // Content Overlay
                   Positioned(
-                    left: width * 0.04,
-                    right: width * 0.20,
-                    bottom: height * 0.04,
+                    left: 16,
+                    bottom: 20,
+                    right: 80,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 18,
-                              backgroundImage: reel.thumbnail.isNotEmpty
-                                  ? NetworkImage(
-                                      ApiConstants.getFullUrl(reel.thumbnail),
-                                    )
-                                  : null,
-                              child: reel.thumbnail.isEmpty
-                                  ? const Icon(
-                                      Icons.person,
-                                      color: Colors.white,
-                                    )
-                                  : null,
-                            ),
-                            const SizedBox(width: 12),
-                            Flexible(
-                              child: Text(
-                                '@${reel.creatorName}',
+                        GestureDetector(
+                          onTap: () =>
+                              Get.toNamed('/profile', arguments: reel.userId),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 16,
+                                backgroundImage: NetworkImage(
+                                  ApiConstants.getFullUrl(reel.thumbnail),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                reel.creatorName,
                                 style: const TextStyle(
                                   color: Colors.white,
-                                  fontSize: 14,
                                   fontWeight: FontWeight.bold,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          reel.caption.isEmpty
-                              ? 'Enjoy this amazing reel ✨ #Momento'
-                              : reel.caption,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                          ),
-                        ),
-                        if (reel.songId.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.music_note,
-                                color: Colors.white70,
-                                size: 14,
-                              ),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: Text(
-                                  'Original Audio - ${reel.songId}',
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
                           ),
-                        ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          reel.caption,
+                          style: const TextStyle(color: Colors.white),
+                        ),
                       ],
                     ),
                   ),
 
-                  // Right side buttons
+                  // Right Sidebar Actions
                   Positioned(
-                    right: width * 0.03,
-                    bottom: height * 0.08,
+                    right: 12,
+                    bottom: 20,
                     child: Column(
                       children: [
-                        Obx(() {
-                          final currentReel = controller.reels[index];
-                          return _buildActionButton(
-                            icon: currentReel.isLiked
-                                ? Icons.favorite
-                                : Icons.favorite_border,
-                            label: '${currentReel.likesCount}',
-                            color: currentReel.isLiked
-                                ? Colors.redAccent
-                                : Colors.white,
-                            onTap: () => controller.toggleLike(index),
-                          );
-                        }),
-                        const SizedBox(height: 18),
-                        Obx(() {
-                          final currentReel = controller.reels[index];
-                          return _buildActionButton(
-                            icon: Icons.chat_bubble_outline_rounded,
-                            label: '${currentReel.commentsCount}',
-                            onTap: () => Get.bottomSheet(
-                              CommentBottomSheet(
-                                id: currentReel.id,
-                                isReel: true,
-                              ),
-                              isScrollControlled: true,
-                            ),
-                          );
-                        }),
-                        const SizedBox(height: 18),
-                        _buildActionButton(
-                          icon: Icons.send_outlined,
-                          label: '',
-                          onTap: () =>
-                              Get.bottomSheet(const ShareBottomSheet()),
+                        _buildAction(
+                          Icons.favorite,
+                          '${reel.likesCount}',
+                          () => controller.toggleLike(index),
                         ),
-                        const SizedBox(height: 18),
-                        Obx(
-                          () => _buildActionButton(
-                            icon: controller.isSaved(reel.id)
-                                ? Icons.bookmark
-                                : Icons.bookmark_border,
-                            label: '',
-                            onTap: () => controller.toggleSave(index),
+                        _buildAction(
+                          Icons.comment,
+                          '${reel.commentsCount}',
+                          () {},
+                        ),
+                        _buildAction(
+                          Icons.send,
+                          '',
+                          () => Get.bottomSheet(
+                            ShareBottomSheet(contentUrl: reel.videoUrl),
                           ),
                         ),
-                        const SizedBox(height: 18),
-                        const Icon(Icons.more_vert, color: Colors.white),
+                        _buildAction(
+                          Icons.more_vert,
+                          '',
+                          () => showReelOptionsBottomSheet(
+                            context,
+                            reel,
+                            controller,
+                          ),
+                        ),
                       ],
                     ),
                   ),
-
-                  // Video progress
-                  if (videoController != null &&
-                      videoController.value.isInitialized)
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: VideoProgressIndicator(
-                        videoController,
-                        allowScrubbing: false,
-                        colors: const VideoProgressColors(
-                          playedColor: AppColors.purple,
-                          bufferedColor: Colors.white30,
-                          backgroundColor: Colors.white12,
-                        ),
-                      ),
-                    ),
                 ],
-              ),
-            );
-          },
+              );
+            },
+          ),
         );
       }),
     );
   }
 
-  Widget _buildActionButton({
-    required IconData icon,
-    required String label,
-    Color color = Colors.white,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 30),
-          if (label.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(color: Colors.white, fontSize: 12),
-            ),
-          ],
-        ],
-      ),
+  Widget _buildAction(IconData icon, String label, VoidCallback onTap) {
+    return Column(
+      children: [
+        IconButton(
+          onPressed: onTap,
+          icon: Icon(icon, color: Colors.white, size: 30),
+        ),
+        if (label.isNotEmpty)
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white, fontSize: 12),
+          ),
+        const SizedBox(height: 16),
+      ],
     );
   }
+}
+
+void showReelOptionsBottomSheet(
+  BuildContext context,
+  ReelModel reel,
+  ReelController controller,
+) async {
+  final apiService = Get.find<ApiService>();
+  final currentUserId = await apiService.getUserId();
+  final myProfile = Get.isRegistered<ProfileController>(tag: 'me')
+      ? Get.find<ProfileController>(tag: 'me').currentUser.value
+      : null;
+  final myUid = currentUserId ?? myProfile?.uid ?? '';
+
+  final bool isMyReel = myUid.isNotEmpty && reel.userId == myUid;
+
+  Get.bottomSheet(
+    Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+      child: Wrap(
+        children: [
+          if (isMyReel) ...[
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.redAccent),
+              title: const Text(
+                'Delete Reel',
+                style: TextStyle(color: Colors.redAccent),
+              ),
+              onTap: () {
+                Get.back();
+                _showDeleteReelConfirmation(context, reel, controller);
+              },
+            ),
+          ],
+          ListTile(
+            leading: const Icon(Icons.share, color: Colors.white),
+            title: const Text(
+              'Share Link',
+              style: TextStyle(color: Colors.white),
+            ),
+            onTap: () {
+              Get.back();
+              Get.snackbar('Share', 'Link copied to clipboard!');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.cancel, color: Colors.white54),
+            title: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white54),
+            ),
+            onTap: () => Get.back(),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+void _showDeleteReelConfirmation(
+  BuildContext context,
+  ReelModel reel,
+  ReelController controller,
+) {
+  Get.dialog(
+    AlertDialog(
+      backgroundColor: AppColors.surface,
+      title: const Text('Delete Reel', style: TextStyle(color: Colors.white)),
+      content: const Text(
+        'Are you sure you want to delete this reel? This action cannot be undone.',
+        style: TextStyle(color: Colors.white70),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Get.back(),
+          child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            Get.back();
+            controller.deleteReel(reel.id);
+          },
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+          child: const Text('Delete', style: TextStyle(color: Colors.white)),
+        ),
+      ],
+    ),
+  );
 }

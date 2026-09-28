@@ -1,354 +1,333 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../controllers/create_post_controller.dart';
-import '../utils/app_colors.dart';
-import '../widgets/glass_container.dart';
 
 class CreatePostScreen extends GetView<CreatePostController> {
   const CreatePostScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    final width = size.width;
-
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        title: const Text(
-          'Create',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        backgroundColor: Colors.black,
+        title: Obx(() {
+          switch (controller.selectedType.value) {
+            case 2:
+              return const Text(
+                'New Story',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              );
+            case 3:
+              return const Text(
+                'New Reel',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              );
+            default:
+              return const Text(
+                'New Post',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              );
+          }
+        }),
         actions: [
           Obx(
-            () => controller.isLoading.value
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: AppColors.cyan,
-                        ),
+            () => TextButton(
+              onPressed:
+                  controller.selectedFile.value == null ||
+                      controller.isLoading.value
+                  ? null
+                  : () => controller.uploadContent(),
+              child: controller.isLoading.value
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.blue,
                       ),
-                    ),
-                  )
-                : TextButton(
-                    onPressed: controller.selectedFile.value == null
-                        ? null
-                        : () => controller.uploadContent(),
-                    child: Text(
+                    )
+                  : Text(
                       'Share',
                       style: TextStyle(
                         color: controller.selectedFile.value == null
                             ? Colors.white24
-                            : AppColors.cyan,
+                            : Colors.blue,
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
                       ),
                     ),
-                  ),
+            ),
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Type Selector
-            Padding(
-              padding: EdgeInsets.symmetric(vertical: size.height * 0.02),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildTypeItem(0, 'Photo'),
-                  _buildTypeItem(1, 'Video'),
-                  _buildTypeItem(2, 'Story'),
-                  _buildTypeItem(3, 'Reel'),
-                ],
-              ),
-            ),
-
-            // Preview Area
-            GestureDetector(
-              onTap: () => _showPickerOptions(context),
-              child: Obx(
-                () => Container(
-                  width: width,
-                  height: width,
-                  margin: EdgeInsets.symmetric(horizontal: width * 0.04),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.05),
-                    ),
-                    image: controller.selectedFile.value != null
-                        ? DecorationImage(
-                            image: FileImage(controller.selectedFile.value!),
-                            fit: BoxFit.cover,
-                          )
-                        : null,
-                  ),
-                  child: controller.selectedFile.value == null
-                      ? Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.add_a_photo_outlined,
-                              size: 48,
-                              color: Colors.white.withValues(alpha: 0.2),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Tap to add media',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.2),
-                              ),
-                            ),
-                          ],
-                        )
-                      : Align(
-                          alignment: Alignment.topRight,
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: GestureDetector(
-                              onTap: controller.removeFile,
-                              child: GlassContainer(
-                                padding: const EdgeInsets.all(8),
-                                borderRadius: BorderRadius.circular(12),
-                                child: const Icon(
-                                  Icons.close,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                ),
-              ),
-            ),
-
-            SizedBox(height: size.height * 0.03),
-
-            // Caption & Details
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: width * 0.04),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
               child: Column(
                 children: [
-                  TextField(
-                    controller: controller.captionController,
-                    maxLines: 4,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: 'Write a caption...',
-                      hintStyle: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.3),
-                      ),
-                      filled: true,
-                      fillColor: AppColors.surface,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(18),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                  ),
-
-                  SizedBox(height: size.height * 0.02),
-
-                  _buildDetailItem(Icons.location_on_outlined, 'Add Location'),
-                  _buildDetailItem(
-                    Icons.person_add_alt_1_outlined,
-                    'Tag People',
-                  ),
                   Obx(
-                    () => _buildDetailItem(
-                      Icons.music_note_outlined,
-                      controller.selectedSong.value?.title ?? 'Add Music',
-                      onTap: () async {
-                        final song = await Get.toNamed('/music');
-                        if (song != null) {
-                          controller.selectedSong.value = song;
-                        }
-                      },
-                      trailing: controller.selectedSong.value != null
-                          ? IconButton(
-                              icon: const Icon(
-                                Icons.close,
-                                color: Colors.white24,
-                                size: 16,
+                    () => Container(
+                      height: 380,
+                      width: double.infinity,
+                      color: Colors.grey[900],
+                      child: controller.selectedFile.value == null
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.add_a_photo,
+                                      size: 50,
+                                      color: Colors.white38,
+                                    ),
+                                    onPressed: () =>
+                                        _showPickerOptions(context),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    controller.selectedType.value == 3
+                                        ? 'Tap to select a Reel Video'
+                                        : (controller.selectedType.value == 2
+                                              ? 'Tap to select a Story Image/Video'
+                                              : 'Tap to select a Post Image/Video'),
+                                    style: const TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              onPressed: () =>
-                                  controller.selectedSong.value = null,
                             )
-                          : null,
+                          : Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                _isVideoFile(controller.selectedFile.value!)
+                                    ? Container(
+                                        color: Colors.black87,
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            const Icon(
+                                              Icons.video_library_rounded,
+                                              size: 60,
+                                              color: Colors.blueAccent,
+                                            ),
+                                            const SizedBox(height: 12),
+                                            const Text(
+                                              'Video Selected',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 24,
+                                                  ),
+                                              child: Text(
+                                                controller
+                                                    .selectedFile
+                                                    .value!
+                                                    .path
+                                                    .split('/')
+                                                    .last,
+                                                style: const TextStyle(
+                                                  color: Colors.white54,
+                                                  fontSize: 12,
+                                                ),
+                                                textAlign: TextAlign.center,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      )
+                                    : Image.file(
+                                        controller.selectedFile.value!,
+                                        fit: BoxFit.cover,
+                                      ),
+                                Positioned(
+                                  top: 10,
+                                  right: 10,
+                                  child: CircleAvatar(
+                                    backgroundColor: Colors.black54,
+                                    child: IconButton(
+                                      icon: const Icon(
+                                        Icons.close,
+                                        color: Colors.white,
+                                      ),
+                                      onPressed: controller.removeFile,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                     ),
                   ),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: TextField(
+                      controller: controller.captionController,
+                      maxLines: 3,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        hintText: 'Write a caption...',
+                        hintStyle: TextStyle(color: Colors.white24),
+                        border: InputBorder.none,
+                      ),
+                    ),
+                  ),
+                  const Divider(color: Colors.white10),
+                  ListTile(
+                    leading: const Icon(Icons.music_note, color: Colors.white),
+                    title: Obx(
+                      () => Text(
+                        controller.selectedSong.value?.title ?? 'Add Music',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    trailing: const Icon(
+                      Icons.chevron_right,
+                      color: Colors.white54,
+                    ),
+                    onTap: () async {
+                      final song = await Get.toNamed('/music');
+                      if (song != null) controller.selectedSong.value = song;
+                    },
+                  ),
+                  const Divider(color: Colors.white10),
                 ],
               ),
             ),
-
-            SizedBox(height: size.height * 0.05),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showPickerOptions(BuildContext context) {
-    Get.bottomSheet(
-      GlassContainer(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Select Media Source',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildPickerOption(
-                    icon: Icons.camera_alt_rounded,
-                    label: 'Camera',
-                    onTap: () {
-                      Get.back();
-                      if (controller.selectedType.value == 1 ||
-                          controller.selectedType.value == 3) {
-                        controller.pickVideo(ImageSource.camera);
-                      } else {
-                        controller.pickImage(ImageSource.camera);
-                      }
-                    },
-                  ),
-                  _buildPickerOption(
-                    icon: Icons.photo_library_rounded,
-                    label: 'Gallery',
-                    onTap: () {
-                      Get.back();
-                      if (controller.selectedType.value == 1 ||
-                          controller.selectedType.value == 3) {
-                        controller.pickVideo(ImageSource.gallery);
-                      } else {
-                        controller.pickImage(ImageSource.gallery);
-                      }
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-            ],
           ),
-        ),
-      ),
-    );
-  }
 
-  Widget _buildPickerOption({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.purple.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: AppColors.purple, size: 32),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: const TextStyle(color: Colors.white, fontSize: 14),
-          ),
+          // Bottom Mode Selector Bar (POST | REEL | STORY)
+          _buildModeSelector(),
         ],
       ),
     );
   }
 
-  Widget _buildTypeItem(int index, String label) {
-    return Obx(() {
-      final isSelected = controller.selectedType.value == index;
-      return GestureDetector(
-        onTap: () => controller.selectedType.value = index,
-        child: Column(
+  Widget _buildModeSelector() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      color: Colors.black,
+      child: SafeArea(
+        top: false,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.white38,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                fontSize: 14,
-              ),
-            ),
-            if (isSelected)
-              Container(
-                margin: const EdgeInsets.only(top: 4),
-                width: 4,
-                height: 4,
-                decoration: const BoxDecoration(
-                  color: AppColors.purple,
-                  shape: BoxShape.circle,
-                ),
-              ),
+            _buildModeTab('POST', 0),
+            _buildModeTab('REEL', 3),
+            _buildModeTab('STORY', 2),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModeTab(String label, int type) {
+    return Obx(() {
+      final isSelected = controller.selectedType.value == type;
+      return GestureDetector(
+        onTap: () {
+          controller.selectedType.value = type;
+          controller.removeFile();
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.white24 : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+            border: isSelected
+                ? Border.all(color: Colors.white54, width: 1)
+                : null,
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.white : Colors.white54,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              fontSize: 14,
+              letterSpacing: 1.1,
+            ),
+          ),
         ),
       );
     });
   }
 
-  Widget _buildDetailItem(
-    IconData icon,
-    String title, {
-    VoidCallback? onTap,
-    Widget? trailing,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.03)),
-        ),
-        child: Row(
+  void _showPickerOptions(BuildContext context) {
+    final isReel = controller.selectedType.value == 3;
+
+    Get.bottomSheet(
+      Container(
+        color: Colors.grey[900],
+        child: Wrap(
           children: [
-            Icon(icon, color: Colors.white70, size: 22),
-            const SizedBox(width: 14),
-            Text(
-              title,
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
-            ),
-            const Spacer(),
-            trailing ??
-                const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  color: Colors.white24,
-                  size: 14,
+            if (!isReel)
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: Colors.white),
+                title: const Text(
+                  'Camera (Photo)',
+                  style: TextStyle(color: Colors.white),
                 ),
+                onTap: () {
+                  Get.back();
+                  controller.pickImage(ImageSource.camera);
+                },
+              ),
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: Colors.white),
+              title: Text(
+                isReel ? 'Gallery (Video)' : 'Gallery (Photo)',
+                style: const TextStyle(color: Colors.white),
+              ),
+              onTap: () {
+                Get.back();
+                if (isReel) {
+                  controller.pickVideo(ImageSource.gallery);
+                } else {
+                  controller.pickImage(ImageSource.gallery);
+                }
+              },
+            ),
+            if (isReel)
+              ListTile(
+                leading: const Icon(Icons.videocam, color: Colors.white),
+                title: const Text(
+                  'Record Video (Reel)',
+                  style: TextStyle(color: Colors.white),
+                ),
+                onTap: () {
+                  Get.back();
+                  controller.pickVideo(ImageSource.camera);
+                },
+              ),
           ],
         ),
       ),
     );
+  }
+
+  bool _isVideoFile(File file) {
+    final lower = file.path.toLowerCase();
+    return lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.avi') ||
+        lower.endsWith('.mkv');
   }
 }

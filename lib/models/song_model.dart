@@ -27,6 +27,13 @@ class SongModel {
   String get thumbnailUrl => imageUrl;
 
   factory SongModel.fromJson(Map<String, dynamic> json) {
+    final audio =
+        json['audiodownload'] ??
+        json['audio'] ??
+        json['audioUrl'] ??
+        json['url'] ??
+        '';
+
     return SongModel(
       id: json['id']?.toString() ?? '',
       title: json['name'] ?? json['title'] ?? '',
@@ -34,7 +41,7 @@ class SongModel {
       album: json['album_name'] ?? json['album'] ?? '',
       imageUrl:
           json['image'] ?? json['album_image'] ?? json['thumbnailUrl'] ?? '',
-      audioUrl: json['audio'] ?? json['audioUrl'] ?? '',
+      audioUrl: audio.toString(),
       duration: json['duration'] is int
           ? json['duration']
           : int.tryParse(json['duration']?.toString() ?? '0') ?? 0,

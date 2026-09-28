@@ -1,6 +1,6 @@
 import 'package:get/get.dart';
 
-import '../controllers/reel_controller.dart';
+import 'reel_controller.dart';
 import '../models/post_model.dart';
 import '../repositories/user_repository.dart';
 import '../services/post_service.dart';
@@ -165,5 +165,30 @@ class HomeController extends GetxController {
       posts[index] = post.copyWith(isFollowing: originalState);
       Get.snackbar('Error', 'Could not update follow status');
     }
+  }
+
+  Future<bool> deletePost(String postId) async {
+    final success = await _postService.deletePost(postId);
+    if (success) {
+      posts.removeWhere((p) => p.postId == postId);
+      Get.snackbar('Success', 'Post deleted successfully');
+    } else {
+      Get.snackbar('Error', 'Failed to delete post');
+    }
+    return success;
+  }
+
+  Future<bool> updatePostCaption(String postId, String newCaption) async {
+    final success = await _postService.updatePost(postId, newCaption);
+    if (success) {
+      final index = posts.indexWhere((p) => p.postId == postId);
+      if (index != -1) {
+        posts[index] = posts[index].copyWith(caption: newCaption);
+      }
+      Get.snackbar('Success', 'Post updated successfully');
+    } else {
+      Get.snackbar('Error', 'Failed to update post');
+    }
+    return success;
   }
 }

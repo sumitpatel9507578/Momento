@@ -182,7 +182,8 @@ class _CommentBottomSheetState extends State<CommentBottomSheet> {
                   ),
                 ),
                 TextButton(
-                  onPressed: () => controller.postComment(widget.id, isReel: widget.isReel),
+                  onPressed: () =>
+                      controller.postComment(widget.id, isReel: widget.isReel),
                   child: const Text(
                     'Post',
                     style: TextStyle(

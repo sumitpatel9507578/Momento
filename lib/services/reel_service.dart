@@ -50,44 +50,65 @@ class ReelService {
     String filePath, {
     String? songId,
   }) async {
-    final response = await _apiService.postMultipart(
+    final user = await _apiService.getUser();
+    final userId = (user?['id'] ?? user?['uid'] ?? user?['userId'] ?? '')
+        .toString();
+    final username = (user?['username'] ?? user?['name'] ?? 'User').toString();
+
+    final fields = <String, String>{
+      'caption': caption.isEmpty ? 'New Reel' : caption,
+      'mediaType': 'video',
+      'media_type': 'video',
+      if (userId.isNotEmpty) 'userId': userId,
+      if (userId.isNotEmpty) 'user_id': userId,
+      if (username.isNotEmpty) 'username': username,
+      if (songId != null) 'songId': songId,
+    };
+
+    // 1. Try Multipart key 'media'
+    var response = await _apiService.postMultipart(
       ApiConstants.reels,
-      {
-        'caption': caption,
-        'mediaType': 'video',
-        if (songId != null) 'songId': songId,
-      },
-      'media', // Unified to 'media' key to match PostService
+      fields,
+      'media',
       filePath,
     );
-    return response.statusCode == 201 || response.statusCode == 200;
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return true;
+    }
+
+    // 2. Try Multipart key 'file'
+    response = await _apiService.postMultipart(
+      ApiConstants.reels,
+      fields,
+      'file',
+      filePath,
+    );
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return true;
+    }
+
+    // Base64 logic removed per backend update instruction
+    return false;
   }
 
+  // Documented, confirmed endpoint: POST /api/reels/:reelId/like
   Future<bool> toggleLike(String reelId) async {
     try {
-      var response = await _apiService.post(
-        ApiConstants.likes,
-        {'postId': reelId},
-      );
-      if (response.statusCode == 200 || response.statusCode == 201) return true;
-
-      response = await _apiService.post(
-        ApiConstants.likes,
-        {'reelId': reelId},
-      );
-      if (response.statusCode == 200 || response.statusCode == 201) return true;
-
-      response = await _apiService.post(
+      final response = await _apiService.post(
         "${ApiConstants.reels}/$reelId/like",
         {},
       );
-      if (response.statusCode == 200 || response.statusCode == 201) return true;
 
-      response = await _apiService.post(
-        "${ApiConstants.likes}/reel/$reelId",
-        {},
+      print(
+        "ReelService toggleLike -> status ${response.statusCode}, body: ${response.body}",
       );
-      return response.statusCode == 200 || response.statusCode == 201;
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return true;
+      }
+
+      print("ReelService toggleLike FAILED: ${response.statusCode} ${response.body}");
+      return false;
     } catch (e) {
       print("ReelService toggleLike error: $e");
       return false;
@@ -100,5 +121,19 @@ class ReelService {
       {'comment': comment},
     );
     return response.statusCode == 201 || response.statusCode == 200;
+  }
+
+  Future<bool> deleteReel(String reelId) async {
+    try {
+      var response = await _apiService.delete("${ApiConstants.reels}/$reelId");
+      if (response.statusCode == 200 || response.statusCode == 204) return true;
+      response = await _apiService.delete(
+        "${ApiConstants.baseUrl}/reels/$reelId",
+      );
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (e) {
+      print("ReelService deleteReel error: $e");
+      return false;
+    }
   }
 }

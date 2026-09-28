@@ -256,6 +256,17 @@ class ReelController extends GetxController {
 
   bool isSaved(String reelId) => savedReels.contains(reelId);
 
+  Future<bool> deleteReel(String reelId) async {
+    final success = await _service.deleteReel(reelId);
+    if (success) {
+      reels.removeWhere((r) => r.id == reelId);
+      Get.snackbar('Success', 'Reel deleted successfully');
+    } else {
+      Get.snackbar('Error', 'Failed to delete reel');
+    }
+    return success;
+  }
+
   Future<void> _disposeVideos() async {
     for (final controller in videoControllers.values) {
       await controller.dispose();
