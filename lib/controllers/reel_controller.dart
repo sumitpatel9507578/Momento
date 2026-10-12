@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:flutter/widgets.dart';
 import 'package:video_player/video_player.dart';
 
 import '../models/reel_model.dart';
@@ -15,6 +16,7 @@ class ReelController extends GetxController {
   final errorMessage = ''.obs;
 
   final currentIndex = 0.obs;
+  PageController pageController = PageController();
   final videoControllers = <String, VideoPlayerController>{};
   final failedInitializations = <String>{}.obs;
 
@@ -22,11 +24,21 @@ class ReelController extends GetxController {
 
   int _currentPage = 1;
   bool _hasMore = true;
+  Future<void>? _initialLoad;
 
   @override
   void onInit() {
     super.onInit();
-    getReels();
+    final argument = Get.arguments;
+    final requestedReelId = argument is ReelModel
+        ? argument.id
+        : argument is Map
+        ? (argument['reelId'] ?? argument['id'])?.toString()
+        : argument?.toString();
+    _initialLoad = getReels();
+    if (requestedReelId != null && requestedReelId.isNotEmpty) {
+      _initialLoad!.then((_) => openReel(requestedReelId));
+    }
   }
 
   Future<void> getReels() async {
@@ -64,6 +76,7 @@ class ReelController extends GetxController {
 
       reels.assignAll(result);
       currentIndex.value = 0;
+      if (pageController.hasClients) pageController.jumpToPage(0);
       if (reels.isNotEmpty) {
         await initializeVideo(0);
         playVideo(0);
@@ -73,6 +86,36 @@ class ReelController extends GetxController {
     } finally {
       isRefreshing.value = false;
     }
+  }
+
+  Future<bool> openReel(String reelId) async {
+    await (_initialLoad ?? Future<void>.value());
+    var index = reels.indexWhere((reel) => reel.id == reelId);
+    if (index == -1) {
+      try {
+        final reel = await _service.fetchReelById(reelId);
+        if (reel == null) {
+          Get.snackbar('Unavailable', 'This reel is no longer available');
+          return false;
+        }
+        reels.insert(0, reel);
+        index = 0;
+      } catch (e) {
+        Get.snackbar('Error', 'Could not open this reel. Please try again.');
+        return false;
+      }
+    }
+
+    currentIndex.value = index;
+    if (pageController.hasClients) {
+      pageController.jumpToPage(index);
+    } else {
+      pageController.dispose();
+      pageController = PageController(initialPage: index);
+    }
+    await initializeVideo(index);
+    playVideo(index);
+    return true;
   }
 
   Future<void> loadMore() async {
@@ -278,6 +321,7 @@ class ReelController extends GetxController {
   @override
   void onClose() {
     _disposeVideos();
+    pageController.dispose();
     super.onClose();
   }
 }

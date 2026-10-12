@@ -146,8 +146,9 @@ class CompleteProfileScreen extends StatelessWidget {
               Center(
                 child: Obx(
                   () => TextButton(
-                    onPressed:
-                        controller.isSaving.value ? null : controller.skip,
+                    onPressed: controller.isSaving.value
+                        ? null
+                        : controller.skip,
                     child: controller.isSaving.value
                         ? const SizedBox(
                             width: 18,

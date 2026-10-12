@@ -16,11 +16,20 @@ class CommentService extends GetxService {
   }) async {
     try {
       final endpoint = isReel ? ApiConstants.reels : ApiConstants.posts;
-      final response = await _apiService.get("$endpoint/$id/comments");
+      var response = await _apiService.get("$endpoint/$id/comments");
+
+      if (response.statusCode == 404 && isReel) {
+        response = await _apiService.get(
+          "${ApiConstants.baseUrl}/comments/reel/$id",
+        );
+      }
+      if (response.statusCode == 404 && isReel) {
+        response = await _apiService.get("${ApiConstants.reels}/comments/$id");
+      }
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final List commentsJson = data['data'] ?? [];
+        final List commentsJson = data['data'] ?? data['comments'] ?? [];
         return List<Map<String, dynamic>>.from(commentsJson);
       }
       return [];
@@ -38,9 +47,25 @@ class CommentService extends GetxService {
     try {
       final endpoint = isReel ? ApiConstants.reels : ApiConstants.posts;
       print("CommentService: Posting to $endpoint/$id/comments");
-      final response = await _apiService.post("$endpoint/$id/comments", {
+      var response = await _apiService.post("$endpoint/$id/comments", {
         'comment': comment,
+        'text': comment,
       });
+
+      if (response.statusCode == 404 && isReel) {
+        response = await _apiService.post(
+          "${ApiConstants.baseUrl}/comments/reel/$id",
+          {'comment': comment, 'text': comment},
+        );
+      }
+
+      if (response.statusCode == 404 && isReel) {
+        response = await _apiService.post("${ApiConstants.baseUrl}/comments", {
+          'reelId': id,
+          'comment': comment,
+          'text': comment,
+        });
+      }
 
       if (response.statusCode >= 400) {
         print("CommentService Error Body: ${response.body}");

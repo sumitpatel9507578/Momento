@@ -80,14 +80,82 @@ class LoginScreen extends GetView<LoginController> {
                     ),
                   ),
                 ),
+                const SizedBox(height: 20),
+                Row(
+                  children: const [
+                    Expanded(child: Divider(color: Colors.white24)),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'OR',
+                        style: TextStyle(
+                          color: Colors.white54,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    Expanded(child: Divider(color: Colors.white24)),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Obx(
+                  () => SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: OutlinedButton(
+                      onPressed: controller.authController.isLoading.value
+                          ? null
+                          : () => controller.loginWithGoogle(),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.2),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.network(
+                            'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg',
+                            height: 22,
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.g_mobiledata,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Text(
+                            'Continue with Google',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () => Get.toNamed(AppRoutes.forgotPassword),
-                  child: const Text('Forgot Password?', style: TextStyle(color: AppColors.cyan)),
+                  child: const Text(
+                    'Forgot Password?',
+                    style: TextStyle(color: AppColors.cyan),
+                  ),
                 ),
                 TextButton(
                   onPressed: () => Get.toNamed(AppRoutes.register),
-                  child: const Text('Create a new account', style: TextStyle(color: AppColors.cyan)),
+                  child: const Text(
+                    'Create a new account',
+                    style: TextStyle(color: AppColors.cyan),
+                  ),
                 ),
               ],
             ),

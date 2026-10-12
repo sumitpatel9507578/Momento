@@ -33,7 +33,8 @@ class EditProfileController extends GetxController {
     ever(profileController.currentUser, (newUser) {
       if (newUser != null) {
         if (nameController.text.isEmpty) nameController.text = newUser.name;
-        if (usernameController.text.isEmpty) usernameController.text = newUser.username;
+        if (usernameController.text.isEmpty)
+          usernameController.text = newUser.username;
         if (bioController.text.isEmpty) bioController.text = newUser.bio;
       }
     });
@@ -84,7 +85,9 @@ class EditProfileController extends GetxController {
       );
 
       if (success) {
-        await profileController.loadProfile(forceRefresh: true); // Refresh main profile state
+        await profileController.loadProfile(
+          forceRefresh: true,
+        ); // Refresh main profile state
         Get.back();
         Get.snackbar('Success', 'Profile updated successfully.');
       } else {

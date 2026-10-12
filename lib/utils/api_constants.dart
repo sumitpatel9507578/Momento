@@ -3,7 +3,7 @@ class ApiConstants {
   static const bool isProduction = true;
 
   // Official Momento Backend (Production)
-  static const String prodServerUrl = "https://momento-api-7-suis.onrender.com";
+  static const String prodServerUrl = "https://momento-api-8-ksuj.onrender.com";
 
   // Local Machine IP (Development) - Using the IP from your logs
   static const String devServerUrl = "http://192.168.31.240:5000";
@@ -33,6 +33,7 @@ class ApiConstants {
 
   // Messaging / Notifs
   static String get messages => "$baseUrl/messages";
+  static String get savedItems => "$baseUrl/saved-items";
   static String get notifications => "$baseUrl/notifications";
 
   static String get health => "$serverUrl/health";

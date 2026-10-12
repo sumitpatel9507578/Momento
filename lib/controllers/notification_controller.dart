@@ -6,7 +6,7 @@ import '../utils/api_constants.dart';
 
 class NotificationController extends GetxController {
   final ApiService _apiService = Get.find<ApiService>();
-  
+
   final notifications = <NotificationModel>[].obs;
   final isLoading = false.obs;
   final errorMessage = ''.obs;
@@ -21,13 +21,15 @@ class NotificationController extends GetxController {
     try {
       isLoading.value = true;
       errorMessage.value = '';
-      
+
       final response = await _apiService.get(ApiConstants.notifications);
-      
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final List notifsJson = data['data'] ?? [];
-        notifications.assignAll(notifsJson.map((j) => NotificationModel.fromJson(j)).toList());
+        notifications.assignAll(
+          notifsJson.map((j) => NotificationModel.fromJson(j)).toList(),
+        );
       } else {
         errorMessage.value = 'Failed to load notifications';
       }

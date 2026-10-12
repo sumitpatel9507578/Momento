@@ -26,15 +26,11 @@ class ForgotPasswordController extends GetxController {
     try {
       isLoading.value = true;
 
-      await authController.forgotPassword(email);
+      final success = await authController.forgotPassword(email);
 
-      Get.snackbar(
-        'Email Sent',
-        'Check your inbox for the password reset email.',
-        duration: const Duration(seconds: 4),
-      );
-
-      emailController.clear();
+      if (success) {
+        emailController.clear();
+      }
     } catch (_) {
     } finally {
       isLoading.value = false;

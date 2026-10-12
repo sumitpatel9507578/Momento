@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:get/get.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../repositories/user_repository.dart';
 import '../services/api_service.dart';
@@ -47,12 +48,24 @@ class AuthController extends GetxController {
         }
       } else {
         print("[AUTH] Login failed: ${body['message']}");
-        final msg =
-            (body['error_detail'] == 'ETIMEDOUT' ||
-                body['message'] == 'Server Error: ')
-            ? 'Server is starting up. Please try again in a few seconds.'
-            : (body['message'] ?? 'Invalid credentials');
-        Get.snackbar('Error', msg);
+        String msg = body['message'] ?? '';
+
+        if (body['error_detail'] == 'ETIMEDOUT' ||
+            msg.contains('ETIMEDOUT') ||
+            msg.contains('Server Error: ')) {
+          msg = 'Server is starting up. Please try again in a few seconds.';
+        } else if (msg.toLowerCase().contains('invalid') ||
+            msg.toLowerCase().contains('credential') ||
+            msg.toLowerCase().contains('password')) {
+          msg = 'Wrong email or password. Please try again.';
+        } else if (msg.toLowerCase().contains('not found') ||
+            msg.toLowerCase().contains('user')) {
+          msg = 'No account found with this email.';
+        } else if (msg.isEmpty) {
+          msg = 'Wrong email or password. Please check your credentials.';
+        }
+
+        Get.snackbar('Login Failed', msg);
         return false;
       }
     } catch (e) {
@@ -116,7 +129,9 @@ class AuthController extends GetxController {
 
           // If user picked a custom profile image, upload it via PUT /users/:id (which has Multer)
           if (imagePath != null && imagePath.isNotEmpty) {
-            print("[AUTH] Uploading selected profile image via UserRepository...");
+            print(
+              "[AUTH] Uploading selected profile image via UserRepository...",
+            );
             final userRepository = UserRepository();
             await userRepository.updateProfile({}, imagePath);
           }
@@ -148,6 +163,124 @@ class AuthController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  Future<bool> loginWithGoogle() async {
+    try {
+      isLoading.value = true;
+      print("[AUTH] Google Sign In requested...");
+
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        scopes: ['email', 'profile'],
+      );
+
+      final googleUser = await googleSignIn.signIn();
+      if (googleUser == null) {
+        // User canceled sign-in
+        isLoading.value = false;
+        return false;
+      }
+
+      final email = googleUser.email;
+      final displayName = googleUser.displayName ?? 'Google User';
+      final googleId = googleUser.id;
+      final photoUrl = googleUser.photoUrl;
+
+      // Deterministic password for backend auth
+      final googlePassword = "GooglePass_${googleId}_MomentoSec!";
+      final username = email.contains('@')
+          ? email.split('@')[0]
+          : 'user_$googleId';
+
+      print("[AUTH] Google User obtained: $email ($displayName)");
+
+      // Step 1: Try login with Google credentials
+      final loginSuccess = await _tryGoogleLogin(email, googlePassword);
+      if (loginSuccess) return true;
+
+      // Step 2: If user does not exist on backend yet, auto-register them
+      print("[AUTH] User not registered yet. Auto-registering Google user...");
+      final regSuccess = await _tryGoogleRegister(
+        name: displayName,
+        username: username,
+        email: email,
+        password: googlePassword,
+        photoUrl: photoUrl,
+      );
+
+      return regSuccess;
+    } catch (e) {
+      print("[AUTH] Google Sign In Exception: $e");
+      Get.snackbar(
+        'Google Sign In',
+        'Could not complete Google Sign In. Try again or login manually.',
+      );
+      return false;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<bool> _tryGoogleLogin(String email, String password) async {
+    try {
+      final response = await _apiService.post(ApiConstants.login, {
+        'email': email,
+        'password': password,
+      });
+
+      final body = jsonDecode(response.body);
+      if (body['success'] == true && body['data'] != null) {
+        final token = body['data']['token'];
+        final userData = body['data']['user'];
+        if (token != null) {
+          await _apiService.saveToken(token.toString());
+          if (userData != null) await _apiService.saveUser(userData);
+          Get.snackbar('Success', 'Logged in with Google!');
+          return true;
+        }
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  Future<bool> _tryGoogleRegister({
+    required String name,
+    required String username,
+    required String email,
+    required String password,
+    String? photoUrl,
+  }) async {
+    try {
+      final avatar = (photoUrl != null && photoUrl.isNotEmpty)
+          ? photoUrl
+          : getEmailAvatarUrl(email);
+
+      final response = await _apiService.post(ApiConstants.register, {
+        'username': username,
+        'email': email,
+        'password': password,
+        'name': name,
+        'full_name': name,
+        'profileimage': avatar,
+        'profile_image': avatar,
+        'profileImage': avatar,
+      });
+
+      final body = jsonDecode(response.body);
+      if (body['success'] == true && body['data'] != null) {
+        final token = body['data']['token'];
+        final userData = body['data']['user'];
+        if (token != null) {
+          await _apiService.saveToken(token.toString());
+          if (userData != null) await _apiService.saveUser(userData);
+          Get.snackbar('Success', 'Account created via Google!');
+          return true;
+        }
+      }
+    } catch (e) {
+      print("[AUTH] Google register error: $e");
+    }
+    return false;
   }
 
   Future<bool> forgotPassword(String email) async {

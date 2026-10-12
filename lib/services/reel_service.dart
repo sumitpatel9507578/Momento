@@ -45,6 +45,20 @@ class ReelService {
     }
   }
 
+  Future<ReelModel?> fetchReelById(String reelId) async {
+    final response = await _apiService.get("${ApiConstants.reels}/$reelId");
+    if (response.statusCode == 404) return null;
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load reel (${response.statusCode})');
+    }
+
+    final data = jsonDecode(response.body);
+    if (data is! Map || data['success'] != true || data['data'] is! Map) {
+      throw const FormatException('The reel response was invalid');
+    }
+    return ReelModel.fromJson(Map<String, dynamic>.from(data['data'] as Map));
+  }
+
   Future<bool> createReel(
     String caption,
     String filePath, {
@@ -91,24 +105,36 @@ class ReelService {
     return false;
   }
 
-  // Documented, confirmed endpoint: POST /api/reels/:reelId/like
   Future<bool> toggleLike(String reelId) async {
     try {
-      final response = await _apiService.post(
+      final user = await _apiService.getUser();
+      final userId = (user?['id'] ?? user?['uid'] ?? user?['userId'] ?? '')
+          .toString();
+
+      final body = <String, dynamic>{
+        'reelId': reelId,
+        'reel_id': reelId,
+        if (userId.isNotEmpty) 'userId': userId,
+        if (userId.isNotEmpty) 'user_id': userId,
+      };
+
+      // 1. Try POST /api/likes/reel/{reelId}
+      var response = await _apiService.post(
+        "${ApiConstants.likes}/reel/$reelId",
+        body,
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) return true;
+
+      // 2. Try POST /api/reels/{reelId}/like
+      response = await _apiService.post(
         "${ApiConstants.reels}/$reelId/like",
-        {},
+        body,
       );
+      if (response.statusCode == 200 || response.statusCode == 201) return true;
 
-      print(
-        "ReelService toggleLike -> status ${response.statusCode}, body: ${response.body}",
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return true;
-      }
-
-      print("ReelService toggleLike FAILED: ${response.statusCode} ${response.body}");
-      return false;
+      // 3. Try POST /api/likes with body
+      response = await _apiService.post(ApiConstants.likes, body);
+      return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
       print("ReelService toggleLike error: $e");
       return false;

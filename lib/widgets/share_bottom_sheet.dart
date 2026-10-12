@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -9,7 +11,8 @@ import '../widgets/glass_container.dart';
 
 class ShareBottomSheet extends StatefulWidget {
   final String? contentUrl;
-  const ShareBottomSheet({super.key, this.contentUrl});
+  final String? reelId;
+  const ShareBottomSheet({super.key, this.contentUrl, this.reelId});
 
   @override
   State<ShareBottomSheet> createState() => _ShareBottomSheetState();
@@ -18,16 +21,24 @@ class ShareBottomSheet extends StatefulWidget {
 class _ShareBottomSheetState extends State<ShareBottomSheet> {
   final ChatController chatController = Get.isRegistered<ChatController>()
       ? Get.find<ChatController>()
-      : Get.put(ChatController(), fenix: true);
+      : Get.put(ChatController());
 
   final ApiService apiService = Get.find<ApiService>();
   final RxList<Map<String, dynamic>> friends = <Map<String, dynamic>>[].obs;
+  final RxString searchQuery = ''.obs;
   final RxBool isLoading = true.obs;
+  final TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadFriends();
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadFriends() async {
@@ -39,28 +50,75 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
         final List list = data['data'] ?? data['users'] ?? [];
         final currentId = await apiService.getUserId();
 
-        friends.assignAll(
-          list
-              .where(
-                (u) =>
-                    (u['id'] ?? u['uid'] ?? u['_id']).toString() != currentId,
-              )
-              .map(
-                (u) => {
-                  'id': (u['id'] ?? u['uid'] ?? u['_id']).toString(),
-                  'name': u['name'] ?? u['full_name'] ?? 'User',
-                  'username': u['username'] ?? '',
-                  'image': u['profileImage'] ?? u['profile_image'] ?? '',
-                },
-              )
-              .toList(),
-        );
+        final parsed = list
+            .where(
+              (u) => (u['id'] ?? u['uid'] ?? u['_id']).toString() != currentId,
+            )
+            .map(
+              (u) => {
+                'id': (u['id'] ?? u['uid'] ?? u['_id']).toString(),
+                'name': u['name'] ?? u['full_name'] ?? 'User',
+                'username': u['username'] ?? '',
+                'image': u['profileImage'] ?? u['profile_image'] ?? '',
+              },
+            )
+            .toList();
+
+        friends.assignAll(parsed);
       }
     } catch (e) {
       print("Error loading friends for share: $e");
     } finally {
       isLoading.value = false;
     }
+  }
+
+  void _onSearchChanged(String query) async {
+    searchQuery.value = query;
+    final q = query.trim();
+    if (q.isEmpty) return;
+
+    try {
+      final response = await apiService.get(
+        "${ApiConstants.searchUsers}?q=${Uri.encodeComponent(q)}",
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List list = data['data'] ?? data['users'] ?? [];
+        final currentId = await apiService.getUserId();
+
+        final searchResults = list
+            .where(
+              (u) => (u['id'] ?? u['uid'] ?? u['_id']).toString() != currentId,
+            )
+            .map(
+              (u) => {
+                'id': (u['id'] ?? u['uid'] ?? u['_id']).toString(),
+                'name': u['name'] ?? u['full_name'] ?? 'User',
+                'username': u['username'] ?? '',
+                'image': u['profileImage'] ?? u['profile_image'] ?? '',
+              },
+            )
+            .toList();
+
+        for (final user in searchResults) {
+          final exists = friends.any((f) => f['id'] == user['id']);
+          if (!exists) {
+            friends.add(user);
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  List<Map<String, dynamic>> get displayFriends {
+    final q = searchQuery.value.toLowerCase().trim();
+    if (q.isEmpty) return friends;
+    return friends.where((u) {
+      final name = u['name']?.toString().toLowerCase() ?? '';
+      final username = u['username']?.toString().toLowerCase() ?? '';
+      return name.contains(q) || username.contains(q);
+    }).toList();
   }
 
   @override
@@ -88,11 +146,11 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
     ];
 
     return GlassContainer(
-      height: size.height * 0.55,
+      height: size.height * 0.72,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
       child: Column(
         children: [
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Container(
             width: 40,
             height: 4,
@@ -101,20 +159,20 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
           const Text(
             'Share to',
             style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
-              fontSize: 18,
+              fontSize: 16,
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
 
           // Platforms Row
           SizedBox(
-            height: 90,
+            height: 76,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -122,12 +180,12 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
               itemBuilder: (context, index) {
                 final p = platforms[index];
                 return Padding(
-                  padding: const EdgeInsets.only(right: 20),
+                  padding: const EdgeInsets.only(right: 16),
                   child: Column(
                     children: [
                       Container(
-                        width: 54,
-                        height: 54,
+                        width: 48,
+                        height: 48,
                         decoration: BoxDecoration(
                           color: (p['color'] as Color).withValues(alpha: 0.15),
                           shape: BoxShape.circle,
@@ -135,15 +193,15 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
                         child: Icon(
                           p['icon'] as IconData,
                           color: p['color'] as Color,
-                          size: 26,
+                          size: 22,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4),
                       Text(
                         p['name'] as String,
                         style: const TextStyle(
                           color: Colors.white70,
-                          fontSize: 11,
+                          fontSize: 10,
                         ),
                       ),
                     ],
@@ -154,7 +212,7 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
           ),
 
           Divider(color: Colors.white.withValues(alpha: 0.05)),
-          const SizedBox(height: 10),
+          const SizedBox(height: 4),
 
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 20),
@@ -170,20 +228,50 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
               ),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
+
+          // Search Bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: TextField(
+              controller: searchController,
+              onChanged: _onSearchChanged,
+              style: const TextStyle(color: Colors.white, fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'Search friends...',
+                hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: Colors.white38,
+                  size: 18,
+                ),
+                filled: true,
+                fillColor: AppColors.surface,
+                contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
 
           // Friends List for Direct Chat Sharing
           Expanded(
             child: Obx(() {
               if (isLoading.value) {
-                const Center(
+                return const Center(
                   child: CircularProgressIndicator(
                     color: AppColors.purple,
                     strokeWidth: 2,
                   ),
                 );
               }
-              if (friends.isEmpty) {
+
+              final currentFriends = displayFriends;
+
+              if (currentFriends.isEmpty) {
                 return const Center(
                   child: Text(
                     'No friends found',
@@ -194,26 +282,26 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
 
               return ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                itemCount: friends.length,
+                itemCount: currentFriends.length,
                 itemBuilder: (context, index) {
-                  final friend = friends[index];
+                  final friend = currentFriends[index];
                   final imageUrl = friend['image'] ?? '';
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: CircleAvatar(
-                      radius: 22,
+                      radius: 20,
                       backgroundImage: imageUrl.isNotEmpty
                           ? NetworkImage(ApiConstants.getFullUrl(imageUrl))
                           : null,
                       child: imageUrl.isEmpty
-                          ? const Icon(Icons.person, size: 20)
+                          ? const Icon(Icons.person, size: 18)
                           : null,
                     ),
                     title: Text(
                       friend['name'] ?? 'User',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 14,
+                        fontSize: 13.5,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -221,17 +309,20 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
                       '@${friend['username']}',
                       style: const TextStyle(
                         color: Colors.white54,
-                        fontSize: 12,
+                        fontSize: 11.5,
                       ),
                     ),
                     trailing: ElevatedButton(
                       onPressed: () async {
-                        final text = widget.contentUrl != null
-                            ? 'Check out this post/reel: ${ApiConstants.getFullUrl(widget.contentUrl)}'
+                        final text = widget.reelId != null
+                            ? 'Shared a reel'
+                            : widget.contentUrl != null
+                            ? 'Check out this post: ${ApiConstants.getFullUrl(widget.contentUrl)}'
                             : 'Hey!';
                         final success = await chatController.sendMessage(
                           friend['id'],
                           text,
+                          reelId: widget.reelId,
                         );
                         Get.back();
                         if (success) {
@@ -242,14 +333,14 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.purple,
-                        minimumSize: const Size(70, 32),
+                        minimumSize: const Size(64, 30),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
                       child: const Text(
                         'Send',
-                        style: TextStyle(color: Colors.white, fontSize: 12),
+                        style: TextStyle(color: Colors.white, fontSize: 11.5),
                       ),
                     ),
                   );

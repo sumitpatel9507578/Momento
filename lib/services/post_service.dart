@@ -129,23 +129,34 @@ class PostService {
 
   Future<bool> toggleLike(String postId) async {
     try {
-      final response = await _apiService.post(
+      final user = await _apiService.getUser();
+      final userId = (user?['id'] ?? user?['uid'] ?? user?['userId'] ?? '')
+          .toString();
+
+      final body = <String, dynamic>{
+        'postId': postId,
+        'post_id': postId,
+        if (userId.isNotEmpty) 'userId': userId,
+        if (userId.isNotEmpty) 'user_id': userId,
+      };
+
+      // 1. Try POST /api/likes/post/{postId}
+      var response = await _apiService.post(
         "${ApiConstants.likes}/post/$postId",
-        {},
+        body,
       );
+      if (response.statusCode == 200 || response.statusCode == 201) return true;
 
-      print(
-        "PostService toggleLike -> status ${response.statusCode}, body: ${response.body}",
+      // 2. Try POST /api/posts/{postId}/like
+      response = await _apiService.post(
+        "${ApiConstants.posts}/$postId/like",
+        body,
       );
+      if (response.statusCode == 200 || response.statusCode == 201) return true;
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return true;
-      }
-
-      print(
-        "PostService toggleLike FAILED: ${response.statusCode} ${response.body}",
-      );
-      return false;
+      // 3. Try POST /api/likes with body
+      response = await _apiService.post(ApiConstants.likes, body);
+      return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
       print("PostService toggleLike error: $e");
       return false;

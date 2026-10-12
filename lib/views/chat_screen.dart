@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../controllers/chat_controller.dart';
+import '../controllers/reel_controller.dart';
+import '../models/message_model.dart';
+import '../models/user_model.dart';
 import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
+import '../routes/app_routes.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -21,11 +25,39 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    user = Get.arguments as Map<String, dynamic>;
-    controller.fetchMessages(user['id'].toString());
+    final args = Get.arguments;
+    if (args is UserModel) {
+      user = {
+        'id': args.uid,
+        'full_name': args.name,
+        'username': args.username,
+        'profile_image': args.profileImage,
+        'is_online': false,
+      };
+    } else if (args is Map) {
+      user = Map<String, dynamic>.from(args);
+    } else {
+      final str = args?.toString() ?? '';
+      user = {
+        'id': str,
+        'full_name': 'User',
+        'username': str,
+        'profile_image': '',
+      };
+    }
+    final targetUserId = (user['id'] ?? user['uid'] ?? user['_id'] ?? '')
+        .toString();
+    (controller as dynamic).startLiveMessages(targetUserId);
     messageController.addListener(() {
       _hasText.value = messageController.text.trim().isNotEmpty;
     });
+  }
+
+  @override
+  void dispose() {
+    (controller as dynamic).stopLiveMessages();
+    messageController.dispose();
+    super.dispose();
   }
 
   bool get _isOnline => user['is_online'] == true || user['is_online'] == 1;
@@ -130,7 +162,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   final isVeryLastMessage = realIndex == msgs.length - 1;
 
                   return _buildMessageRow(
-                    text: msg.message,
+                    msg: msg,
                     isMe: isMe,
                     isFirstOfGroup: isFirstOfGroup,
                     isLastOfGroup: isLastOfGroup,
@@ -146,10 +178,10 @@ class _ChatScreenState extends State<ChatScreen> {
           // Composer
           Container(
             padding: EdgeInsets.fromLTRB(
-              8,
-              8,
               12,
-              MediaQuery.of(context).padding.bottom + 8,
+              10,
+              12,
+              MediaQuery.of(context).padding.bottom + 10,
             ),
             decoration: const BoxDecoration(
               color: AppColors.background,
@@ -160,38 +192,39 @@ class _ChatScreenState extends State<ChatScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                IconButton(
-                  onPressed: () {},
-                  icon: const Icon(
-                    Icons.camera_alt_outlined,
-                    color: Colors.white,
-                    size: 26,
-                  ),
-                ),
                 Expanded(
                   child: Container(
-                    constraints: const BoxConstraints(minHeight: 40),
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    constraints: const BoxConstraints(
+                      minHeight: 48,
+                      maxHeight: 120,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(22),
+                      borderRadius: BorderRadius.circular(24),
                       border: Border.all(color: Colors.white12),
                     ),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        const SizedBox(width: 8),
                         Expanded(
                           child: TextField(
                             controller: messageController,
                             minLines: 1,
-                            maxLines: 4,
+                            maxLines: 5,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 14,
+                              fontSize: 15,
                             ),
                             decoration: const InputDecoration(
                               hintText: 'Message...',
-                              hintStyle: TextStyle(color: Colors.white38),
+                              hintStyle: TextStyle(
+                                color: Colors.white38,
+                                fontSize: 15,
+                              ),
                               border: InputBorder.none,
                               isDense: true,
                               contentPadding: EdgeInsets.symmetric(
@@ -205,23 +238,12 @@ class _ChatScreenState extends State<ChatScreen> {
                           constraints: const BoxConstraints(),
                           onPressed: () {},
                           icon: const Icon(
-                            Icons.emoji_emotions_outlined,
+                            Icons.camera_alt_outlined,
                             color: Colors.white54,
                             size: 22,
                           ),
                         ),
-                        const SizedBox(width: 4),
-                        IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () {},
-                          icon: const Icon(
-                            Icons.mic_none_rounded,
-                            color: Colors.white54,
-                            size: 22,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
+                        const SizedBox(width: 8),
                         IconButton(
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
@@ -232,37 +254,63 @@ class _ChatScreenState extends State<ChatScreen> {
                             size: 22,
                           ),
                         ),
-                        const SizedBox(width: 4),
                       ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 Obx(
                   () => _hasText.value
-                      ? IconButton(
-                          onPressed: () async {
-                            final text = messageController.text.trim();
-                            if (text.isNotEmpty) {
-                              final success = await controller.sendMessage(
-                                user['id'].toString(),
-                                text,
-                              );
-                              if (success) messageController.clear();
-                            }
-                          },
-                          icon: const Icon(
-                            Icons.send_rounded,
+                      ? Container(
+                          width: 44,
+                          height: 44,
+                          decoration: const BoxDecoration(
                             color: AppColors.purple,
-                            size: 24,
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            onPressed: () async {
+                              final text = messageController.text.trim();
+                              if (text.isNotEmpty) {
+                                messageController.clear();
+                                final targetId =
+                                    (user['id'] ??
+                                            user['uid'] ??
+                                            user['_id'] ??
+                                            '')
+                                        .toString();
+                                await controller.sendMessage(targetId, text);
+                              }
+                            },
+                            icon: const Icon(
+                              Icons.send_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                           ),
                         )
-                      : IconButton(
-                          onPressed: () {},
-                          icon: const Icon(
-                            Icons.favorite_border_rounded,
-                            color: Colors.white70,
-                            size: 24,
+                      : Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.08),
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            onPressed: () async {
+                              final targetId =
+                                  (user['id'] ??
+                                          user['uid'] ??
+                                          user['_id'] ??
+                                          '')
+                                      .toString();
+                              await controller.sendMessage(targetId, '❤️');
+                            },
+                            icon: const Icon(
+                              Icons.favorite_rounded,
+                              color: Colors.redAccent,
+                              size: 22,
+                            ),
                           ),
                         ),
                 ),
@@ -274,8 +322,86 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  void _showMessageMenu(BuildContext context, MessageModel msg) {
+    Get.bottomSheet(
+      Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        child: Wrap(
+          children: [
+            Obx(() {
+              final isSaving = controller.savingMessageIds.contains(msg.id);
+              return ListTile(
+                enabled: msg.isPersisted && !isSaving,
+                leading: isSaving
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        msg.isSaved
+                            ? Icons.bookmark
+                            : Icons.bookmark_border_rounded,
+                        color: Colors.white,
+                      ),
+                title: Text(
+                  msg.isSaved ? 'Unsave Message' : 'Save Message',
+                  style: const TextStyle(color: Colors.white),
+                ),
+                onTap: () {
+                  Get.back();
+                  controller.toggleSaveMessage(msg);
+                },
+              );
+            }),
+            if (msg.messageType == 'reel' && msg.reelId != null)
+              Obx(() {
+                final isSaving = controller.savingReelIds.contains(msg.reelId);
+                final isSaved = controller.isReelSaved(msg.reelId!);
+                return ListTile(
+                  enabled: !isSaving,
+                  leading: isSaving
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(
+                          isSaved
+                              ? Icons.video_library
+                              : Icons.video_library_outlined,
+                          color: Colors.white,
+                        ),
+                  title: Text(
+                    isSaved ? 'Unsave Shared Reel' : 'Save Shared Reel',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  onTap: () {
+                    Get.back();
+                    controller.toggleSaveReel(msg.reelId!, isSaved: isSaved);
+                  },
+                );
+              }),
+            ListTile(
+              leading: const Icon(Icons.cancel, color: Colors.white54),
+              title: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.white54),
+              ),
+              onTap: () => Get.back(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildMessageRow({
-    required String text,
+    required MessageModel msg,
     required bool isMe,
     required bool isFirstOfGroup,
     required bool isLastOfGroup,
@@ -283,6 +409,8 @@ class _ChatScreenState extends State<ChatScreen> {
     required bool showAvatar,
     required bool hasImage,
   }) {
+    final text = msg.message;
+    final isSharedReel = msg.messageType == 'reel' && msg.reelId != null;
     return Padding(
       padding: EdgeInsets.only(
         top: isFirstOfGroup ? 8 : 2,
@@ -325,34 +453,99 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
                 const SizedBox(width: 6),
               ],
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.7,
-                ),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
+              GestureDetector(
+                onLongPress: () => _showMessageMenu(context, msg),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.7,
                   ),
-                  decoration: BoxDecoration(
-                    color: isMe ? AppColors.purple : AppColors.surface,
-                    borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(20),
-                      topRight: const Radius.circular(20),
-                      bottomLeft: Radius.circular(
-                        isMe ? 20 : (isLastOfGroup ? 4 : 20),
-                      ),
-                      bottomRight: Radius.circular(
-                        isMe ? (isLastOfGroup ? 4 : 20) : 20,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isMe ? AppColors.purple : AppColors.surface,
+                      borderRadius: BorderRadius.only(
+                        topLeft: const Radius.circular(20),
+                        topRight: const Radius.circular(20),
+                        bottomLeft: Radius.circular(
+                          isMe ? 20 : (isLastOfGroup ? 4 : 20),
+                        ),
+                        bottomRight: Radius.circular(
+                          isMe ? (isLastOfGroup ? 4 : 20) : 20,
+                        ),
                       ),
                     ),
-                  ),
-                  child: Text(
-                    text,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14.5,
-                      height: 1.25,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: isSharedReel
+                              ? InkWell(
+                                  onTap: () => _openSharedReel(msg.reelId!),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.play_circle_fill,
+                                        color: Colors.white,
+                                        size: 34,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Flexible(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              msg.reelCaption?.isNotEmpty ==
+                                                      true
+                                                  ? msg.reelCaption!
+                                                  : 'Shared reel',
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 14.5,
+                                                height: 1.25,
+                                              ),
+                                            ),
+                                            if (msg
+                                                    .reelOwnerUsername
+                                                    ?.isNotEmpty ==
+                                                true)
+                                              Text(
+                                                '@${msg.reelOwnerUsername}',
+                                                style: const TextStyle(
+                                                  color: Colors.white70,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : Text(
+                                  text,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14.5,
+                                    height: 1.25,
+                                  ),
+                                ),
+                        ),
+                        if (msg.isSaved) ...[
+                          const SizedBox(width: 6),
+                          const Icon(
+                            Icons.bookmark,
+                            color: Colors.white70,
+                            size: 14,
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ),
@@ -370,5 +563,14 @@ class _ChatScreenState extends State<ChatScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _openSharedReel(String reelId) async {
+    final reelController = Get.isRegistered<ReelController>()
+        ? Get.find<ReelController>()
+        : Get.put(ReelController());
+    if (await reelController.openReel(reelId)) {
+      Get.toNamed(AppRoutes.reels, arguments: reelId);
+    }
   }
 }

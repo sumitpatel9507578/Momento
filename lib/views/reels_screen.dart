@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../controllers/reel_controller.dart';
 import 'package:video_player/video_player.dart';
 
 import '../controllers/profile_controller.dart';
+import '../controllers/reel_controller.dart';
 import '../models/reel_model.dart';
 import '../services/api_service.dart';
 import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
+import '../widgets/comment_bottom_sheet.dart';
 import '../widgets/share_bottom_sheet.dart';
 
 class ReelsScreen extends GetView<ReelController> {
@@ -61,6 +62,7 @@ class ReelsScreen extends GetView<ReelController> {
         return RefreshIndicator(
           onRefresh: controller.refreshReels,
           child: PageView.builder(
+            controller: controller.pageController,
             scrollDirection: Axis.vertical,
             itemCount: controller.reels.length,
             onPageChanged: (index) {
@@ -155,13 +157,19 @@ class ReelsScreen extends GetView<ReelController> {
                         _buildAction(
                           Icons.comment,
                           '${reel.commentsCount}',
-                          () {},
+                          () => Get.bottomSheet(
+                            CommentBottomSheet(id: reel.id, isReel: true),
+                            isScrollControlled: true,
+                          ),
                         ),
                         _buildAction(
                           Icons.send,
                           '',
                           () => Get.bottomSheet(
-                            ShareBottomSheet(contentUrl: reel.videoUrl),
+                            ShareBottomSheet(
+                              contentUrl: reel.videoUrl,
+                              reelId: reel.id,
+                            ),
                           ),
                         ),
                         _buildAction(

@@ -39,6 +39,23 @@ class LoginController extends GetxController {
     }
   }
 
+  Future<void> loginWithGoogle() async {
+    final success = await authController.loginWithGoogle();
+
+    if (success) {
+      final apiService = Get.find<ApiService>();
+      final user = await apiService.getUser();
+      final bio = user?['bio']?.toString().trim() ?? '';
+
+      // If bio is empty, assume profile is not completed yet
+      if (bio.isEmpty) {
+        Get.offAllNamed(AppRoutes.completeProfile);
+      } else {
+        Get.offAllNamed(AppRoutes.home);
+      }
+    }
+  }
+
   @override
   void onClose() {
     emailController.dispose();

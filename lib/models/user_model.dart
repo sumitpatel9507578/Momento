@@ -45,15 +45,16 @@ class UserModel {
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
     print("DEBUG User JSON: $map");
-    final String extractedUid = (map['uid'] ??
-            map['id'] ??
-            map['_id'] ??
-            map['userId'] ??
-            map['user_id'] ??
-            map['user']?['_id'] ??
-            map['user']?['id'] ??
-            '')
-        .toString();
+    final String extractedUid =
+        (map['uid'] ??
+                map['id'] ??
+                map['_id'] ??
+                map['userId'] ??
+                map['user_id'] ??
+                map['user']?['_id'] ??
+                map['user']?['id'] ??
+                '')
+            .toString();
 
     return UserModel(
       uid: extractedUid,

@@ -23,7 +23,10 @@ class SearchScreen extends GetView<ExploreController> {
                   prefixIcon: const Icon(Icons.search),
                   filled: true,
                   fillColor: Colors.white10,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
               ),
             ),
@@ -42,17 +45,28 @@ class SearchScreen extends GetView<ExploreController> {
   }
 
   Widget _buildResults() {
-    if (controller.isLoading.value) return const Center(child: CircularProgressIndicator());
-    if (controller.searchResults.isEmpty) return const Center(child: Text('No results', style: TextStyle(color: Colors.white)));
+    if (controller.isLoading.value)
+      return const Center(child: CircularProgressIndicator());
+    if (controller.searchResults.isEmpty)
+      return const Center(
+        child: Text('No results', style: TextStyle(color: Colors.white)),
+      );
 
     return ListView.builder(
       itemCount: controller.searchResults.length,
       itemBuilder: (context, index) {
         final user = controller.searchResults[index];
         return ListTile(
-          leading: CircleAvatar(backgroundImage: NetworkImage(ApiConstants.getFullUrl(user.profileImage))),
+          leading: CircleAvatar(
+            backgroundImage: NetworkImage(
+              ApiConstants.getFullUrl(user.profileImage),
+            ),
+          ),
           title: Text(user.name, style: const TextStyle(color: Colors.white)),
-          subtitle: Text('@${user.username}', style: const TextStyle(color: Colors.white54)),
+          subtitle: Text(
+            '@${user.username}',
+            style: const TextStyle(color: Colors.white54),
+          ),
           onTap: () => Get.toNamed('/profile', arguments: user.uid),
         );
       },
@@ -60,15 +74,23 @@ class SearchScreen extends GetView<ExploreController> {
   }
 
   Widget _buildExplore() {
-    if (controller.isLoadingExplore.value) return const Center(child: CircularProgressIndicator());
+    if (controller.isLoadingExplore.value)
+      return const Center(child: CircularProgressIndicator());
     return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 1, mainAxisSpacing: 1),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 1,
+        mainAxisSpacing: 1,
+      ),
       itemCount: controller.explorePosts.length,
       itemBuilder: (context, index) {
         final post = controller.explorePosts[index];
         return GestureDetector(
           onTap: () => Get.toNamed('/post-details', arguments: post),
-          child: Image.network(ApiConstants.getFullUrl(post.mediaUrl), fit: BoxFit.cover),
+          child: Image.network(
+            ApiConstants.getFullUrl(post.mediaUrl),
+            fit: BoxFit.cover,
+          ),
         );
       },
     );

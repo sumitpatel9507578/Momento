@@ -35,25 +35,61 @@ class PostModel {
     // CRITICAL DEBUG: Print the JSON to see why images are broken
     print("DEBUG Post JSON: $json");
 
-    final rawUser = json['user'] ?? json['userId'] ?? json['user_id'] ?? json['author'] ?? json['userid'];
+    final rawUser =
+        json['user'] ??
+        json['userId'] ??
+        json['user_id'] ??
+        json['author'] ??
+        json['userid'];
     String extractedUserId = '';
-    String extractedUsername = json['username'] ?? json['user_name'] ?? json['name'] ?? '';
-    String extractedProfileImage = json['profileImage'] ?? json['profile_image'] ?? json['profileimage'] ?? '';
+    String extractedUsername =
+        json['username'] ?? json['user_name'] ?? json['name'] ?? '';
+    String extractedProfileImage =
+        json['profileImage'] ??
+        json['profile_image'] ??
+        json['profileimage'] ??
+        '';
 
     if (rawUser is Map) {
-      extractedUserId = (rawUser['uid'] ?? rawUser['id'] ?? rawUser['_id'] ?? rawUser['userId'] ?? rawUser['user_id'] ?? '').toString();
+      extractedUserId =
+          (rawUser['uid'] ??
+                  rawUser['id'] ??
+                  rawUser['_id'] ??
+                  rawUser['userId'] ??
+                  rawUser['user_id'] ??
+                  '')
+              .toString();
       if (extractedUsername.isEmpty) {
-        extractedUsername = (rawUser['username'] ?? rawUser['user_name'] ?? rawUser['full_name'] ?? rawUser['name'] ?? '').toString();
+        extractedUsername =
+            (rawUser['username'] ??
+                    rawUser['user_name'] ??
+                    rawUser['full_name'] ??
+                    rawUser['name'] ??
+                    '')
+                .toString();
       }
       if (extractedProfileImage.isEmpty) {
-        extractedProfileImage = (rawUser['profileImage'] ?? rawUser['profile_image'] ?? rawUser['profileimage'] ?? rawUser['image'] ?? '').toString();
+        extractedProfileImage =
+            (rawUser['profileImage'] ??
+                    rawUser['profile_image'] ??
+                    rawUser['profileimage'] ??
+                    rawUser['image'] ??
+                    '')
+                .toString();
       }
     } else if (rawUser != null && rawUser.toString().isNotEmpty) {
       extractedUserId = rawUser.toString();
     }
 
     if (extractedUserId.isEmpty) {
-      extractedUserId = (json['userId'] ?? json['user_id'] ?? json['userid'] ?? json['_id'] ?? json['id'] ?? '').toString();
+      extractedUserId =
+          (json['userId'] ??
+                  json['user_id'] ??
+                  json['userid'] ??
+                  json['_id'] ??
+                  json['id'] ??
+                  '')
+              .toString();
     }
     if (extractedUsername.isEmpty) extractedUsername = 'Anonymous';
 

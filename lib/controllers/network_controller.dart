@@ -12,8 +12,7 @@ class NetworkController extends GetxController {
 
     Connectivity().onConnectivityChanged.listen((result) {
       isConnected.value =
-          result.isNotEmpty &&
-              !result.contains(ConnectivityResult.none);
+          result.isNotEmpty && !result.contains(ConnectivityResult.none);
     });
   }
 
@@ -21,7 +20,6 @@ class NetworkController extends GetxController {
     final result = await Connectivity().checkConnectivity();
 
     isConnected.value =
-        result.isNotEmpty &&
-            !result.contains(ConnectivityResult.none);
+        result.isNotEmpty && !result.contains(ConnectivityResult.none);
   }
 }

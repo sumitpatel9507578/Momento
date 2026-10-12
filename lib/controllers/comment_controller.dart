@@ -4,7 +4,7 @@ import '../services/comment_service.dart';
 
 class CommentController extends GetxController {
   final CommentService _commentService = Get.find<CommentService>();
-  
+
   final comments = <Map<String, dynamic>>[].obs;
   final isLoading = false.obs;
   final commentController = TextEditingController();
@@ -24,7 +24,11 @@ class CommentController extends GetxController {
     if (text.isEmpty) return;
 
     try {
-      final success = await _commentService.addComment(id, text, isReel: isReel);
+      final success = await _commentService.addComment(
+        id,
+        text,
+        isReel: isReel,
+      );
       if (success) {
         commentController.clear();
         await getComments(id, isReel: isReel); // Refresh
