@@ -77,7 +77,12 @@ class EditProfileController extends GetxController {
     try {
       isSaving.value = true;
 
-      final Map<String, String> updates = {'full_name': name, 'bio': bio};
+      final Map<String, String> updates = {
+        'full_name': name,
+        'name': name,
+        'username': username,
+        'bio': bio,
+      };
 
       final success = await _userRepository.updateProfile(
         updates,

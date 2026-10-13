@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../controllers/chat_controller.dart';
@@ -27,6 +28,8 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
   final RxList<Map<String, dynamic>> friends = <Map<String, dynamic>>[].obs;
   final RxString searchQuery = ''.obs;
   final RxBool isLoading = true.obs;
+  final RxMap<String, bool> sendingMap = <String, bool>{}.obs;
+  final RxMap<String, bool> sentMap = <String, bool>{}.obs;
   final TextEditingController searchController = TextEditingController();
 
   @override
@@ -67,7 +70,7 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
         friends.assignAll(parsed);
       }
     } catch (e) {
-      print("Error loading friends for share: $e");
+      debugPrint("Error loading friends for share: $e");
     } finally {
       isLoading.value = false;
     }
@@ -119,6 +122,25 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
       final username = u['username']?.toString().toLowerCase() ?? '';
       return name.contains(q) || username.contains(q);
     }).toList();
+  }
+
+  void _handlePlatformShare(String platformName) {
+    String shareUrl = '';
+    if (widget.reelId != null && widget.reelId!.isNotEmpty) {
+      shareUrl = ApiConstants.getFullUrl('/reels/${widget.reelId}');
+    } else if (widget.contentUrl != null && widget.contentUrl!.isNotEmpty) {
+      shareUrl = ApiConstants.getFullUrl(widget.contentUrl!);
+    } else {
+      shareUrl = 'https://momento.app';
+    }
+
+    Clipboard.setData(ClipboardData(text: shareUrl));
+    Get.snackbar(
+      '$platformName Share',
+      'Link copied to clipboard! You can paste it in $platformName.',
+      snackPosition: SnackPosition.BOTTOM,
+      duration: const Duration(seconds: 2),
+    );
   }
 
   @override
@@ -181,30 +203,36 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
                 final p = platforms[index];
                 return Padding(
                   padding: const EdgeInsets.only(right: 16),
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: (p['color'] as Color).withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
+                  child: InkWell(
+                    onTap: () => _handlePlatformShare(p['name'] as String),
+                    borderRadius: BorderRadius.circular(24),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: (p['color'] as Color).withValues(
+                              alpha: 0.15,
+                            ),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            p['icon'] as IconData,
+                            color: p['color'] as Color,
+                            size: 22,
+                          ),
                         ),
-                        child: Icon(
-                          p['icon'] as IconData,
-                          color: p['color'] as Color,
-                          size: 22,
+                        const SizedBox(height: 4),
+                        Text(
+                          p['name'] as String,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 10,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        p['name'] as String,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 );
               },
@@ -285,16 +313,23 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
                 itemCount: currentFriends.length,
                 itemBuilder: (context, index) {
                   final friend = currentFriends[index];
+                  final friendId = friend['id'].toString();
                   final imageUrl = friend['image'] ?? '';
+
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: CircleAvatar(
                       radius: 20,
+                      backgroundColor: AppColors.darkGrey,
                       backgroundImage: imageUrl.isNotEmpty
                           ? NetworkImage(ApiConstants.getFullUrl(imageUrl))
                           : null,
                       child: imageUrl.isEmpty
-                          ? const Icon(Icons.person, size: 18)
+                          ? const Icon(
+                              Icons.person,
+                              size: 18,
+                              color: Colors.white38,
+                            )
                           : null,
                     ),
                     title: Text(
@@ -312,37 +347,75 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
                         fontSize: 11.5,
                       ),
                     ),
-                    trailing: ElevatedButton(
-                      onPressed: () async {
-                        final text = widget.reelId != null
-                            ? 'Shared a reel'
-                            : widget.contentUrl != null
-                            ? 'Check out this post: ${ApiConstants.getFullUrl(widget.contentUrl)}'
-                            : 'Hey!';
-                        final success = await chatController.sendMessage(
-                          friend['id'],
-                          text,
-                          reelId: widget.reelId,
-                        );
-                        Get.back();
-                        if (success) {
-                          Get.snackbar('Success', 'Sent to ${friend['name']}!');
-                        } else {
-                          Get.snackbar('Error', 'Failed to send message');
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.purple,
-                        minimumSize: const Size(64, 30),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                    trailing: Obx(() {
+                      final isSending = sendingMap[friendId] == true;
+                      final isSent = sentMap[friendId] == true;
+
+                      return ElevatedButton(
+                        onPressed: (isSending || isSent)
+                            ? null
+                            : () async {
+                                sendingMap[friendId] = true;
+                                final text =
+                                    (widget.reelId != null &&
+                                        widget.reelId!.isNotEmpty)
+                                    ? 'Shared a reel'
+                                    : (widget.contentUrl != null &&
+                                          widget.contentUrl!.isNotEmpty)
+                                    ? 'Check out this post: ${ApiConstants.getFullUrl(widget.contentUrl!)}'
+                                    : 'Hey!';
+                                final success = await chatController
+                                    .sendMessage(
+                                      friendId,
+                                      text,
+                                      reelId: widget.reelId,
+                                    );
+                                sendingMap[friendId] = false;
+                                if (success) {
+                                  sentMap[friendId] = true;
+                                  Get.snackbar(
+                                    'Success',
+                                    'Sent to ${friend['name']}!',
+                                    snackPosition: SnackPosition.BOTTOM,
+                                  );
+                                } else {
+                                  Get.snackbar(
+                                    'Error',
+                                    'Failed to send message',
+                                    snackPosition: SnackPosition.BOTTOM,
+                                  );
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isSent
+                              ? Colors.green
+                              : AppColors.purple,
+                          disabledBackgroundColor: isSent
+                              ? Colors.green.withValues(alpha: 0.6)
+                              : AppColors.purple.withValues(alpha: 0.5),
+                          minimumSize: const Size(64, 30),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
                         ),
-                      ),
-                      child: const Text(
-                        'Send',
-                        style: TextStyle(color: Colors.white, fontSize: 11.5),
-                      ),
-                    ),
+                        child: isSending
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                isSent ? 'Sent' : 'Send',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11.5,
+                                ),
+                              ),
+                      );
+                    }),
                   );
                 },
               );

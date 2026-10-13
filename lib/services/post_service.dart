@@ -127,40 +127,72 @@ class PostService {
     } catch (_) {}
   }
 
-  Future<bool> toggleLike(String postId) async {
+  Map<String, dynamic>? _decodeResponse(String body) {
     try {
-      final user = await _apiService.getUser();
-      final userId = (user?['id'] ?? user?['uid'] ?? user?['userId'] ?? '')
-          .toString();
+      final decoded = jsonDecode(body);
+      return decoded is Map<String, dynamic> ? decoded : null;
+    } on FormatException {
+      return null;
+    }
+  }
 
-      final body = <String, dynamic>{
-        'postId': postId,
-        'post_id': postId,
-        if (userId.isNotEmpty) 'userId': userId,
-        if (userId.isNotEmpty) 'user_id': userId,
-      };
+  Future<void> toggleLike(String postId) async {
+    final user = await _apiService.getUser();
+    final userId = (user?['id'] ?? user?['uid'] ?? user?['userId'] ?? '')
+        .toString();
 
-      // 1. Try POST /api/likes/post/{postId}
+    final body = <String, dynamic>{
+      'postId': postId,
+      'post_id': postId,
+      if (userId.isNotEmpty) 'userId': userId,
+      if (userId.isNotEmpty) 'user_id': userId,
+    };
+
+    String errorMessage = 'Could not update like status';
+
+    // 1. Try POST /api/likes/post/{postId}
+    try {
       var response = await _apiService.post(
         "${ApiConstants.likes}/post/$postId",
         body,
       );
-      if (response.statusCode == 200 || response.statusCode == 201) return true;
+      final decoded = _decodeResponse(response.body);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (decoded == null || decoded['success'] != false) return;
+        errorMessage = decoded['message']?.toString() ?? errorMessage;
+      } else if (decoded != null && decoded['message'] != null) {
+        errorMessage = decoded['message'].toString();
+      }
+    } catch (_) {}
 
-      // 2. Try POST /api/posts/{postId}/like
-      response = await _apiService.post(
+    // 2. Try POST /api/posts/{postId}/like
+    try {
+      var response = await _apiService.post(
         "${ApiConstants.posts}/$postId/like",
         body,
       );
-      if (response.statusCode == 200 || response.statusCode == 201) return true;
+      final decoded = _decodeResponse(response.body);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (decoded == null || decoded['success'] != false) return;
+        errorMessage = decoded['message']?.toString() ?? errorMessage;
+      } else if (decoded != null && decoded['message'] != null) {
+        errorMessage = decoded['message'].toString();
+      }
+    } catch (_) {}
 
-      // 3. Try POST /api/likes with body
-      response = await _apiService.post(ApiConstants.likes, body);
-      return response.statusCode == 200 || response.statusCode == 201;
-    } catch (e) {
-      print("PostService toggleLike error: $e");
-      return false;
-    }
+    // 3. Try POST /api/likes
+    try {
+      var response = await _apiService.post(ApiConstants.likes, body);
+      final decoded = _decodeResponse(response.body);
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (decoded == null || decoded['success'] != false) return;
+        errorMessage = decoded['message']?.toString() ?? errorMessage;
+      } else if (decoded != null && decoded['message'] != null) {
+        errorMessage = decoded['message'].toString();
+      }
+    } catch (_) {}
+
+    throw Exception(errorMessage);
   }
 
   Future<bool> addComment(String postId, String comment) async {

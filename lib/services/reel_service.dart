@@ -118,23 +118,33 @@ class ReelService {
         if (userId.isNotEmpty) 'user_id': userId,
       };
 
+      bool isSuccess(dynamic response) {
+        if (response.statusCode != 200 && response.statusCode != 201)
+          return false;
+        try {
+          final decoded = jsonDecode(response.body);
+          if (decoded is Map && decoded['success'] == false) return false;
+        } catch (_) {}
+        return true;
+      }
+
       // 1. Try POST /api/likes/reel/{reelId}
       var response = await _apiService.post(
         "${ApiConstants.likes}/reel/$reelId",
         body,
       );
-      if (response.statusCode == 200 || response.statusCode == 201) return true;
+      if (isSuccess(response)) return true;
 
       // 2. Try POST /api/reels/{reelId}/like
       response = await _apiService.post(
         "${ApiConstants.reels}/$reelId/like",
         body,
       );
-      if (response.statusCode == 200 || response.statusCode == 201) return true;
+      if (isSuccess(response)) return true;
 
       // 3. Try POST /api/likes with body
       response = await _apiService.post(ApiConstants.likes, body);
-      return response.statusCode == 200 || response.statusCode == 201;
+      return isSuccess(response);
     } catch (e) {
       print("ReelService toggleLike error: $e");
       return false;

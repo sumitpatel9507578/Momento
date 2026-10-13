@@ -11,8 +11,29 @@ import '../utils/app_colors.dart';
 import '../widgets/comment_bottom_sheet.dart';
 import '../widgets/share_bottom_sheet.dart';
 
-class ReelsScreen extends GetView<ReelController> {
+class ReelsScreen extends StatefulWidget {
   const ReelsScreen({super.key});
+
+  @override
+  State<ReelsScreen> createState() => _ReelsScreenState();
+}
+
+class _ReelsScreenState extends State<ReelsScreen> {
+  late final ReelController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.isRegistered<ReelController>()
+        ? Get.find<ReelController>()
+        : Get.put(ReelController());
+  }
+
+  @override
+  void deactivate() {
+    controller.pauseAllVideos();
+    super.deactivate();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +93,7 @@ class ReelsScreen extends GetView<ReelController> {
             itemBuilder: (context, index) {
               final reel = controller.reels[index];
               final videoController = controller.getVideoController(index);
+              final hasThumbnail = reel.thumbnail.isNotEmpty;
 
               return Stack(
                 fit: StackFit.expand,
@@ -119,9 +141,19 @@ class ReelsScreen extends GetView<ReelController> {
                             children: [
                               CircleAvatar(
                                 radius: 16,
-                                backgroundImage: NetworkImage(
-                                  ApiConstants.getFullUrl(reel.thumbnail),
-                                ),
+                                backgroundColor: AppColors.darkGrey,
+                                backgroundImage: hasThumbnail
+                                    ? NetworkImage(
+                                        ApiConstants.getFullUrl(reel.thumbnail),
+                                      )
+                                    : null,
+                                child: !hasThumbnail
+                                    ? const Icon(
+                                        Icons.person,
+                                        size: 16,
+                                        color: Colors.white38,
+                                      )
+                                    : null,
                               ),
                               const SizedBox(width: 10),
                               Text(
@@ -134,11 +166,13 @@ class ReelsScreen extends GetView<ReelController> {
                             ],
                           ),
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          reel.caption,
-                          style: const TextStyle(color: Colors.white),
-                        ),
+                        if (reel.caption.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            reel.caption,
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -150,9 +184,10 @@ class ReelsScreen extends GetView<ReelController> {
                     child: Column(
                       children: [
                         _buildAction(
-                          Icons.favorite,
+                          reel.isLiked ? Icons.favorite : Icons.favorite_border,
                           '${reel.likesCount}',
                           () => controller.toggleLike(index),
+                          color: reel.isLiked ? Colors.redAccent : Colors.white,
                         ),
                         _buildAction(
                           Icons.comment,
@@ -193,12 +228,17 @@ class ReelsScreen extends GetView<ReelController> {
     );
   }
 
-  Widget _buildAction(IconData icon, String label, VoidCallback onTap) {
+  Widget _buildAction(
+    IconData icon,
+    String label,
+    VoidCallback onTap, {
+    Color color = Colors.white,
+  }) {
     return Column(
       children: [
         IconButton(
           onPressed: onTap,
-          icon: Icon(icon, color: Colors.white, size: 30),
+          icon: Icon(icon, color: color, size: 30),
         ),
         if (label.isNotEmpty)
           Text(
@@ -234,6 +274,29 @@ void showReelOptionsBottomSheet(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
       child: Wrap(
         children: [
+          Obx(() {
+            final isSaved = controller.isSaved(reel.id);
+            return ListTile(
+              leading: Icon(
+                isSaved ? Icons.bookmark : Icons.bookmark_border,
+                color: Colors.white,
+              ),
+              title: Text(
+                isSaved ? 'Unsave Reel' : 'Save Reel',
+                style: const TextStyle(color: Colors.white),
+              ),
+              onTap: () {
+                Get.back();
+                controller.toggleSave(
+                  controller.reels.indexWhere((r) => r.id == reel.id),
+                );
+                Get.snackbar(
+                  'Saved',
+                  isSaved ? 'Removed from saved' : 'Reel saved',
+                );
+              },
+            );
+          }),
           if (isMyReel) ...[
             ListTile(
               leading: const Icon(Icons.delete, color: Colors.redAccent),

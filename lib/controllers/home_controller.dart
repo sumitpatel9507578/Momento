@@ -1,9 +1,10 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import 'reel_controller.dart';
 import '../models/post_model.dart';
 import '../repositories/user_repository.dart';
 import '../services/post_service.dart';
+import 'reel_controller.dart';
 
 class HomeController extends GetxController {
   final PostService _postService = Get.find<PostService>();
@@ -127,15 +128,26 @@ class HomeController extends GetxController {
     );
 
     try {
-      final success = await _postService.toggleLike(post.postId);
-      if (!success) throw Exception('Failed to update like');
+      await _postService.toggleLike(post.postId);
+      Get.snackbar(
+        'Success',
+        posts[index].isLiked ? 'Post liked' : 'Post unliked',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 1),
+      );
     } catch (e) {
       // Revert on error
       posts[index] = post.copyWith(
         isLiked: originalState,
         likesCount: originalLikes,
       );
-      Get.snackbar('Error', 'Could not update like status');
+      Get.snackbar(
+        'Like Error',
+        e.toString().replaceAll('Exception: ', ''),
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
     }
   }
 

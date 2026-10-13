@@ -1,5 +1,5 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:flutter/widgets.dart';
 import 'package:video_player/video_player.dart';
 
 import '../models/reel_model.dart';
@@ -65,6 +65,14 @@ class ReelController extends GetxController {
     }
   }
 
+  bool get _isPageControllerAttached {
+    try {
+      return pageController.hasClients;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> refreshReels() async {
     try {
       isRefreshing.value = true;
@@ -76,7 +84,7 @@ class ReelController extends GetxController {
 
       reels.assignAll(result);
       currentIndex.value = 0;
-      if (pageController.hasClients) pageController.jumpToPage(0);
+      if (_isPageControllerAttached) pageController.jumpToPage(0);
       if (reels.isNotEmpty) {
         await initializeVideo(0);
         playVideo(0);
@@ -107,10 +115,9 @@ class ReelController extends GetxController {
     }
 
     currentIndex.value = index;
-    if (pageController.hasClients) {
+    if (_isPageControllerAttached) {
       pageController.jumpToPage(index);
     } else {
-      pageController.dispose();
       pageController = PageController(initialPage: index);
     }
     await initializeVideo(index);
@@ -271,15 +278,26 @@ class ReelController extends GetxController {
     );
 
     try {
-      final success = await _service.toggleLike(reel.id);
-      if (!success) throw Exception('Failed to update like');
+      await _service.toggleLike(reel.id);
+      Get.snackbar(
+        'Success',
+        reels[index].isLiked ? 'Reel liked' : 'Reel unliked',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 1),
+      );
     } catch (e) {
       // Revert on error
       reels[index] = reel.copyWith(
         isLiked: originalState,
         likesCount: originalLikes,
       );
-      Get.snackbar('Error', 'Could not update like status');
+      Get.snackbar(
+        'Like Error',
+        e.toString().replaceAll('Exception: ', ''),
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.redAccent,
+        colorText: Colors.white,
+      );
     }
   }
 
@@ -321,7 +339,11 @@ class ReelController extends GetxController {
   @override
   void onClose() {
     _disposeVideos();
-    pageController.dispose();
+    try {
+      if (_isPageControllerAttached) {
+        pageController.dispose();
+      }
+    } catch (_) {}
     super.onClose();
   }
 }

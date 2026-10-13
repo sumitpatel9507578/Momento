@@ -5,10 +5,9 @@ import '../controllers/chat_controller.dart';
 import '../controllers/reel_controller.dart';
 import '../models/message_model.dart';
 import '../models/user_model.dart';
+import '../routes/app_routes.dart';
 import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
-import '../routes/app_routes.dart';
-
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
 
@@ -47,7 +46,8 @@ class _ChatScreenState extends State<ChatScreen> {
     }
     final targetUserId = (user['id'] ?? user['uid'] ?? user['_id'] ?? '')
         .toString();
-    (controller as dynamic).startLiveMessages(targetUserId);
+    controller.messages.clear();
+    controller.startLiveMessages(targetUserId);
     messageController.addListener(() {
       _hasText.value = messageController.text.trim().isNotEmpty;
     });
@@ -55,7 +55,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
-    (controller as dynamic).stopLiveMessages();
+    controller.stopLiveMessages();
     messageController.dispose();
     super.dispose();
   }
@@ -66,7 +66,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     final hasImage =
         user['profile_image'] != null &&
-        user['profile_image'].toString().isNotEmpty;
+        user['profile_image'].toString().isNotEmpty; 
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -358,7 +358,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 },
               );
             }),
-            if (msg.messageType == 'reel' && msg.reelId != null)
+            if (msg.messageType == 'reel' &&
+                msg.reelId != null &&
+                msg.reelId!.isNotEmpty)
               Obx(() {
                 final isSaving = controller.savingReelIds.contains(msg.reelId);
                 final isSaved = controller.isReelSaved(msg.reelId!);
@@ -553,8 +555,8 @@ class _ChatScreenState extends State<ChatScreen> {
             ],
           ),
           if (showSeen)
-            Padding(
-              padding: const EdgeInsets.only(top: 4, right: 4),
+            const Padding(
+              padding: EdgeInsets.only(top: 4, right: 4),
               child: Text(
                 'Seen',
                 style: TextStyle(color: Colors.white38, fontSize: 11),
