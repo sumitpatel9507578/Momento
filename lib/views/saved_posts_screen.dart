@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../controllers/chat_controller.dart';
-import '../controllers/profile_controller.dart';
 import '../controllers/reel_controller.dart';
 import '../routes/app_routes.dart';
 import '../utils/api_constants.dart';
@@ -37,10 +36,6 @@ class _SavedPostsScreenState extends State<SavedPostsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final ProfileController profileController = Get.find<ProfileController>(
-      tag: 'me',
-    );
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -55,10 +50,22 @@ class _SavedPostsScreenState extends State<SavedPostsScreen>
           indicatorColor: AppColors.purple,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white38,
-          tabs: const [
-            Tab(text: 'Posts'),
-            Tab(text: 'Reels'),
-            Tab(text: 'Messages'),
+          tabs: [
+            Tab(
+              child: Obx(
+                () => Text('Posts (${chatController.savedPosts.length})'),
+              ),
+            ),
+            Tab(
+              child: Obx(
+                () => Text('Reels (${chatController.savedReelsList.length})'),
+              ),
+            ),
+            Tab(
+              child: Obx(
+                () => Text('Messages (${chatController.savedMessages.length})'),
+              ),
+            ),
           ],
         ),
       ),
@@ -67,15 +74,19 @@ class _SavedPostsScreenState extends State<SavedPostsScreen>
         children: [
           // 1. Saved Posts
           Obx(() {
-            if (profileController.isLoading.value) {
+            if (chatController.isLoadingSaved.value &&
+                chatController.savedPosts.isEmpty) {
               return const Center(
                 child: CircularProgressIndicator(color: AppColors.purple),
               );
             }
 
-            final savedPosts = profileController.userPosts
-                .where((p) => p.isSaved)
-                .toList();
+            final savedPosts = chatController.savedPosts;
+
+            if (chatController.savedItemsError.isNotEmpty &&
+                savedPosts.isEmpty) {
+              return _buildErrorState(chatController.savedItemsError.value);
+            }
 
             if (savedPosts.isEmpty) {
               return _buildEmptyState(
@@ -94,15 +105,64 @@ class _SavedPostsScreenState extends State<SavedPostsScreen>
               itemCount: savedPosts.length,
               itemBuilder: (context, index) {
                 final post = savedPosts[index];
-                return GestureDetector(
-                  onTap: () => Get.toNamed('/post-details', arguments: post),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: Image.network(
-                      ApiConstants.getFullUrl(post.mediaUrl),
-                      fit: BoxFit.cover,
+                return Stack(
+                  children: [
+                    Positioned.fill(
+                      child: GestureDetector(
+                        onTap: () =>
+                            Get.toNamed('/post-details', arguments: post),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.network(
+                            ApiConstants.getFullUrl(post.mediaUrl),
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Container(
+                                  color: AppColors.surface,
+                                  child: const Icon(
+                                    Icons.image_not_supported_outlined,
+                                    color: Colors.white38,
+                                  ),
+                                ),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: CircleAvatar(
+                        radius: 14,
+                        backgroundColor: Colors.black54,
+                        child: Obx(() {
+                          final isSaving = chatController.savingPostIds
+                              .contains(post.postId);
+                          return IconButton(
+                            padding: EdgeInsets.zero,
+                            onPressed: isSaving
+                                ? null
+                                : () => chatController.toggleSavePost(
+                                    post.postId,
+                                    isSaved: true,
+                                  ),
+                            icon: isSaving
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.bookmark_remove,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                          );
+                        }),
+                      ),
+                    ),
+                  ],
                 );
               },
             );

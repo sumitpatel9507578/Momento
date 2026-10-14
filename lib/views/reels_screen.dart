@@ -285,14 +285,10 @@ void showReelOptionsBottomSheet(
                 isSaved ? 'Unsave Reel' : 'Save Reel',
                 style: const TextStyle(color: Colors.white),
               ),
-              onTap: () {
+              onTap: () async {
                 Get.back();
-                controller.toggleSave(
+                await controller.toggleSave(
                   controller.reels.indexWhere((r) => r.id == reel.id),
-                );
-                Get.snackbar(
-                  'Saved',
-                  isSaved ? 'Removed from saved' : 'Reel saved',
                 );
               },
             );

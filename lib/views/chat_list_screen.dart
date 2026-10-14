@@ -22,12 +22,16 @@ class ChatListScreen extends GetView<ChatController> {
         title: Row(
           children: [
             const SizedBox(width: 4),
-            const Text(
-              'yourusername',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 20,
+            Obx(
+              () => Text(
+                controller.currentUsername.value.isEmpty
+                    ? 'Messages'
+                    : '@${controller.currentUsername.value}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 20,
+                ),
               ),
             ),
             const Icon(
@@ -106,12 +110,26 @@ class ChatListScreen extends GetView<ChatController> {
             itemCount: controller.conversations.length,
             itemBuilder: (context, index) {
               final convo = controller.conversations[index];
+              final profileImage =
+                  convo['profile_image'] ?? convo['profileImage'];
               final hasImage =
-                  convo['profile_image'] != null &&
-                  convo['profile_image'].toString().isNotEmpty;
-              final isUnread = convo['unread'] == true || convo['unread'] == 1;
-              final isOnline =
-                  convo['is_online'] == true || convo['is_online'] == 1;
+                  profileImage != null && profileImage.toString().isNotEmpty;
+              final isUnread =
+                  convo['unread'] == true ||
+                  convo['unread'] == 1 ||
+                  (convo['isRead'] != true &&
+                      convo['receiverId']?.toString() ==
+                          controller.currentUserId);
+              final conversationUserId =
+                  (convo['conversationUserId'] ??
+                          convo['conversation_user_id'] ??
+                          convo['userId'] ??
+                          convo['id'] ??
+                          '')
+                      .toString();
+              final isOnline = controller.onlineUserIds.contains(
+                conversationUserId,
+              );
 
               return InkWell(
                 onTap: () => Get.toNamed('/chat', arguments: convo),
@@ -130,9 +148,7 @@ class ChatListScreen extends GetView<ChatController> {
                             backgroundColor: AppColors.darkGrey,
                             backgroundImage: hasImage
                                 ? NetworkImage(
-                                    ApiConstants.getFullUrl(
-                                      convo['profile_image'],
-                                    ),
+                                    ApiConstants.getFullUrl(profileImage),
                                   )
                                 : null,
                             child: !hasImage
@@ -167,7 +183,10 @@ class ChatListScreen extends GetView<ChatController> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              convo['full_name'] ?? convo['username'] ?? 'User',
+                              convo['full_name'] ??
+                                  convo['name'] ??
+                                  convo['username'] ??
+                                  'User',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -222,8 +241,8 @@ class ChatListScreen extends GetView<ChatController> {
   }
 
   String _subtitleText(Map<String, dynamic> convo) {
-    final msg = convo['lastMessage'] ?? 'Tap to chat';
-    final time = _formatTime(convo['lastMessageTime']);
+    final msg = convo['lastMessage'] ?? convo['message'] ?? 'Tap to chat';
+    final time = _formatTime(convo['lastMessageTime'] ?? convo['createdAt']);
     if (time.isEmpty) return msg;
     return '$msg · $time';
   }

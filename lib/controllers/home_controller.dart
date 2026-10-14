@@ -4,6 +4,8 @@ import 'package:get/get.dart';
 import '../models/post_model.dart';
 import '../repositories/user_repository.dart';
 import '../services/post_service.dart';
+import 'chat_controller.dart';
+import 'profile_controller.dart';
 import 'reel_controller.dart';
 
 class HomeController extends GetxController {
@@ -151,11 +153,38 @@ class HomeController extends GetxController {
     }
   }
 
-  void toggleSave(int index) {
+  Future<void> toggleSave(int index) async {
     if (index < 0 || index >= posts.length) return;
     final post = posts[index];
-    posts[index] = post.copyWith(isSaved: !post.isSaved);
-    // TODO: Implement real save API
+    final isSaved = post.isSaved;
+    final updatedPost = post.copyWith(isSaved: !isSaved);
+    posts[index] = updatedPost;
+
+    try {
+      final success = await Get.find<ChatController>().toggleSavePost(
+        post.postId,
+        isSaved: isSaved,
+      );
+      if (!success) {
+        posts[index] = post;
+        return;
+      }
+      _updateProfilePostSavedState(updatedPost);
+    } catch (error) {
+      posts[index] = post;
+      Get.snackbar('Error', 'Could not update saved post');
+    }
+  }
+
+  void _updateProfilePostSavedState(PostModel post) {
+    for (final tag in {'me', post.userId}) {
+      if (!Get.isRegistered<ProfileController>(tag: tag)) continue;
+      final profilePosts = Get.find<ProfileController>(tag: tag).userPosts;
+      final index = profilePosts.indexWhere(
+        (item) => item.postId == post.postId,
+      );
+      if (index != -1) profilePosts[index] = post;
+    }
   }
 
   Future<void> toggleFollow(int index) async {

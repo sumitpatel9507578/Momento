@@ -79,58 +79,37 @@ class UserRepository {
   ) async {
     try {
       final userData = await _apiService.getUser();
-      if (userData == null) return false;
+      final userId = (userData?['id'] ?? userData?['uid'] ?? '').toString();
 
-      final userId = (userData['id'] ?? userData['uid']).toString();
-
-      if (imagePath == null) {
-        final response = await _apiService.putMultipart(
-          "${ApiConstants.users}/$userId",
-          data,
-          null,
-          null,
-        );
-        if (response.statusCode == 200) {
-          final result = jsonDecode(response.body);
-          if (result['success'] == true && result['data'] != null) {
-            await _apiService.saveUser(result['data']);
-            return true;
-          }
-        }
-        return false;
-      }
-
-      final keysToTry = [
-        'profile_image',
-        'profileImage',
-        'profileimage',
-        'image',
-        'file',
-        'media',
+      final endpoints = [
+        ApiConstants.me,
+        if (userId.isNotEmpty) "${ApiConstants.users}/$userId",
       ];
 
-      for (int i = 0; i < keysToTry.length; i++) {
-        final key = keysToTry[i];
-        final response = await _apiService.putMultipart(
-          "${ApiConstants.users}/$userId",
-          data,
-          key,
-          imagePath,
-        );
-
-        if (response.statusCode == 200) {
-          final result = jsonDecode(response.body);
-          if (result['success'] == true && result['data'] != null) {
-            final updatedUser = result['data'];
-            final newImage =
-                (updatedUser['profileImage'] ??
-                        updatedUser['profile_image'] ??
-                        '')
-                    .toString();
-
-            if (!newImage.contains('gravatar') || i == keysToTry.length - 1) {
-              await _apiService.saveUser(updatedUser);
+      for (final endpoint in endpoints) {
+        if (imagePath == null) {
+          final response = await _apiService.put(endpoint, data);
+          if (response.statusCode == 200) {
+            final result = jsonDecode(response.body);
+            if (result is Map && (result['success'] == true || result['data'] != null)) {
+              if (result['data'] != null) {
+                await _apiService.saveUser(result['data']);
+              }
               return true;
+            }
+          }
+        } else {
+          final keysToTry = ['profile_image', 'profileImage', 'image', 'file', 'media'];
+          for (final key in keysToTry) {
+            final response = await _apiService.putMultipart(endpoint, data, key, imagePath);
+            if (response.statusCode == 200) {
+              final result = jsonDecode(response.body);
+              if (result is Map && (result['success'] == true || result['data'] != null)) {
+                if (result['data'] != null) {
+                  await _apiService.saveUser(result['data']);
+                }
+                return true;
+              }
             }
           }
         }

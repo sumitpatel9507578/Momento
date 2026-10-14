@@ -74,7 +74,6 @@ class HomeScreen extends GetView<HomeController> {
                     onSave: () => controller.toggleSave(index),
                     onFollow: () => controller.toggleFollow(index),
                     onComment: () {},
-                    onMore: () {},
                   );
                 }, childCount: controller.posts.length),
               );

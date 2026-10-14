@@ -5,6 +5,7 @@ import '../controllers/profile_controller.dart';
 import '../routes/app_routes.dart';
 import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
+import '../widgets/post_card.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, this.tag});
@@ -405,7 +406,7 @@ class ProfileScreen extends StatelessWidget {
 
               // Posts or Reels Grid View
               if (controller.selectedProfileTab.value == 0)
-                _buildPostsGrid(controller)
+                _buildPostsGrid(controller, isMe: isMe)
               else
                 _buildReelsGrid(controller),
             ],
@@ -438,7 +439,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPostsGrid(ProfileController controller) {
+  Widget _buildPostsGrid(ProfileController controller, {required bool isMe}) {
     final posts = controller.userPosts;
 
     if (posts.isEmpty) {
@@ -475,6 +476,20 @@ class ProfileScreen extends StatelessWidget {
 
         return GestureDetector(
           onTap: () => Get.toNamed('/post-details', arguments: post),
+          onLongPress: () {
+            if (isMe) {
+              PostCard.showPostOptionsBottomSheet(
+                context,
+                post,
+                onDelete: () async {
+                  await controller.deletePost(post.postId);
+                },
+                onUpdateCaption: (newCaption) async {
+                  await controller.updatePostCaption(post.postId, newCaption);
+                },
+              );
+            }
+          },
           child: Image.network(
             fullUrl,
             fit: BoxFit.cover,

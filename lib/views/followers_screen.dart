@@ -109,7 +109,26 @@ class FollowersScreen extends StatelessWidget {
                   SizedBox(
                     height: 36,
                     child: ElevatedButton(
-                      onPressed: () => repository.followUser(user.uid),
+                      onPressed: () async {
+                        final success = await repository.followUser(user.uid);
+                        if (success == true) {
+                          await controller.refreshProfile();
+                          Get.snackbar(
+                            'Success',
+                            user.isFollowing
+                                ? 'Unfollowed user'
+                                : 'Followed user',
+                            snackPosition: SnackPosition.BOTTOM,
+                            duration: const Duration(seconds: 1),
+                          );
+                        } else {
+                          Get.snackbar(
+                            'Error',
+                            'Could not update follow status',
+                            snackPosition: SnackPosition.BOTTOM,
+                          );
+                        }
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.purple,
                         foregroundColor: Colors.white,
@@ -118,9 +137,9 @@ class FollowersScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      child: const Text(
-                        'Follow',
-                        style: TextStyle(
+                      child: Text(
+                        user.isFollowing ? 'Following' : 'Follow',
+                        style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),

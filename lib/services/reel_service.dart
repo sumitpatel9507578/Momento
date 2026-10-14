@@ -29,14 +29,27 @@ class ReelService {
 
   Future<List<ReelModel>> fetchUserReels(String userId) async {
     try {
-      final response = await _apiService.get(
+      final endpoints = [
         "${ApiConstants.reels}/user/$userId",
-      );
+        "${ApiConstants.users}/$userId/reels",
+        "${ApiConstants.reels}?userId=$userId",
+        "${ApiConstants.reels}?user_id=$userId",
+      ];
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final List reelsJson = data['data'] ?? data['reels'] ?? [];
-        return reelsJson.map((json) => ReelModel.fromJson(json)).toList();
+      for (final endpoint in endpoints) {
+        final response = await _apiService.get(endpoint);
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          List reelsJson = [];
+          if (data is List) {
+            reelsJson = data;
+          } else if (data is Map) {
+            reelsJson = data['data'] ?? data['reels'] ?? data['results'] ?? [];
+          }
+          if (reelsJson.isNotEmpty) {
+            return reelsJson.map((json) => ReelModel.fromJson(json)).toList();
+          }
+        }
       }
       return [];
     } catch (e) {

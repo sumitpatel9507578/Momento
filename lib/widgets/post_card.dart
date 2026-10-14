@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../controllers/home_controller.dart';
@@ -89,10 +90,12 @@ class PostCard extends StatelessWidget {
                               Get.find<HomeController>().deletePost(
                                 post.postId,
                               );
-                            }
-                            if (Get.isRegistered<ProfileController>()) {
-                              dynamic pc = Get.find<ProfileController>();
-                              pc.deletePost(post.postId);
+                            } else if (Get.isRegistered<ProfileController>(
+                              tag: 'me',
+                            )) {
+                              Get.find<ProfileController>(
+                                tag: 'me',
+                              ).deletePost(post.postId);
                             }
                           },
                           onUpdateCaption: (newCaption) {
@@ -101,10 +104,12 @@ class PostCard extends StatelessWidget {
                                 post.postId,
                                 newCaption,
                               );
-                            }
-                            if (Get.isRegistered<ProfileController>()) {
-                              dynamic pc = Get.find<ProfileController>();
-                              pc.updatePostCaption(post.postId, newCaption);
+                            } else if (Get.isRegistered<ProfileController>(
+                              tag: 'me',
+                            )) {
+                              Get.find<ProfileController>(
+                                tag: 'me',
+                              ).updatePostCaption(post.postId, newCaption);
                             }
                           },
                         );
@@ -220,7 +225,10 @@ class PostCard extends StatelessWidget {
                 ),
                 IconButton(
                   onPressed: () => Get.bottomSheet(
-                    ShareBottomSheet(contentUrl: post.mediaUrl),
+                    ShareBottomSheet(
+                      contentUrl: post.mediaUrl,
+                      postId: post.postId,
+                    ),
                   ),
                   icon: const Icon(
                     Icons.send_outlined,
@@ -278,7 +286,9 @@ class PostCard extends StatelessWidget {
                         isScrollControlled: true,
                       ),
                       child: Text(
-                        'View all ${post.commentsCount} comments',
+                        post.commentsCount == 1
+                            ? 'View 1 comment'
+                            : 'View all ${post.commentsCount} comments',
                         style: const TextStyle(
                           color: Colors.white54,
                           fontSize: 13,
@@ -364,7 +374,10 @@ class PostCard extends StatelessWidget {
               ),
               onTap: () {
                 Get.back();
-                Get.snackbar('Share', 'Link copied to clipboard!');
+                Clipboard.setData(
+                  ClipboardData(text: ApiConstants.getFullUrl(post.mediaUrl)),
+                );
+                Get.snackbar('Share', 'Post link copied to clipboard!');
               },
             ),
             ListTile(

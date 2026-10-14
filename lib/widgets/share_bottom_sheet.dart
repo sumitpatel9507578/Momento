@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../controllers/chat_controller.dart';
 import '../services/api_service.dart';
@@ -13,7 +14,13 @@ import '../widgets/glass_container.dart';
 class ShareBottomSheet extends StatefulWidget {
   final String? contentUrl;
   final String? reelId;
-  const ShareBottomSheet({super.key, this.contentUrl, this.reelId});
+  final String? postId;
+  const ShareBottomSheet({
+    super.key,
+    this.contentUrl,
+    this.reelId,
+    this.postId,
+  });
 
   @override
   State<ShareBottomSheet> createState() => _ShareBottomSheetState();
@@ -124,23 +131,38 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
     }).toList();
   }
 
-  void _handlePlatformShare(String platformName) {
+  void _handlePlatformShare(String platformName) async {
     String shareUrl = '';
-    if (widget.reelId != null && widget.reelId!.isNotEmpty) {
-      shareUrl = ApiConstants.getFullUrl('/reels/${widget.reelId}');
-    } else if (widget.contentUrl != null && widget.contentUrl!.isNotEmpty) {
+    if (widget.contentUrl != null && widget.contentUrl!.isNotEmpty) {
       shareUrl = ApiConstants.getFullUrl(widget.contentUrl!);
+    } else if (widget.reelId != null && widget.reelId!.isNotEmpty) {
+      shareUrl = ApiConstants.getFullUrl('/reels/${widget.reelId}');
+    } else if (widget.postId != null && widget.postId!.isNotEmpty) {
+      shareUrl = ApiConstants.getFullUrl('/posts/${widget.postId}');
     } else {
       shareUrl = 'https://momento.app';
     }
 
-    Clipboard.setData(ClipboardData(text: shareUrl));
-    Get.snackbar(
-      '$platformName Share',
-      'Link copied to clipboard! You can paste it in $platformName.',
-      snackPosition: SnackPosition.BOTTOM,
-      duration: const Duration(seconds: 2),
-    );
+    if (platformName == 'Copy Link') {
+      await Clipboard.setData(ClipboardData(text: shareUrl));
+      Get.snackbar(
+        'Share',
+        'Link copied to clipboard!',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    try {
+      await Share.share('Check out this content on Momento: $shareUrl');
+    } catch (_) {
+      Clipboard.setData(ClipboardData(text: shareUrl));
+      Get.snackbar(
+        '$platformName Share',
+        'Link copied to clipboard!',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
   }
 
   @override
@@ -360,6 +382,9 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
                                     (widget.reelId != null &&
                                         widget.reelId!.isNotEmpty)
                                     ? 'Shared a reel'
+                                    : (widget.postId != null &&
+                                          widget.postId!.isNotEmpty)
+                                    ? 'Check out this post: ${ApiConstants.getFullUrl(widget.contentUrl)}'
                                     : (widget.contentUrl != null &&
                                           widget.contentUrl!.isNotEmpty)
                                     ? 'Check out this post: ${ApiConstants.getFullUrl(widget.contentUrl!)}'

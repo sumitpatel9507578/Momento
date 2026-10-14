@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../controllers/chat_controller.dart';
 import '../controllers/reel_controller.dart';
@@ -8,6 +9,7 @@ import '../models/user_model.dart';
 import '../routes/app_routes.dart';
 import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
+
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
 
@@ -44,8 +46,7 @@ class _ChatScreenState extends State<ChatScreen> {
         'profile_image': '',
       };
     }
-    final targetUserId = (user['id'] ?? user['uid'] ?? user['_id'] ?? '')
-        .toString();
+    final targetUserId = _targetUserId;
     controller.messages.clear();
     controller.startLiveMessages(targetUserId);
     messageController.addListener(() {
@@ -60,13 +61,32 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  bool get _isOnline => user['is_online'] == true || user['is_online'] == 1;
+  String get _targetUserId =>
+      (user['conversationUserId'] ??
+              user['conversation_user_id'] ??
+              user['userId'] ??
+              user['user_id'] ??
+              user['uid'] ??
+              user['_id'] ??
+              user['id'] ??
+              '')
+          .toString();
+
+  Future<void> _pickAndSendImage(ImageSource source) async {
+    try {
+      final image = await ImagePicker().pickImage(source: source);
+      if (image == null) return;
+      controller.onMessageInput(_targetUserId, false);
+      await controller.sendImage(_targetUserId, image.path);
+    } catch (error) {
+      Get.snackbar('Photo not sent', 'Could not select this photo.');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final hasImage =
-        user['profile_image'] != null &&
-        user['profile_image'].toString().isNotEmpty; 
+    final profileImage = user['profile_image'] ?? user['profileImage'];
+    final hasImage = profileImage != null && profileImage.toString().isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -78,17 +98,43 @@ class _ChatScreenState extends State<ChatScreen> {
           onTap: () {},
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: AppColors.darkGrey,
-                backgroundImage: hasImage
-                    ? NetworkImage(
-                        ApiConstants.getFullUrl(user['profile_image']),
-                      )
-                    : null,
-                child: !hasImage
-                    ? const Icon(Icons.person, size: 18, color: Colors.white38)
-                    : null,
+              Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: AppColors.darkGrey,
+                    backgroundImage: hasImage
+                        ? NetworkImage(ApiConstants.getFullUrl(profileImage))
+                        : null,
+                    child: !hasImage
+                        ? const Icon(
+                            Icons.person,
+                            size: 18,
+                            color: Colors.white38,
+                          )
+                        : null,
+                  ),
+                  Obx(
+                    () => controller.peerOnline.value
+                        ? Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: AppColors.background,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ],
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -97,7 +143,10 @@ class _ChatScreenState extends State<ChatScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      user['full_name'] ?? user['username'] ?? 'User',
+                      user['full_name'] ??
+                          user['name'] ??
+                          user['username'] ??
+                          'User',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -106,13 +155,29 @@ class _ChatScreenState extends State<ChatScreen> {
                         color: Colors.white,
                       ),
                     ),
-                    Text(
-                      _isOnline ? 'Active now' : 'Offline',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: _isOnline ? Colors.white70 : Colors.white38,
-                      ),
-                    ),
+                    Obx(() {
+                      final isOnline = controller.peerOnline.value;
+                      final subtitle = controller.peerTyping.value
+                          ? 'Typing...'
+                          : controller.socketError.value.isNotEmpty
+                          ? 'Chat unavailable'
+                          : !controller.socketConnected.value
+                          ? 'Connecting...'
+                          : isOnline
+                          ? 'Active now'
+                          : 'Offline';
+                      return Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: controller.peerTyping.value
+                              ? AppColors.purple
+                              : isOnline
+                              ? Colors.white70
+                              : Colors.white38,
+                        ),
+                      );
+                    }),
                   ],
                 ),
               ),
@@ -140,6 +205,36 @@ class _ChatScreenState extends State<ChatScreen> {
               }
 
               final msgs = controller.messages;
+              if (msgs.isEmpty && controller.messageLoadError.isNotEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(28),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.cloud_off_outlined,
+                          color: Colors.white54,
+                          size: 36,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          controller.messageLoadError.value,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                        const SizedBox(height: 12),
+                        TextButton(
+                          onPressed: () => controller.fetchMessages(
+                            controller.activeChatUserId ?? '',
+                          ),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
 
               return ListView.builder(
                 reverse: true,
@@ -213,6 +308,10 @@ class _ChatScreenState extends State<ChatScreen> {
                         Expanded(
                           child: TextField(
                             controller: messageController,
+                            onChanged: (text) => controller.onMessageInput(
+                              _targetUserId,
+                              text.trim().isNotEmpty,
+                            ),
                             minLines: 1,
                             maxLines: 5,
                             style: const TextStyle(
@@ -236,7 +335,8 @@ class _ChatScreenState extends State<ChatScreen> {
                         IconButton(
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
-                          onPressed: () {},
+                          onPressed: () =>
+                              _pickAndSendImage(ImageSource.camera),
                           icon: const Icon(
                             Icons.camera_alt_outlined,
                             color: Colors.white54,
@@ -247,7 +347,8 @@ class _ChatScreenState extends State<ChatScreen> {
                         IconButton(
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
-                          onPressed: () {},
+                          onPressed: () =>
+                              _pickAndSendImage(ImageSource.gallery),
                           icon: const Icon(
                             Icons.image_outlined,
                             color: Colors.white54,
@@ -273,12 +374,8 @@ class _ChatScreenState extends State<ChatScreen> {
                               final text = messageController.text.trim();
                               if (text.isNotEmpty) {
                                 messageController.clear();
-                                final targetId =
-                                    (user['id'] ??
-                                            user['uid'] ??
-                                            user['_id'] ??
-                                            '')
-                                        .toString();
+                                final targetId = _targetUserId;
+                                controller.onMessageInput(targetId, false);
                                 await controller.sendMessage(targetId, text);
                               }
                             },
@@ -298,12 +395,8 @@ class _ChatScreenState extends State<ChatScreen> {
                           ),
                           child: IconButton(
                             onPressed: () async {
-                              final targetId =
-                                  (user['id'] ??
-                                          user['uid'] ??
-                                          user['_id'] ??
-                                          '')
-                                      .toString();
+                              final targetId = _targetUserId;
+                              controller.onMessageInput(targetId, false);
                               await controller.sendMessage(targetId, '❤️');
                             },
                             icon: const Icon(
@@ -530,6 +623,62 @@ class _ChatScreenState extends State<ChatScreen> {
                                     ],
                                   ),
                                 )
+                              : msg.mediaUrl != null && msg.mediaUrl!.isNotEmpty
+                              ? Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (msg.messageType == 'video')
+                                      const SizedBox(
+                                        width: 220,
+                                        height: 150,
+                                        child: Center(
+                                          child: Icon(
+                                            Icons.play_circle_fill,
+                                            size: 48,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      )
+                                    else
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Image.network(
+                                          ApiConstants.getFullUrl(msg.mediaUrl),
+                                          width: 220,
+                                          height: 220,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (
+                                                _,
+                                                error,
+                                                stackTrace,
+                                              ) => const SizedBox(
+                                                width: 220,
+                                                height: 120,
+                                                child: Center(
+                                                  child: Icon(
+                                                    Icons.broken_image_outlined,
+                                                    color: Colors.white54,
+                                                    size: 30,
+                                                  ),
+                                                ),
+                                              ),
+                                        ),
+                                      ),
+                                    if (text.isNotEmpty) ...[
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        text,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14.5,
+                                          height: 1.25,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                )
                               : Text(
                                   text,
                                   style: const TextStyle(
@@ -559,6 +708,14 @@ class _ChatScreenState extends State<ChatScreen> {
               padding: EdgeInsets.only(top: 4, right: 4),
               child: Text(
                 'Seen',
+                style: TextStyle(color: Colors.white38, fontSize: 11),
+              ),
+            ),
+          if (isMe && msg.isPending)
+            const Padding(
+              padding: EdgeInsets.only(top: 4, right: 4),
+              child: Text(
+                'Waiting for connection',
                 style: TextStyle(color: Colors.white38, fontSize: 11),
               ),
             ),

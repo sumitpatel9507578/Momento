@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:video_player/video_player.dart';
 
+import 'chat_controller.dart';
 import '../models/reel_model.dart';
 import '../services/reel_service.dart';
 import '../utils/api_constants.dart';
@@ -306,16 +307,29 @@ class ReelController extends GetxController {
     return reels[index].isLiked;
   }
 
-  void toggleSave(int index) {
+  Future<void> toggleSave(int index) async {
+    if (index < 0 || index >= reels.length) return;
     final reelId = reels[index].id;
-    if (savedReels.contains(reelId)) {
+    final isCurrentlySaved = isSaved(reelId);
+    final chatController = Get.find<ChatController>();
+    final success = await chatController.toggleSaveReel(
+      reelId,
+      isSaved: isCurrentlySaved,
+    );
+    if (!success) return;
+
+    if (isCurrentlySaved) {
       savedReels.remove(reelId);
     } else {
       savedReels.add(reelId);
     }
+    update();
   }
 
-  bool isSaved(String reelId) => savedReels.contains(reelId);
+  bool isSaved(String reelId) =>
+      savedReels.contains(reelId) ||
+      (Get.isRegistered<ChatController>() &&
+          Get.find<ChatController>().isReelSaved(reelId));
 
   Future<bool> deleteReel(String reelId) async {
     final success = await _service.deleteReel(reelId);

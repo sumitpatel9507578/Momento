@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:http/http.dart' as http;
+
 import '../models/post_model.dart';
 import '../utils/api_constants.dart';
 import 'api_service.dart';
@@ -205,19 +207,54 @@ class PostService {
 
   Future<bool> deletePost(String postId) async {
     try {
-      var response = await _apiService.delete("${ApiConstants.posts}/$postId");
-      if (response.statusCode == 200 || response.statusCode == 204) return true;
+      final body = {'postId': postId, 'post_id': postId, 'id': postId};
 
-      // Fallback for DELETE api/posts/delete/{id} if needed by this backend
+      bool isSuccess(http.Response response) {
+        if (response.statusCode != 200 &&
+            response.statusCode != 201 &&
+            response.statusCode != 204) {
+          return false;
+        }
+        try {
+          final decoded = jsonDecode(response.body);
+          if (decoded is Map && decoded['success'] == false) return false;
+        } catch (_) {}
+        return true;
+      }
+
+      // 1. DELETE /api/posts/{postId}
+      var response = await _apiService.delete("${ApiConstants.posts}/$postId");
+      if (isSuccess(response)) return true;
+
+      // 2. DELETE /api/posts/delete/{postId}
       response = await _apiService.delete(
         "${ApiConstants.posts}/delete/$postId",
       );
-      if (response.statusCode == 200 || response.statusCode == 204) return true;
+      if (isSuccess(response)) return true;
 
+      // 3. POST /api/posts/{postId}/delete
+      response = await _apiService.post(
+        "${ApiConstants.posts}/$postId/delete",
+        body,
+      );
+      if (isSuccess(response)) return true;
+
+      // 4. POST /api/posts/delete
+      response = await _apiService.post("${ApiConstants.posts}/delete", body);
+      if (isSuccess(response)) return true;
+
+      // 5. POST /api/posts/{postId}/remove
+      response = await _apiService.post(
+        "${ApiConstants.posts}/$postId/remove",
+        body,
+      );
+      if (isSuccess(response)) return true;
+
+      // 6. DELETE /api/baseUrl/posts/$postId
       response = await _apiService.delete(
         "${ApiConstants.baseUrl}/posts/$postId",
       );
-      return response.statusCode == 200 || response.statusCode == 204;
+      return isSuccess(response);
     } catch (e) {
       print("PostService deletePost error: $e");
       return false;

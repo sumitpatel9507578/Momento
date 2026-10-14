@@ -360,7 +360,7 @@ class ApiService {
   Future<http.Response> delete(String url) async {
     return _withRetry(() async {
       try {
-        final headers = await _getHeaders();
+        final headers = await _getHeaders(url: url);
         final response = await http
             .delete(Uri.parse(url), headers: headers)
             .timeout(_defaultTimeout);

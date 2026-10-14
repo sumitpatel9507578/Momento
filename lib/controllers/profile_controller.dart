@@ -117,32 +117,33 @@ class ProfileController extends GetxController {
   Future<void> toggleFollowUser(String targetUserId) async {
     try {
       final isNowFollowing = await _userRepository.followUser(targetUserId);
+      if (isNowFollowing == null) {
+        Get.snackbar('Error', 'Failed to update follow status');
+        return;
+      }
 
-      if (isNowFollowing != null) {
-        if (currentUser.value != null &&
-            currentUser.value!.uid == targetUserId) {
-          // Force UI refresh by re-assigning value
-          final updatedUser = currentUser.value!.copyWith(
-            isFollowing: isNowFollowing,
-            followersCount: isNowFollowing
-                ? currentUser.value!.followersCount + 1
-                : (currentUser.value!.followersCount > 0
-                      ? currentUser.value!.followersCount - 1
-                      : 0),
-          );
-          currentUser.value = updatedUser;
-          currentUser.refresh();
-        } else if (currentUser.value != null &&
-            (_profileId == null || _profileId == 'me')) {
-          final currentFollowing = currentUser.value!.followingCount;
-          final updatedUser = currentUser.value!.copyWith(
-            followingCount: isNowFollowing
-                ? currentFollowing + 1
-                : (currentFollowing > 0 ? currentFollowing - 1 : 0),
-          );
-          currentUser.value = updatedUser;
-          currentUser.refresh();
-        }
+      if (currentUser.value != null && currentUser.value!.uid == targetUserId) {
+        // Force UI refresh by re-assigning value
+        final updatedUser = currentUser.value!.copyWith(
+          isFollowing: isNowFollowing,
+          followersCount: isNowFollowing
+              ? currentUser.value!.followersCount + 1
+              : (currentUser.value!.followersCount > 0
+                    ? currentUser.value!.followersCount - 1
+                    : 0),
+        );
+        currentUser.value = updatedUser;
+        currentUser.refresh();
+      } else if (currentUser.value != null &&
+          (_profileId == null || _profileId == 'me')) {
+        final currentFollowing = currentUser.value!.followingCount;
+        final updatedUser = currentUser.value!.copyWith(
+          followingCount: isNowFollowing
+              ? currentFollowing + 1
+              : (currentFollowing > 0 ? currentFollowing - 1 : 0),
+        );
+        currentUser.value = updatedUser;
+        currentUser.refresh();
       }
     } catch (e) {
       Get.snackbar('Error', 'Failed to update follow status');
