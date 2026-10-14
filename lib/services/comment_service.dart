@@ -77,4 +77,88 @@ class CommentService extends GetxService {
       return false;
     }
   }
+
+  Future<bool> likeComment(
+    String commentId, {
+    String? targetId,
+    bool isReel = false,
+  }) async {
+    final endpointsToTry = [
+      "${ApiConstants.baseUrl}/comments/$commentId/like",
+      "${ApiConstants.posts}/comments/$commentId/like",
+      if (targetId != null)
+        "${ApiConstants.posts}/$targetId/comments/$commentId/like",
+      if (targetId != null && isReel)
+        "${ApiConstants.reels}/$targetId/comments/$commentId/like",
+      "${ApiConstants.baseUrl}/posts/comments/$commentId/like",
+    ];
+
+    for (final url in endpointsToTry) {
+      try {
+        final response = await _apiService.post(url, {});
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          return true;
+        }
+      } catch (_) {}
+    }
+    return false;
+  }
+
+  Future<bool> editComment(
+    String commentId,
+    String text, {
+    String? targetId,
+    bool isReel = false,
+  }) async {
+    final endpointsToTry = [
+      "${ApiConstants.baseUrl}/comments/$commentId",
+      "${ApiConstants.posts}/comments/$commentId",
+      if (targetId != null)
+        "${ApiConstants.posts}/$targetId/comments/$commentId",
+      if (targetId != null && isReel)
+        "${ApiConstants.reels}/$targetId/comments/$commentId",
+      "${ApiConstants.baseUrl}/posts/comments/$commentId",
+    ];
+
+    for (final url in endpointsToTry) {
+      try {
+        final response = await _apiService.put(url, {
+          'comment': text,
+          'text': text,
+        });
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          return true;
+        }
+      } catch (_) {}
+    }
+    return false;
+  }
+
+  Future<bool> deleteComment(
+    String commentId, {
+    String? targetId,
+    bool isReel = false,
+  }) async {
+    final endpointsToTry = [
+      "${ApiConstants.baseUrl}/comments/$commentId",
+      "${ApiConstants.posts}/comments/$commentId",
+      if (targetId != null)
+        "${ApiConstants.posts}/$targetId/comments/$commentId",
+      if (targetId != null && isReel)
+        "${ApiConstants.reels}/$targetId/comments/$commentId",
+      "${ApiConstants.baseUrl}/posts/comments/$commentId",
+    ];
+
+    for (final url in endpointsToTry) {
+      try {
+        final response = await _apiService.delete(url);
+        if (response.statusCode == 200 ||
+            response.statusCode == 200 ||
+            response.statusCode == 204) {
+          return true;
+        }
+      } catch (_) {}
+    }
+    return false;
+  }
 }
