@@ -23,7 +23,20 @@ class StoryService {
           storyJson =
               decoded['data'] ?? decoded['stories'] ?? decoded['results'] ?? [];
         }
-        return storyJson.map((json) => StoryModel.fromJson(json)).toList();
+        
+        final List<StoryModel> parsedStories = [];
+        final Set<String> seenStoryIds = {};
+
+        for (final json in storyJson) {
+          if (json is Map<String, dynamic>) {
+            final story = StoryModel.fromJson(json);
+            if (story.storyId.isNotEmpty && !seenStoryIds.contains(story.storyId)) {
+              seenStoryIds.add(story.storyId);
+              parsedStories.add(story);
+            }
+          }
+        }
+        return parsedStories;
       }
       return [];
     } catch (e) {

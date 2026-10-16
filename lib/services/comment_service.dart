@@ -46,7 +46,6 @@ class CommentService extends GetxService {
   }) async {
     try {
       final endpoint = isReel ? ApiConstants.reels : ApiConstants.posts;
-      print("CommentService: Posting to $endpoint/$id/comments");
       var response = await _apiService.post("$endpoint/$id/comments", {
         'comment': comment,
         'text': comment,
@@ -65,10 +64,6 @@ class CommentService extends GetxService {
           'comment': comment,
           'text': comment,
         });
-      }
-
-      if (response.statusCode >= 400) {
-        print("CommentService Error Body: ${response.body}");
       }
 
       return response.statusCode == 201 || response.statusCode == 200;

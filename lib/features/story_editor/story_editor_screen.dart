@@ -1,0 +1,386 @@
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
+import '../../utils/api_constants.dart';
+import '../../utils/app_colors.dart';
+import 'controllers/story_editor_controller.dart';
+import 'widgets/editor_toolbar.dart';
+import 'widgets/filter_strip.dart';
+import 'widgets/mention_sheet.dart';
+import 'widgets/more_options_sheet.dart';
+import 'widgets/music_picker_sheet.dart';
+import 'widgets/share_bar.dart';
+import 'widgets/sticker_sheet.dart';
+
+class StoryEditorScreen extends GetView<StoryEditorController> {
+  const StoryEditorScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!Get.isRegistered<StoryEditorController>()) {
+      Get.put(StoryEditorController());
+    }
+    final size = MediaQuery.sizeOf(context);
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Background Media
+          Positioned.fill(
+            child: Obx(() {
+              final path = controller.mediaPath;
+              final isFile =
+                  path.startsWith('/') ||
+                  path.startsWith('file://') ||
+                  path.startsWith('content://');
+              String cleanPath = path;
+              if (path.startsWith('file://')) {
+                cleanPath = path.replaceFirst(RegExp(r'^file://+'), '');
+                if (!Platform.isWindows && !cleanPath.startsWith('/')) {
+                  cleanPath = '/$cleanPath';
+                }
+              }
+              final filter = controller.selectedFilter.value;
+
+              Widget mediaWidget = isFile && File(cleanPath).existsSync()
+                  ? Image.file(File(cleanPath), fit: BoxFit.cover)
+                  : Image.network(
+                      ApiConstants.getFullUrl(path),
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: Colors.grey[900],
+                        child: const Center(
+                          child: Icon(
+                            Icons.broken_image,
+                            color: Colors.white54,
+                            size: 48,
+                          ),
+                        ),
+                      ),
+                    );
+
+              if (filter == 'B&W') {
+                mediaWidget = ColorFiltered(
+                  colorFilter: const ColorFilter.matrix(<double>[
+                    0.2126,
+                    0.7152,
+                    0.0722,
+                    0,
+                    0,
+                    0.2126,
+                    0.7152,
+                    0.0722,
+                    0,
+                    0,
+                    0.2126,
+                    0.7152,
+                    0.0722,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1,
+                    0,
+                  ]),
+                  child: mediaWidget,
+                );
+              } else if (filter == 'Warm') {
+                mediaWidget = ColorFiltered(
+                  colorFilter: const ColorFilter.matrix(<double>[
+                    1.2,
+                    0,
+                    0,
+                    0,
+                    10,
+                    0,
+                    1.0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0.8,
+                    0,
+                    -10,
+                    0,
+                    0,
+                    0,
+                    1,
+                    0,
+                  ]),
+                  child: mediaWidget,
+                );
+              } else if (filter == 'Cool') {
+                mediaWidget = ColorFiltered(
+                  colorFilter: const ColorFilter.matrix(<double>[
+                    0.9,
+                    0,
+                    0,
+                    0,
+                    -10,
+                    0,
+                    1.0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    1.3,
+                    0,
+                    20,
+                    0,
+                    0,
+                    0,
+                    1,
+                    0,
+                  ]),
+                  child: mediaWidget,
+                );
+              }
+
+              return mediaWidget;
+            }),
+          ),
+
+          // Interactive Layers (Text, Stickers, Mentions)
+          Positioned.fill(
+            child: Obx(
+              () => Stack(
+                children: controller.layers.map((layer) {
+                  return Positioned(
+                    left: layer.position.dx,
+                    top: layer.position.dy,
+                    child: GestureDetector(
+                      onPanUpdate: (details) {
+                        controller.updateLayerTransform(
+                          layer.id,
+                          details.delta,
+                          1.0,
+                          0.0,
+                        );
+                      },
+                      onTap: () => controller.selectLayer(layer.id),
+                      child: Transform.scale(
+                        scale: layer.scale,
+                        child: Transform.rotate(
+                          angle: layer.rotation,
+                          child: Container(
+                            padding: layer.hasBackground
+                                ? const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 6,
+                                  )
+                                : EdgeInsets.zero,
+                            decoration: BoxDecoration(
+                              color: layer.hasBackground
+                                  ? Colors.black54
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              layer.content,
+                              style: TextStyle(
+                                color: layer.color,
+                                fontSize: layer.fontSize,
+                                fontWeight: FontWeight.bold,
+                                shadows: const [
+                                  Shadow(
+                                    color: Colors.black87,
+                                    blurRadius: 4,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+
+          // Top Bar (Back button, AI Label badge)
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Get.back(),
+                    icon: const Icon(
+                      Icons.arrow_back_rounded,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                  const Spacer(),
+                  Obx(
+                    () => controller.isAiGenerated.value
+                        ? Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white24),
+                            ),
+                            child: const Text(
+                              '✨ AI Info',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Right-side Vertical Toolbar
+          Positioned(
+            right: 12,
+            top: size.height * 0.08,
+            bottom: 85,
+            child: Obx(
+              () => Align(
+                alignment: Alignment.topRight,
+                child: EditorToolbar(
+                onText: () => _showAddTextDialog(context),
+                onStickers: () => Get.bottomSheet(
+                  StickerSheet(
+                    onStickerSelected: (emoji) =>
+                        controller.addStickerLayer(emoji),
+                  ),
+                  isScrollControlled: true,
+                ),
+                onMusic: () => Get.bottomSheet(
+                  MusicPickerSheet(
+                    onSongSelected: (song) => controller.setMusic(song),
+                  ),
+                  isScrollControlled: true,
+                ),
+                onRestyle: () {
+                  Get.bottomSheet(
+                    Container(
+                      color: AppColors.surface,
+                      padding: const EdgeInsets.symmetric(vertical: 20),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text(
+                            'Restyle Filters',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          FilterStrip(
+                            selectedFilter: controller.selectedFilter.value,
+                            onFilterSelected: (filter) =>
+                                controller.setFilter(filter),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+                onDraw: () => Get.snackbar('Draw', 'Drawing mode active'),
+                onEffects: () =>
+                    Get.snackbar('Effects', 'Enhancements applied'),
+                onMention: () => Get.bottomSheet(
+                  MentionSheet(
+                    onMentionSelected: (username) =>
+                        controller.addMentionLayer(username),
+                  ),
+                  isScrollControlled: true,
+                ),
+                onSave: () => Get.snackbar('Saved', 'Story saved to gallery!'),
+                onAiLabel: () => controller.isAiGenerated.value =
+                    !controller.isAiGenerated.value,
+                onMore: () => Get.bottomSheet(
+                  const MoreOptionsSheet(),
+                  isScrollControlled: true,
+                ),
+                isAiActive: controller.isAiGenerated.value,
+              ),
+            ),
+          ),
+        ),
+
+          // Bottom Share Bar
+          const Positioned(left: 0, right: 0, bottom: 0, child: ShareBar()),
+
+          // Loading overlay
+          Obx(
+            () => controller.isLoading.value
+                ? Container(
+                    color: Colors.black54,
+                    child: const Center(
+                      child: CircularProgressIndicator(color: AppColors.purple),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddTextDialog(BuildContext context) {
+    final textController = TextEditingController();
+    bool hasBg = false;
+
+    Get.dialog(
+      AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Add Text', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: textController,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: 'Type something...',
+            hintStyle: TextStyle(color: Colors.white38),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white54),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (textController.text.trim().isNotEmpty) {
+                controller.addTextLayer(
+                  text: textController.text.trim(),
+                  hasBackground: hasBg,
+                );
+              }
+              Get.back();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.purple),
+            child: const Text('Done', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+}

@@ -60,11 +60,22 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
           children: [
             // Media Content
             Obx(() {
-              if (controller.stories.isEmpty) return const SizedBox.shrink();
+              if (controller.userStories.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              final groupIndex = controller.currentUserStoriesIndex.value;
+              if (groupIndex < 0 ||
+                  groupIndex >= controller.userStories.length) {
+                return const SizedBox.shrink();
+              }
+              final userStoryGroup = controller.userStories[groupIndex];
+              final storyIndex = controller.currentStoryIndex.value;
+              if (storyIndex < 0 ||
+                  storyIndex >= userStoryGroup.stories.length) {
+                return const SizedBox.shrink();
+              }
 
-              final story =
-                  controller.stories[controller.currentStoryIndex.value];
-
+              final story = userStoryGroup.stories[storyIndex];
               final isLocal = story.mediaUrl.startsWith('/');
 
               return Center(
@@ -102,8 +113,19 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
                       vertical: 8,
                     ),
                     child: Obx(() {
+                      if (controller.userStories.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      final groupIndex =
+                          controller.currentUserStoriesIndex.value;
+                      if (groupIndex < 0 ||
+                          groupIndex >= controller.userStories.length) {
+                        return const SizedBox.shrink();
+                      }
+                      final userStoryGroup = controller.userStories[groupIndex];
+
                       return Row(
-                        children: List.generate(controller.stories.length, (
+                        children: List.generate(userStoryGroup.stories.length, (
                           index,
                         ) {
                           return Expanded(
@@ -137,23 +159,46 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
                       vertical: 8,
                     ),
                     child: Obx(() {
-                      if (controller.stories.isEmpty) {
+                      if (controller.userStories.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      final groupIndex =
+                          controller.currentUserStoriesIndex.value;
+                      if (groupIndex < 0 ||
+                          groupIndex >= controller.userStories.length) {
+                        return const SizedBox.shrink();
+                      }
+                      final userStoryGroup = controller.userStories[groupIndex];
+                      final storyIndex = controller.currentStoryIndex.value;
+                      if (storyIndex < 0 ||
+                          storyIndex >= userStoryGroup.stories.length) {
                         return const SizedBox.shrink();
                       }
 
-                      final story = controller
-                          .stories[controller.currentStoryIndex.value];
+                      final story = userStoryGroup.stories[storyIndex];
                       return Row(
                         children: [
                           CircleAvatar(
                             radius: 18,
-                            backgroundImage: NetworkImage(
-                              ApiConstants.getFullUrl(story.profileImage),
-                            ),
+                            backgroundImage:
+                                userStoryGroup.profileImage.isNotEmpty
+                                ? NetworkImage(
+                                    ApiConstants.getFullUrl(
+                                      userStoryGroup.profileImage,
+                                    ),
+                                  )
+                                : null,
+                            child: userStoryGroup.profileImage.isEmpty
+                                ? const Icon(
+                                    Icons.person,
+                                    size: 18,
+                                    color: Colors.white38,
+                                  )
+                                : null,
                           ),
                           const SizedBox(width: 12),
                           Text(
-                            story.username,
+                            userStoryGroup.username,
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,

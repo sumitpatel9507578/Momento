@@ -10,6 +10,7 @@ import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
 import '../widgets/comment_bottom_sheet.dart';
 import '../widgets/share_bottom_sheet.dart';
+import '../widgets/user_avatar.dart';
 
 class ReelsScreen extends StatefulWidget {
   const ReelsScreen({super.key});
@@ -113,18 +114,48 @@ class _ReelsScreenState extends State<ReelsScreen> {
                       child: CircularProgressIndicator(color: Colors.white),
                     ),
 
-                  // Bottom Gradient for text visibility
-                  const Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Colors.transparent, Colors.black54],
-                          begin: Alignment.center,
-                          end: Alignment.bottomCenter,
+                    // Play indicator overlay if paused
+                    if (videoController != null &&
+                        videoController.value.isInitialized &&
+                        !videoController.value.isPlaying)
+                      const Center(
+                        child: Icon(
+                          Icons.play_arrow_rounded,
+                          color: Colors.white70,
+                          size: 80,
+                        ),
+                      ),
+
+                    // Timeline Scrubber / Slider at the bottom
+                    if (videoController != null &&
+                        videoController.value.isInitialized)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: VideoProgressIndicator(
+                          videoController,
+                          allowScrubbing: true,
+                          colors: const VideoProgressColors(
+                            playedColor: Colors.white,
+                            bufferedColor: Colors.white24,
+                            backgroundColor: Colors.white12,
+                          ),
+                        ),
+                      ),
+
+                    // Bottom Gradient for text visibility
+                    const Positioned.fill(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [Colors.transparent, Colors.black54],
+                            begin: Alignment.center,
+                            end: Alignment.bottomCenter,
+                          ),
                         ),
                       ),
                     ),
-                  ),
 
                   // Content Overlay
                   Positioned(
@@ -139,21 +170,13 @@ class _ReelsScreenState extends State<ReelsScreen> {
                               Get.toNamed('/profile', arguments: reel.userId),
                           child: Row(
                             children: [
-                              CircleAvatar(
+                              OnlineAvatar(
+                                userId: reel.userId,
+                                imageUrl: reel.thumbnail,
                                 radius: 16,
                                 backgroundColor: AppColors.darkGrey,
-                                backgroundImage: hasThumbnail
-                                    ? NetworkImage(
-                                        ApiConstants.getFullUrl(reel.thumbnail),
-                                      )
-                                    : null,
-                                child: !hasThumbnail
-                                    ? const Icon(
-                                        Icons.person,
-                                        size: 16,
-                                        color: Colors.white38,
-                                      )
-                                    : null,
+                                onTap: () =>
+                                    Get.toNamed('/profile', arguments: reel.userId),
                               ),
                               const SizedBox(width: 10),
                               Text(

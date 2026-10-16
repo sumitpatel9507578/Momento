@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../controllers/profile_controller.dart';
 import '../controllers/story_controller.dart';
+import '../models/story_model.dart';
 import 'story_item.dart';
 
 class StoryBar extends StatelessWidget {
@@ -17,35 +18,66 @@ class StoryBar extends StatelessWidget {
       height: 110,
       child: Obx(() {
         if (storyController.isLoading.value &&
-            storyController.stories.isEmpty) {
+            storyController.userStories.isEmpty) {
           return const SizedBox.shrink();
+        }
+
+        final profileCtrl = Get.find<ProfileController>(tag: 'me');
+        final currentUserId = profileCtrl.currentUser.value?.uid ?? '';
+        final profileImage = profileCtrl.currentUser.value?.profileImage;
+
+        UserStories? myStories;
+        final otherUserStories = <UserStories>[];
+
+        for (final us in storyController.userStories) {
+          if (us.userId == currentUserId) {
+            myStories = us;
+          } else {
+            otherUserStories.add(us);
+          }
         }
 
         return ListView.builder(
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          itemCount: storyController.stories.length + 1,
+          itemCount: otherUserStories.length + 1,
           itemBuilder: (context, index) {
             if (index == 0) {
-              return Obx(() {
-                final user = Get.find<ProfileController>(
-                  tag: 'me',
-                ).currentUser.value;
-                return StoryItem(
-                  isCurrentUser: true,
-                  profileImage: user?.profileImage,
-                  onTap: () =>
-                      _showCreateStoryOptions(context, storyController),
-                );
-              });
+              return StoryItem(
+                isCurrentUser: true,
+                userStories: myStories,
+                profileImage: profileImage,
+                onTap: () {
+                  if (myStories != null && myStories.stories.isNotEmpty) {
+                    final myIndex = storyController.userStories.indexWhere(
+                      (us) => us.userId == currentUserId,
+                    );
+                    if (myIndex != -1) {
+                      storyController.currentUserStoriesIndex.value = myIndex;
+                      storyController.currentStoryIndex.value =
+                          myStories.firstUnviewedIndex;
+                      Get.toNamed('/story');
+                    }
+                  } else {
+                    _showCreateStoryOptions(context, storyController);
+                  }
+                },
+              );
             }
 
-            final story = storyController.stories[index - 1];
+            final us = otherUserStories[index - 1];
             return StoryItem(
-              story: story,
+              userStories: us,
               onTap: () {
-                storyController.currentStoryIndex.value = index - 1;
-                Get.toNamed('/story');
+                final realIndex = storyController.userStories.indexWhere(
+                  (item) => item.userId == us.userId,
+                );
+                if (realIndex != -1) {
+                  storyController.currentUserStoriesIndex.value = realIndex;
+                  storyController.currentStoryIndex.value =
+                      us.firstUnviewedIndex;
+                  Get.toNamed('/story');
+                }
               },
             );
           },

@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:momento/views/logout_loading_screen.dart';
 
 import '../bindings/auth_binding.dart';
 import '../bindings/home_binding.dart';
@@ -27,7 +28,7 @@ import '../views/saved_posts_screen.dart';
 import '../views/search_screen.dart';
 import '../views/settings_screen.dart';
 import '../views/splash_screen.dart';
-import '../views/story_editor_screen.dart';
+import 'package:momento/features/story_editor/story_editor_screen.dart';
 import '../views/story_viewer_screen.dart';
 import 'app_routes.dart';
 
@@ -148,5 +149,9 @@ class AppPages {
       page: () => CompleteProfileScreen(),
     ),
     GetPage(name: AppRoutes.findPeople, page: () => FindPeopleScreen()),
+    GetPage(
+      name: AppRoutes.logoutLoading,
+      page: () => const LogoutLoadingScreen(),
+    ),
   ];
 }

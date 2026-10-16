@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 
 import '../controllers/explore_controller.dart';
 import '../utils/api_constants.dart';
+import '../utils/app_colors.dart';
+import '../widgets/user_avatar.dart';
 
 class SearchScreen extends GetView<ExploreController> {
   const SearchScreen({super.key});
@@ -57,10 +59,10 @@ class SearchScreen extends GetView<ExploreController> {
       itemBuilder: (context, index) {
         final user = controller.searchResults[index];
         return ListTile(
-          leading: CircleAvatar(
-            backgroundImage: NetworkImage(
-              ApiConstants.getFullUrl(user.profileImage),
-            ),
+          leading: OnlineAvatar(
+            userId: user.uid,
+            imageUrl: user.profileImage,
+            radius: 20,
           ),
           title: Text(user.name, style: const TextStyle(color: Colors.white)),
           subtitle: Text(

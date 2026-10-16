@@ -5,10 +5,12 @@ import 'package:image_picker/image_picker.dart';
 import '../controllers/chat_controller.dart';
 import '../controllers/reel_controller.dart';
 import '../models/message_model.dart';
+import '../models/post_model.dart';
 import '../models/user_model.dart';
 import '../routes/app_routes.dart';
 import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
+import '../widgets/user_avatar.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -98,43 +100,11 @@ class _ChatScreenState extends State<ChatScreen> {
           onTap: () {},
           child: Row(
             children: [
-              Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 18,
-                    backgroundColor: AppColors.darkGrey,
-                    backgroundImage: hasImage
-                        ? NetworkImage(ApiConstants.getFullUrl(profileImage))
-                        : null,
-                    child: !hasImage
-                        ? const Icon(
-                            Icons.person,
-                            size: 18,
-                            color: Colors.white38,
-                          )
-                        : null,
-                  ),
-                  Obx(
-                    () => controller.peerOnline.value
-                        ? Positioned(
-                            right: 0,
-                            bottom: 0,
-                            child: Container(
-                              width: 10,
-                              height: 10,
-                              decoration: BoxDecoration(
-                                color: Colors.green,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppColors.background,
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                          )
-                        : const SizedBox.shrink(),
-                  ),
-                ],
+              OnlineAvatar(
+                userId: _targetUserId,
+                imageUrl: profileImage,
+                radius: 18,
+                backgroundColor: AppColors.darkGrey,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -156,7 +126,9 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ),
                     Obx(() {
-                      final isOnline = controller.peerOnline.value;
+                      final isOnline =
+                          controller.peerOnline.value &&
+                          controller.showActivityStatus.value;
                       final subtitle = controller.peerTyping.value
                           ? 'Typing...'
                           : controller.socketError.value.isNotEmpty
@@ -164,8 +136,10 @@ class _ChatScreenState extends State<ChatScreen> {
                           : !controller.socketConnected.value
                           ? 'Connecting...'
                           : isOnline
-                          ? 'Active now'
-                          : 'Offline';
+                          ? 'Online'
+                          : _formatLastSeen(
+                              user['lastSeen'] ?? user['last_seen'],
+                            );
                       return Text(
                         subtitle,
                         style: TextStyle(
@@ -173,7 +147,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           color: controller.peerTyping.value
                               ? AppColors.purple
                               : isOnline
-                              ? Colors.white70
+                              ? const Color(0xFF2ED573)
                               : Colors.white38,
                         ),
                       );
@@ -481,6 +455,36 @@ class _ChatScreenState extends State<ChatScreen> {
                   },
                 );
               }),
+            if ((msg.messageType == 'post' || msg.isPostShare) &&
+                (msg.postId != null && msg.postId!.isNotEmpty))
+              Obx(() {
+                final postId = msg.postId!;
+                final isSaving = controller.savingPostIds.contains(postId);
+                final isSaved = controller.savedPosts.any(
+                  (p) => p.postId == postId,
+                );
+                return ListTile(
+                  enabled: !isSaving,
+                  leading: isSaving
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(
+                          isSaved ? Icons.bookmark : Icons.bookmark_border,
+                          color: Colors.white,
+                        ),
+                  title: Text(
+                    isSaved ? 'Unsave Shared Post' : 'Save Shared Post',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  onTap: () {
+                    Get.back();
+                    controller.toggleSavePost(postId, isSaved: isSaved);
+                  },
+                );
+              }),
             ListTile(
               leading: const Icon(Icons.cancel, color: Colors.white54),
               title: const Text(
@@ -506,6 +510,25 @@ class _ChatScreenState extends State<ChatScreen> {
   }) {
     final text = msg.message;
     final isSharedReel = msg.messageType == 'reel' && msg.reelId != null;
+
+    String? extractedPostId = msg.postId;
+    String? extractedPostImageUrl = msg.postImageUrl;
+    String? extractedPostCaption = msg.postCaption;
+    String? extractedPostOwnerUsername = msg.postOwnerUsername;
+
+    if (!msg.isPostShare && msg.message.contains('/posts/')) {
+      try {
+        final parts = msg.message.split('/posts/');
+        if (parts.length > 1) {
+          extractedPostId = parts[1].split('/').first.split('?').first;
+        }
+      } catch (_) {}
+    }
+
+    final bool isSharedPost =
+        msg.isPostShare ||
+        (extractedPostId != null && extractedPostId.isNotEmpty);
+
     return Padding(
       padding: EdgeInsets.only(
         top: isFirstOfGroup ? 8 : 2,
@@ -623,6 +646,104 @@ class _ChatScreenState extends State<ChatScreen> {
                                     ],
                                   ),
                                 )
+                              : isSharedPost
+                              ? InkWell(
+                                  onTap: () => _openSharedPost(
+                                    extractedPostId!,
+                                    extractedPostImageUrl ?? msg.mediaUrl,
+                                    extractedPostCaption ?? msg.message,
+                                    extractedPostOwnerUsername,
+                                    msg.createdAt,
+                                  ),
+                                  child: SizedBox(
+                                    width: 230,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        if (extractedPostOwnerUsername
+                                                ?.isNotEmpty ==
+                                            true)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              bottom: 6,
+                                            ),
+                                            child: Text(
+                                              '@$extractedPostOwnerUsername',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ),
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          child:
+                                              extractedPostImageUrl
+                                                      ?.isNotEmpty ==
+                                                  true
+                                              ? Image.network(
+                                                  ApiConstants.getFullUrl(
+                                                    extractedPostImageUrl!,
+                                                  ),
+                                                  width: 230,
+                                                  height: 180,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (_, __, ___) =>
+                                                      Container(
+                                                        width: 230,
+                                                        height: 120,
+                                                        color: Colors.black26,
+                                                        child: const Center(
+                                                          child: Icon(
+                                                            Icons
+                                                                .broken_image_outlined,
+                                                            color:
+                                                                Colors.white54,
+                                                            size: 30,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                )
+                                              : Container(
+                                                  width: 230,
+                                                  height: 120,
+                                                  color: Colors.black26,
+                                                  child: const Center(
+                                                    child: Icon(
+                                                      Icons.article_outlined,
+                                                      color: Colors.white54,
+                                                      size: 30,
+                                                    ),
+                                                  ),
+                                                ),
+                                        ),
+                                        if (extractedPostCaption?.isNotEmpty ==
+                                                true &&
+                                            extractedPostCaption !=
+                                                'Sent a post' &&
+                                            !extractedPostCaption!.contains(
+                                              '/posts/',
+                                            )) ...[
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            extractedPostCaption!,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 13,
+                                              height: 1.25,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                )
                               : msg.mediaUrl != null && msg.mediaUrl!.isNotEmpty
                               ? Column(
                                   mainAxisSize: MainAxisSize.min,
@@ -730,6 +851,42 @@ class _ChatScreenState extends State<ChatScreen> {
         : Get.put(ReelController());
     if (await reelController.openReel(reelId)) {
       Get.toNamed(AppRoutes.reels, arguments: reelId);
+    }
+  }
+
+  Future<void> _openSharedPost(
+    String postId,
+    String? imageUrl,
+    String? caption,
+    String? username,
+    DateTime createdAt,
+  ) async {
+    final post = PostModel(
+      postId: postId,
+      userId: '',
+      username: username ?? 'User',
+      profileImage: '',
+      mediaUrl: imageUrl ?? '',
+      mediaType: 'image',
+      caption: caption ?? '',
+      likesCount: 0,
+      commentsCount: 0,
+      timestamp: createdAt,
+    );
+    Get.toNamed('/post-details', arguments: post);
+  }
+
+  String _formatLastSeen(dynamic time) {
+    if (time == null) return 'Offline';
+    try {
+      final date = time is DateTime ? time : DateTime.parse(time.toString());
+      final diff = DateTime.now().difference(date);
+      if (diff.inDays > 0) return 'Last seen ${diff.inDays}d ago';
+      if (diff.inHours > 0) return 'Last seen ${diff.inHours}h ago';
+      if (diff.inMinutes > 0) return 'Last seen ${diff.inMinutes}m ago';
+      return 'Last seen just now';
+    } catch (_) {
+      return 'Offline';
     }
   }
 }

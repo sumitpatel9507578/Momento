@@ -116,6 +116,18 @@ class ChatSocketService {
     _socket?.emit('chat:read', {'senderId': senderId});
   }
 
+  void emitPresenceOnline() {
+    _socket?.emit('presence:online');
+  }
+
+  void emitPresenceOffline() {
+    _socket?.emit('presence:offline');
+  }
+
+  void emitPing() {
+    _socket?.emit('presence:ping');
+  }
+
   void disconnect() {
     _socket?.dispose();
     _socket = null;

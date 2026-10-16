@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get/get.dart';
 
@@ -10,7 +11,7 @@ import '../services/api_service.dart';
 import '../services/chat_socket_service.dart';
 import '../utils/api_constants.dart';
 
-class ChatController extends GetxController {
+class ChatController extends GetxController with WidgetsBindingObserver {
   final ApiService _apiService = Get.find<ApiService>();
   final ChatSocketService _chatSocket = ChatSocketService(
     apiService: Get.find<ApiService>(),
@@ -27,11 +28,13 @@ class ChatController extends GetxController {
   final onlineUserIds = <String>{}.obs;
   final messageLoadError = ''.obs;
   final socketError = ''.obs;
+  final showActivityStatus = true.obs;
 
   String? currentUserId;
   final currentUsername = ''.obs;
   String? activeChatUserId;
   Timer? _typingStopTimer;
+  Timer? _heartbeatTimer;
   bool _typingSent = false;
   List<Map<String, dynamic>> _pendingOutbox = [];
 
@@ -47,9 +50,54 @@ class ChatController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    WidgetsBinding.instance.addObserver(this);
+    _loadActivityStatus();
     _initializeRealtimeChat();
     fetchConversations();
     fetchSavedItems();
+    _startHeartbeat();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (socketConnected.value && showActivityStatus.value) {
+        _chatSocket.emitPresenceOnline();
+      }
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      if (socketConnected.value) {
+        _chatSocket.emitPresenceOffline();
+      }
+    }
+  }
+
+  Future<void> _loadActivityStatus() async {
+    final val = await _storage.read(key: 'show_activity_status');
+    if (val != null) {
+      showActivityStatus.value = val == 'true';
+    }
+  }
+
+  Future<void> toggleActivityStatus(bool value) async {
+    showActivityStatus.value = value;
+    await _storage.write(key: 'show_activity_status', value: value.toString());
+    if (socketConnected.value) {
+      if (value) {
+        _chatSocket.emitPresenceOnline();
+      } else {
+        _chatSocket.emitPresenceOffline();
+      }
+    }
+  }
+
+  void _startHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (socketConnected.value && showActivityStatus.value) {
+        _chatSocket.emitPing();
+      }
+    });
   }
 
   Future<void> _initializeRealtimeChat() async {
@@ -216,9 +264,8 @@ class ChatController extends GetxController {
             decoded
                 .whereType<Map>()
                 .map(
-                  (item) => MessageModel.fromJson(
-                    Map<String, dynamic>.from(item),
-                  ),
+                  (item) =>
+                      MessageModel.fromJson(Map<String, dynamic>.from(item)),
                 )
                 .toList(),
           );
@@ -450,6 +497,8 @@ class ChatController extends GetxController {
 
   @override
   void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _heartbeatTimer?.cancel();
     stopLiveMessages();
     _typingStopTimer?.cancel();
     _chatSocket.disconnect();
@@ -545,19 +594,19 @@ class ChatController extends GetxController {
               ),
         );
         for (final pending in _pendingFor(userId)) {
-              _upsertMessage(pending);
+          _upsertMessage(pending);
         }
         await _saveConversationCache(userId);
       } else {
         final decoded = _decodeResponse(response.body);
         messageLoadError.value =
-                decoded?['message']?.toString() ??
-                'Could not load this conversation.';
+            decoded?['message']?.toString() ??
+            'Could not load this conversation.';
       }
     } catch (e) {
       print("Error fetching messages: $e");
       messageLoadError.value =
-              'Could not connect to the chat server. Showing saved messages.';
+          'Could not connect to the chat server. Showing saved messages.';
     } finally {
       isLoadingMessages.value = false;
     }
@@ -568,6 +617,9 @@ class ChatController extends GetxController {
     String text, {
     String? reelId,
     String? postId,
+    String? postImageUrl,
+    String? postCaption,
+    String? postOwnerUsername,
     String? mediaUrl,
     String? messageTypeOverride,
   }) async {
@@ -590,7 +642,7 @@ class ChatController extends GetxController {
             : postId != null
             ? 'post'
             : 'text');
-    if (!['text', 'image', 'video', 'reel'].contains(messageType) ||
+    if (!['text', 'image', 'video', 'reel', 'post'].contains(messageType) ||
         ((messageType == 'image' || messageType == 'video') &&
             (mediaUrl == null || mediaUrl.isEmpty))) {
       Get.snackbar('Message not sent', 'This message type is not supported.');
@@ -607,6 +659,9 @@ class ChatController extends GetxController {
       'createdAt': DateTime.now().toIso8601String(),
       if (reelId != null) 'reelId': reelId,
       if (postId != null) 'postId': postId,
+      if (postImageUrl != null) 'postImageUrl': postImageUrl,
+      if (postCaption != null) 'postCaption': postCaption,
+      if (postOwnerUsername != null) 'postOwnerUsername': postOwnerUsername,
     };
 
     _pendingOutbox.add(payload);
@@ -622,6 +677,10 @@ class ChatController extends GetxController {
           messageType: messageType,
           mediaUrl: mediaUrl,
           reelId: reelId,
+          postId: postId,
+          postImageUrl: postImageUrl,
+          postCaption: postCaption,
+          postOwnerUsername: postOwnerUsername,
           createdAt: DateTime.now(),
           isRead: false,
           isPersisted: false,
@@ -654,7 +713,10 @@ class ChatController extends GetxController {
       if (data is! Map ||
           data['mediaUrl'] == null ||
           data['messageType'] != 'image') {
-        Get.snackbar('Photo not sent', 'The server returned an invalid upload.');
+        Get.snackbar(
+          'Photo not sent',
+          'The server returned an invalid upload.',
+        );
         return false;
       }
       return await sendMessage(

@@ -6,6 +6,7 @@ import '../routes/app_routes.dart';
 import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
 import '../widgets/post_card.dart';
+import '../widgets/user_avatar.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, this.tag});
@@ -151,23 +152,11 @@ class ProfileScreen extends StatelessWidget {
                               shape: BoxShape.circle,
                               gradient: AppColors.primaryGradient,
                             ),
-                            child: CircleAvatar(
+                            child: OnlineAvatar(
+                              userId: user.uid,
+                              imageUrl: user.profileImage,
                               radius: 38,
                               backgroundColor: AppColors.surface,
-                              backgroundImage: user.profileImage.isNotEmpty
-                                  ? NetworkImage(
-                                      ApiConstants.getFullUrl(
-                                        user.profileImage,
-                                      ),
-                                    )
-                                  : null,
-                              child: user.profileImage.isEmpty
-                                  ? const Icon(
-                                      Icons.person,
-                                      size: 40,
-                                      color: Colors.white54,
-                                    )
-                                  : null,
                             ),
                           ),
                           Expanded(
@@ -490,18 +479,69 @@ class ProfileScreen extends StatelessWidget {
               );
             }
           },
-          child: Image.network(
-            fullUrl,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                color: AppColors.surface,
-                child: const Icon(
-                  Icons.broken_image_outlined,
-                  color: Colors.white24,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.network(
+                fullUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: AppColors.surface,
+                    child: const Icon(
+                      Icons.broken_image_outlined,
+                      color: Colors.white24,
+                    ),
+                  );
+                },
+              ),
+              Positioned(
+                bottom: 6,
+                left: 6,
+                right: 6,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.favorite,
+                          color: Colors.white,
+                          size: 13,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          '${post.likesCount}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.mode_comment,
+                          color: Colors.white,
+                          size: 13,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          '${post.commentsCount}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              );
-            },
+              ),
+            ],
           ),
         );
       }, childCount: posts.length),
@@ -567,17 +607,45 @@ class ProfileScreen extends StatelessWidget {
               Positioned(
                 bottom: 6,
                 left: 6,
+                right: 6,
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Icon(Icons.play_arrow, color: Colors.white, size: 16),
-                    const SizedBox(width: 2),
-                    Text(
-                      '${reel.likesCount}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.favorite,
+                          color: Colors.white,
+                          size: 13,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          '${reel.likesCount}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.mode_comment,
+                          color: Colors.white,
+                          size: 13,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          '${reel.commentsCount}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),

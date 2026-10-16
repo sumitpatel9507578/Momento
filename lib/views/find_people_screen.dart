@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../controllers/find_people_controller.dart';
 import '../utils/api_constants.dart';
+import '../widgets/user_avatar.dart';
 
 class FindPeopleScreen extends StatelessWidget {
   FindPeopleScreen({super.key});
@@ -109,38 +110,17 @@ class FindPeopleScreen extends StatelessWidget {
                       ),
                       child: Row(
                         children: [
-                          GestureDetector(
+                          OnlineAvatar(
+                            userId: targetUserId,
+                            imageUrl: imageUrl,
+                            radius: 28,
+                            backgroundColor: const Color(0xFF7C3AED),
                             onTap: targetUserId.isNotEmpty
                                 ? () => Get.toNamed(
                                     '/profile',
                                     arguments: targetUserId,
                                   )
                                 : null,
-                            child: CircleAvatar(
-                              radius: 28,
-                              backgroundColor: const Color(0xFF7C3AED),
-                              backgroundImage: imageUrl.isNotEmpty
-                                  ? NetworkImage(
-                                      ApiConstants.getFullUrl(imageUrl),
-                                    )
-                                  : null,
-                              child: imageUrl.isEmpty
-                                  ? Text(
-                                      (user['name']?.toString() ?? 'U')
-                                              .isNotEmpty
-                                          ? user['name']
-                                                .toString()
-                                                .substring(0, 1)
-                                                .toUpperCase()
-                                          : 'U',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    )
-                                  : null,
-                            ),
                           ),
 
                           const SizedBox(width: 12),

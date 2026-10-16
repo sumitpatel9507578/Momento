@@ -10,6 +10,10 @@ class MessageModel {
   final String? reelVideoUrl;
   final String? reelCaption;
   final String? reelOwnerUsername;
+  final String? postId;
+  final String? postImageUrl;
+  final String? postCaption;
+  final String? postOwnerUsername;
   final String? conversationUserId;
   final String? conversationUsername;
   final String? conversationName;
@@ -33,6 +37,10 @@ class MessageModel {
     this.reelVideoUrl,
     this.reelCaption,
     this.reelOwnerUsername,
+    this.postId,
+    this.postImageUrl,
+    this.postCaption,
+    this.postOwnerUsername,
     this.conversationUserId,
     this.conversationUsername,
     this.conversationName,
@@ -44,6 +52,9 @@ class MessageModel {
     this.isPending = false,
     this.sendError = false,
   });
+
+  bool get isPostShare =>
+      messageType == 'post' && (postId != null && postId!.isNotEmpty);
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
     final sender = json['sender'] is Map
@@ -87,6 +98,16 @@ class MessageModel {
       reelOwnerUsername:
           (json['reelOwnerUsername'] ?? json['reel_owner_username'])
               ?.toString(),
+      postId: (json['postId'] ?? json['post_id'] ?? json['itemId']) == null
+          ? null
+          : (json['postId'] ?? json['post_id'] ?? json['itemId']).toString(),
+      postImageUrl:
+          (json['postImageUrl'] ?? json['post_image_url'] ?? json['mediaUrl'])
+              ?.toString(),
+      postCaption: (json['postCaption'] ?? json['post_caption'])?.toString(),
+      postOwnerUsername:
+          (json['postOwnerUsername'] ?? json['post_owner_username'])
+              ?.toString(),
       conversationUserId:
           (json['conversationUserId'] ?? json['conversation_user_id'])
               ?.toString(),
@@ -99,12 +120,12 @@ class MessageModel {
           (json['conversationProfileImage'] ??
                   json['conversation_profile_image'])
               ?.toString(),
-      createdAt: json['createdAt'] != null || json['created_at'] != null
-          ? DateTime.tryParse(
-                  (json['createdAt'] ?? json['created_at']).toString(),
-                ) ??
-                DateTime.now()
-          : DateTime.now(),
+      createdAt: DateTime.parse(
+        (json['createdAt'] ??
+                json['created_at'] ??
+                DateTime.now().toIso8601String())
+            .toString(),
+      ).toLocal(),
       isRead:
           json['isRead'] == true ||
           json['is_read'] == 1 ||
@@ -115,8 +136,7 @@ class MessageModel {
           json['is_saved'] == 1 ||
           json['is_saved'] == true ||
           json['saved'] == true,
-      isPersisted: json['isPersisted'] == false ||
-              json['is_persisted'] == false
+      isPersisted: json['isPersisted'] == false || json['is_persisted'] == false
           ? false
           : ((json['id'] ??
                         json['itemId'] ??
@@ -143,6 +163,10 @@ class MessageModel {
       'reel_id': reelId,
       'reel_video_url': reelVideoUrl,
       'reel_caption': reelCaption,
+      'post_id': postId,
+      'post_image_url': postImageUrl,
+      'post_caption': postCaption,
+      'post_owner_username': postOwnerUsername,
       'created_at': createdAt.toIso8601String(),
       'is_read': isRead,
       'is_saved': isSaved,
@@ -164,6 +188,10 @@ class MessageModel {
     String? reelVideoUrl,
     String? reelCaption,
     String? reelOwnerUsername,
+    String? postId,
+    String? postImageUrl,
+    String? postCaption,
+    String? postOwnerUsername,
     String? conversationUserId,
     String? conversationUsername,
     String? conversationName,
@@ -187,6 +215,10 @@ class MessageModel {
       reelVideoUrl: reelVideoUrl ?? this.reelVideoUrl,
       reelCaption: reelCaption ?? this.reelCaption,
       reelOwnerUsername: reelOwnerUsername ?? this.reelOwnerUsername,
+      postId: postId ?? this.postId,
+      postImageUrl: postImageUrl ?? this.postImageUrl,
+      postCaption: postCaption ?? this.postCaption,
+      postOwnerUsername: postOwnerUsername ?? this.postOwnerUsername,
       conversationUserId: conversationUserId ?? this.conversationUserId,
       conversationUsername: conversationUsername ?? this.conversationUsername,
       conversationName: conversationName ?? this.conversationName,

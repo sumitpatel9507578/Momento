@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+
 import '../services/comment_service.dart';
 
 class CommentController extends GetxController {
@@ -8,6 +9,9 @@ class CommentController extends GetxController {
   final comments = <Map<String, dynamic>>[].obs;
   final isLoading = false.obs;
   final commentController = TextEditingController();
+
+  final likedCommentIds = <String>{}.obs;
+  final commentLikeCounts = <String, int>{}.obs;
 
   Future<void> getComments(String id, {bool isReel = false}) async {
     try {
@@ -60,7 +64,7 @@ class CommentController extends GetxController {
       );
       if (success) {
         commentController.clear();
-        await getComments(id, isReel: isReel); // Refresh
+        await getComments(id, isReel: isReel);
       } else {
         Get.snackbar('Error', 'Failed to post comment');
       }

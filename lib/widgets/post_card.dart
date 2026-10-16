@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:momento/widgets/comment_bottom_sheet.dart';
 
 import '../controllers/home_controller.dart';
 import '../controllers/profile_controller.dart';
@@ -8,8 +9,8 @@ import '../models/post_model.dart';
 import '../services/api_service.dart';
 import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
-import 'comment_bottom_sheet.dart';
 import 'share_bottom_sheet.dart';
+import 'user_avatar.dart';
 
 class PostCard extends StatelessWidget {
   final PostModel post;
@@ -44,24 +45,12 @@ class PostCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             child: Row(
               children: [
-                GestureDetector(
+                OnlineAvatar(
+                  userId: post.userId,
+                  imageUrl: post.profileImage,
+                  radius: 17,
+                  backgroundColor: AppColors.surface,
                   onTap: () => Get.toNamed('/profile', arguments: post.userId),
-                  child: CircleAvatar(
-                    radius: 17,
-                    backgroundColor: AppColors.surface,
-                    backgroundImage: post.profileImage.isNotEmpty
-                        ? NetworkImage(
-                            ApiConstants.getFullUrl(post.profileImage),
-                          )
-                        : null,
-                    child: post.profileImage.isEmpty
-                        ? const Icon(
-                            Icons.person,
-                            color: Colors.white54,
-                            size: 19,
-                          )
-                        : null,
-                  ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -228,6 +217,8 @@ class PostCard extends StatelessWidget {
                     ShareBottomSheet(
                       contentUrl: post.mediaUrl,
                       postId: post.postId,
+                      postCaption: post.caption,
+                      postOwnerUsername: post.username,
                     ),
                   ),
                   icon: const Icon(

@@ -89,19 +89,14 @@ class MainScreen extends StatelessWidget {
                     Icons.home_outlined,
                     controller,
                   ),
+                  _buildNavItem(1, Icons.search, Icons.search, controller),
+                  _buildCreatePostNavItem(2, controller),
                   _buildNavItem(
                     3,
                     Icons.play_circle_fill,
                     Icons.play_circle_outline,
                     controller,
                   ),
-                  _buildNavItem(
-                    2,
-                    Icons.add_box,
-                    Icons.add_box_outlined,
-                    controller,
-                  ),
-                  _buildNavItem(1, Icons.search, Icons.search, controller),
                   _buildProfileNavItem(4, controller),
                 ],
               ),
@@ -127,6 +122,28 @@ class MainScreen extends StatelessWidget {
         isSelected ? activeIcon : inactiveIcon,
         size: 28,
         color: Colors.white,
+      ),
+    );
+  }
+
+  Widget _buildCreatePostNavItem(int index, HomeController controller) {
+    return GestureDetector(
+      onTap: () => controller.changeTab(index),
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          gradient: AppColors.primaryGradient,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.purple.withValues(alpha: 0.5),
+              blurRadius: 10,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: const Icon(Icons.add_rounded, color: Colors.white, size: 26),
       ),
     );
   }

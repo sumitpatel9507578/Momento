@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../controllers/chat_controller.dart';
-import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
+import '../widgets/user_avatar.dart';
 
 class ChatListScreen extends GetView<ChatController> {
   const ChatListScreen({super.key});
@@ -112,8 +112,6 @@ class ChatListScreen extends GetView<ChatController> {
               final convo = controller.conversations[index];
               final profileImage =
                   convo['profile_image'] ?? convo['profileImage'];
-              final hasImage =
-                  profileImage != null && profileImage.toString().isNotEmpty;
               final isUnread =
                   convo['unread'] == true ||
                   convo['unread'] == 1 ||
@@ -127,9 +125,6 @@ class ChatListScreen extends GetView<ChatController> {
                           convo['id'] ??
                           '')
                       .toString();
-              final isOnline = controller.onlineUserIds.contains(
-                conversationUserId,
-              );
 
               return InkWell(
                 onTap: () => Get.toNamed('/chat', arguments: convo),
@@ -140,42 +135,11 @@ class ChatListScreen extends GetView<ChatController> {
                   ),
                   child: Row(
                     children: [
-                      Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          CircleAvatar(
-                            radius: 29,
-                            backgroundColor: AppColors.darkGrey,
-                            backgroundImage: hasImage
-                                ? NetworkImage(
-                                    ApiConstants.getFullUrl(profileImage),
-                                  )
-                                : null,
-                            child: !hasImage
-                                ? const Icon(
-                                    Icons.person,
-                                    color: Colors.white38,
-                                  )
-                                : null,
-                          ),
-                          if (isOnline)
-                            Positioned(
-                              bottom: 2,
-                              right: 2,
-                              child: Container(
-                                width: 14,
-                                height: 14,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: const Color(0xFF2ED573),
-                                  border: Border.all(
-                                    color: AppColors.background,
-                                    width: 2,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
+                      OnlineAvatar(
+                        userId: conversationUserId,
+                        imageUrl: profileImage,
+                        radius: 29,
+                        backgroundColor: AppColors.darkGrey,
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -241,7 +205,16 @@ class ChatListScreen extends GetView<ChatController> {
   }
 
   String _subtitleText(Map<String, dynamic> convo) {
-    final msg = convo['lastMessage'] ?? convo['message'] ?? 'Tap to chat';
+    final messageType = convo['messageType'] ?? convo['message_type'];
+    final rawMsg = convo['lastMessage'] ?? convo['message'];
+    String msg = rawMsg?.toString() ?? 'Tap to chat';
+    if (messageType == 'reel') {
+      msg = 'Shared a reel';
+    } else if (messageType == 'post') {
+      msg = 'Sent a post';
+    } else if (messageType == 'image') {
+      msg = 'Sent a photo';
+    }
     final time = _formatTime(convo['lastMessageTime'] ?? convo['createdAt']);
     if (time.isEmpty) return msg;
     return '$msg · $time';

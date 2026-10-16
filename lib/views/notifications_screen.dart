@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../controllers/notification_controller.dart';
 import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
+import '../widgets/user_avatar.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
@@ -62,16 +63,10 @@ class NotificationsScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final notification = controller.notifications[index];
               return ListTile(
-                leading: CircleAvatar(
+                leading: OnlineAvatar(
+                  userId: notification.actorId,
+                  imageUrl: notification.actorImage,
                   radius: 22,
-                  backgroundImage: notification.actorImage.isNotEmpty
-                      ? NetworkImage(
-                          ApiConstants.getFullUrl(notification.actorImage),
-                        )
-                      : null,
-                  child: notification.actorImage.isEmpty
-                      ? const Icon(Icons.person, color: Colors.white54)
-                      : null,
                 ),
                 title: RichText(
                   text: TextSpan(

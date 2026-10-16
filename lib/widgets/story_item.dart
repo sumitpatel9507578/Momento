@@ -6,6 +6,7 @@ import '../utils/app_colors.dart';
 
 class StoryItem extends StatelessWidget {
   final StoryModel? story;
+  final UserStories? userStories;
   final bool isCurrentUser;
   final String? profileImage;
   final VoidCallback onTap;
@@ -13,6 +14,7 @@ class StoryItem extends StatelessWidget {
   const StoryItem({
     super.key,
     this.story,
+    this.userStories,
     this.isCurrentUser = false,
     this.profileImage,
     required this.onTap,
@@ -22,11 +24,32 @@ class StoryItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
 
+    final bool hasStories = isCurrentUser
+        ? (userStories != null && userStories!.stories.isNotEmpty)
+        : (userStories != null && userStories!.stories.isNotEmpty);
+
+    final bool allViewed = isCurrentUser
+        ? (userStories?.allViewed ?? true)
+        : (userStories?.allViewed ?? story?.viewed ?? true);
+
+    final String imgUrl = isCurrentUser
+        ? (profileImage ?? userStories?.profileImage ?? '')
+        : (userStories?.profileImage ?? story?.profileImage ?? '');
+
+    final String displayName = isCurrentUser
+        ? 'Your Story'
+        : (userStories?.username ?? story?.username ?? 'User');
+
     return GestureDetector(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.only(right: 16),
         child: Column(
+          key: ValueKey(
+            isCurrentUser
+                ? 'current_user_story'
+                : (userStories?.userId ?? story?.userId ?? 'story'),
+          ),
           children: [
             Stack(
               children: [
@@ -34,33 +57,20 @@ class StoryItem extends StatelessWidget {
                   padding: const EdgeInsets.all(3),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: (isCurrentUser || (story?.viewed ?? true))
+                    gradient: (isCurrentUser && !hasStories) || allViewed
                         ? null
                         : AppColors.primaryGradient,
-                    border: (isCurrentUser || (story?.viewed ?? true))
+                    border: (isCurrentUser && !hasStories) || allViewed
                         ? Border.all(color: Colors.white24, width: 2)
                         : null,
                   ),
                   child: CircleAvatar(
                     radius: size.width * 0.08,
                     backgroundColor: AppColors.surface,
-                    backgroundImage: isCurrentUser
-                        ? (profileImage != null && profileImage!.isNotEmpty
-                              ? NetworkImage(
-                                  ApiConstants.getFullUrl(profileImage!),
-                                )
-                              : null)
-                        : (story != null && story!.profileImage.isNotEmpty
-                              ? NetworkImage(
-                                  ApiConstants.getFullUrl(story!.profileImage),
-                                )
-                              : null),
-                    child:
-                        ((isCurrentUser &&
-                                (profileImage == null ||
-                                    profileImage!.isEmpty)) ||
-                            (!isCurrentUser &&
-                                (story == null || story!.profileImage.isEmpty)))
+                    backgroundImage: imgUrl.isNotEmpty
+                        ? NetworkImage(ApiConstants.getFullUrl(imgUrl))
+                        : null,
+                    child: imgUrl.isEmpty
                         ? const Icon(
                             Icons.person,
                             color: Colors.white54,
@@ -90,7 +100,7 @@ class StoryItem extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              isCurrentUser ? 'Your Story' : story!.username,
+              displayName,
               style: TextStyle(
                 color: isCurrentUser ? Colors.white70 : Colors.white,
                 fontSize: 11,

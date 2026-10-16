@@ -22,4 +22,5 @@ class AppRoutes {
   static const String musicPicker = '/music-picker';
   static const String completeProfile = '/complete-profile';
   static const String findPeople = '/find-people';
+  static const String logoutLoading = '/logout-loading';
 }

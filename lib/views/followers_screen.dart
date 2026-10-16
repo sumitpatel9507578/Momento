@@ -6,6 +6,7 @@ import '../repositories/user_repository.dart';
 import '../routes/app_routes.dart';
 import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
+import '../widgets/user_avatar.dart';
 
 class FollowersScreen extends StatelessWidget {
   FollowersScreen({super.key});
@@ -61,20 +62,12 @@ class FollowersScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(
                 children: [
-                  GestureDetector(
+                  OnlineAvatar(
+                    userId: user.uid,
+                    imageUrl: user.profileImage,
+                    radius: size.width * 0.065,
                     onTap: () =>
                         Get.toNamed(AppRoutes.profile, arguments: user.uid),
-                    child: CircleAvatar(
-                      radius: size.width * 0.065,
-                      backgroundImage: user.profileImage.isNotEmpty
-                          ? NetworkImage(
-                              ApiConstants.getFullUrl(user.profileImage),
-                            )
-                          : null,
-                      child: user.profileImage.isEmpty
-                          ? const Icon(Icons.person, color: Colors.white24)
-                          : null,
-                    ),
                   ),
 
                   SizedBox(width: size.width * 0.035),

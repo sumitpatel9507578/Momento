@@ -4,7 +4,7 @@ class ApiConstants {
 
   // Official Momento Backend (Production)
   static const String prodServerUrl =
-      "https://momento-api-16-iswl.onrender.com";
+      "https://momento-api-19-ewu9.onrender.com";
 
   // Local Machine IP (Development) - Using the IP from your logs
   static const String devServerUrl = "http://192.168.31.240:5000";
@@ -41,6 +41,12 @@ class ApiConstants {
 
   static String getFullUrl(String? path) {
     if (path == null || path.isEmpty || path == "null") return "";
+
+    if (path.startsWith("file://") ||
+        path.startsWith("content://") ||
+        (path.startsWith("/") && !path.startsWith("/api/"))) {
+      return path;
+    }
 
     String normalizedPath = path.replaceAll('\\', '/');
 
@@ -80,6 +86,6 @@ class ApiConstants {
 
   // Mock data completely disabled
   static const bool useMockData = false;
-  //jamendo clientid
-  static const String clientid = "8a108e0f";
+  //jamendo clientId
+  static const String clientId = "8a108e0f";
 }

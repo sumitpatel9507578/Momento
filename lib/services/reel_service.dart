@@ -92,8 +92,19 @@ class ReelService {
       if (songId != null) 'songId': songId,
     };
 
-    // 1. Try Multipart key 'media'
+    // 1. Try Multipart key 'video'
     var response = await _apiService.postMultipart(
+      ApiConstants.reels,
+      fields,
+      'video',
+      filePath,
+    );
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return true;
+    }
+
+    // 2. Try Multipart key 'media'
+    response = await _apiService.postMultipart(
       ApiConstants.reels,
       fields,
       'media',
@@ -103,7 +114,7 @@ class ReelService {
       return true;
     }
 
-    // 2. Try Multipart key 'file'
+    // 3. Try Multipart key 'file'
     response = await _apiService.postMultipart(
       ApiConstants.reels,
       fields,
