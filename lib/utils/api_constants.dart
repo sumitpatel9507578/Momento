@@ -4,7 +4,7 @@ class ApiConstants {
 
   // Official Momento Backend (Production)
   static const String prodServerUrl =
-      "https://momento-api-19-ewu9.onrender.com";
+      "https://momento-api-20-uwjn.onrender.com";
 
   // Local Machine IP (Development) - Using the IP from your logs
   static const String devServerUrl = "http://192.168.31.240:5000";
@@ -26,6 +26,7 @@ class ApiConstants {
   static String get likes => "$baseUrl/likes";
   static String get follows => "$baseUrl/follows";
   static String get comments => "$baseUrl/posts";
+  static String get reposts => "$baseUrl/reposts";
 
   // Media
   static String get stories => "$baseUrl/stories";

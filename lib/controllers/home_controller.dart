@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
-import '../models/post_model.dart';
-import '../repositories/user_repository.dart';
-import '../services/post_service.dart';
-import 'chat_controller.dart';
-import 'profile_controller.dart';
-import 'reel_controller.dart';
+import 'package:momento/controllers/chat_controller.dart';
+import 'package:momento/controllers/profile_controller.dart';
+import 'package:momento/controllers/reel_controller.dart';
+import 'package:momento/models/post_model.dart';
+import 'package:momento/repositories/user_repository.dart';
+import 'package:momento/services/api_service.dart';
+import 'package:momento/services/post_service.dart';
 
 class HomeController extends GetxController {
   final PostService _postService = Get.find<PostService>();
@@ -41,9 +41,7 @@ class HomeController extends GetxController {
       }
     }
 
-    if (index == 0) {
-      // Optionally refresh feed if needed, or just switch
-    }
+    if (index == 0) {}
   }
 
   Future<void> loadPosts() async {
@@ -231,5 +229,72 @@ class HomeController extends GetxController {
       Get.snackbar('Error', 'Failed to update post');
     }
     return success;
+  }
+
+  Future<void> toggleRepost(
+    int index, {
+    String? note,
+    bool removeNote = false,
+  }) async {
+    if (index < 0 || index >= posts.length) return;
+
+    final post = posts[index];
+    final originalState = post.isReposted;
+    final originalCount = post.repostsCount;
+    final originalNote = post.repostNote;
+    final originalAvatar = post.repostUserAvatar;
+
+    Map<String, dynamic>? currentUser;
+    if (Get.isRegistered<ApiService>()) {
+      currentUser = await Get.find<ApiService>().getUser();
+    }
+    final userAvatar =
+        (currentUser?['profileImage'] ??
+                currentUser?['profile_image'] ??
+                currentUser?['profileimage'] ??
+                currentUser?['avatar'] ??
+                '')
+            .toString();
+
+    final bool newRepostedState = removeNote ? false : true;
+    final newCount = newRepostedState
+        ? (originalState ? originalCount : originalCount + 1)
+        : (originalCount > 0 ? originalCount - 1 : 0);
+
+    final String finalNote = (note != null && note.trim().isNotEmpty)
+        ? note.trim()
+        : 'Drop an emoji...';
+
+    // Optimistic UI update
+    posts[index] = post.copyWith(
+      isReposted: newRepostedState,
+      repostsCount: newCount,
+      repostNote: newRepostedState ? finalNote : null,
+      repostUserAvatar: newRepostedState ? userAvatar : null,
+    );
+
+    Get.snackbar(
+      newRepostedState ? 'Reposted' : 'Removed',
+      newRepostedState ? 'Post reposted with note!' : 'Repost removed',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: newRepostedState ? Colors.green : Colors.grey[800],
+      colorText: Colors.white,
+      duration: const Duration(seconds: 2),
+    );
+
+    try {
+      await _postService.toggleRepost(
+        post.postId,
+        note: newRepostedState ? finalNote : null,
+      );
+    } catch (_) {
+      // Revert on error
+      posts[index] = post.copyWith(
+        isReposted: originalState,
+        repostsCount: originalCount,
+        repostNote: originalNote,
+        repostUserAvatar: originalAvatar,
+      );
+    }
   }
 }

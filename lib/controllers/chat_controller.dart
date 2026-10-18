@@ -1,21 +1,20 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get/get.dart';
-
-import '../models/message_model.dart';
-import '../models/post_model.dart';
-import '../services/api_service.dart';
-import '../services/chat_socket_service.dart';
-import '../utils/api_constants.dart';
+import 'package:momento/models/message_model.dart';
+import 'package:momento/models/post_model.dart';
+import 'package:momento/services/api_service.dart';
+import 'package:momento/services/chat_socket_service.dart';
+import 'package:momento/utils/api_constants.dart';
 
 class ChatController extends GetxController with WidgetsBindingObserver {
   final ApiService _apiService = Get.find<ApiService>();
-  final ChatSocketService _chatSocket = ChatSocketService(
-    apiService: Get.find<ApiService>(),
-  );
+  late final ChatSocketService _chatSocket;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   final messages = <MessageModel>[].obs;
@@ -34,6 +33,7 @@ class ChatController extends GetxController with WidgetsBindingObserver {
   final currentUsername = ''.obs;
   String? activeChatUserId;
   Timer? _typingStopTimer;
+  Timer? _typingAutoClearTimer;
   Timer? _heartbeatTimer;
   bool _typingSent = false;
   List<Map<String, dynamic>> _pendingOutbox = [];
@@ -51,6 +51,10 @@ class ChatController extends GetxController with WidgetsBindingObserver {
   void onInit() {
     super.onInit();
     WidgetsBinding.instance.addObserver(this);
+    _chatSocket = Get.isRegistered<ChatSocketService>()
+        ? Get.find<ChatSocketService>()
+        : Get.put(ChatSocketService(apiService: _apiService), permanent: true);
+
     _loadActivityStatus();
     _initializeRealtimeChat();
     fetchConversations();
@@ -60,16 +64,31 @@ class ChatController extends GetxController with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      if (socketConnected.value && showActivityStatus.value) {
-        _chatSocket.emitPresenceOnline();
-      }
-    } else if (state == AppLifecycleState.paused ||
+    if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
-      if (socketConnected.value) {
-        _chatSocket.emitPresenceOffline();
-      }
+      debugPrint('[APP] App backgrounded -> disconnecting socket');
+      _chatSocket.disconnect();
+      socketConnected.value = false;
+      peerOnline.value = false;
+      peerTyping.value = false;
+    } else if (state == AppLifecycleState.resumed) {
+      debugPrint('[APP] App resumed -> reconnecting socket');
+      _reconnectAndSync();
     }
+  }
+
+  Future<void> _reconnectAndSync() async {
+    await _chatSocket.connect();
+    final peerId = activeChatUserId;
+    if (peerId != null) {
+      _chatSocket.joinConversation(peerId);
+      await fetchMessages(peerId);
+      _chatSocket.markRead(peerId);
+    }
+    if (showActivityStatus.value) {
+      _chatSocket.emitPresenceOnline();
+    }
+    fetchConversations();
   }
 
   Future<void> _loadActivityStatus() async {
@@ -106,6 +125,9 @@ class ChatController extends GetxController with WidgetsBindingObserver {
     currentUsername.value = (currentUser?['username'] ?? '').toString();
     await _restorePendingOutbox();
 
+    // Bind reactive online user IDs directly from socket service
+    onlineUserIds.bindStream(_chatSocket.onlineUserIds.stream);
+
     _chatSocket
       ..onConnected = _onSocketConnected
       ..onDisconnected = () {
@@ -122,11 +144,13 @@ class ChatController extends GetxController with WidgetsBindingObserver {
       ..onRead = _onReadUpdate
       ..onPresenceUpdate = _onPresenceUpdate
       ..onPresenceSnapshot = (ids) {
-        onlineUserIds.assignAll(ids.toSet());
         _syncPeerPresence();
       };
+
     await _chatSocket.connect();
   }
+
+  bool isUserOnline(String? userId) => _chatSocket.isUserOnline(userId);
 
   Future<void> _restorePendingOutbox() async {
     final encoded = await _storage.read(key: 'pending_chat_messages');
@@ -140,7 +164,7 @@ class ChatController extends GetxController with WidgetsBindingObserver {
             .toList();
       }
     } on FormatException catch (error) {
-      print('Could not restore pending chat messages: $error');
+      debugPrint('Could not restore pending chat messages: $error');
       await _storage.delete(key: 'pending_chat_messages');
     }
   }
@@ -166,7 +190,9 @@ class ChatController extends GetxController with WidgetsBindingObserver {
   }
 
   void _onSocketMessage(Map<String, dynamic> json) {
+    debugPrint('[CHAT] Processing incoming socket message: $json');
     final message = MessageModel.fromJson(json);
+
     final clientMessageId = message.clientMessageId;
     if (clientMessageId != null) {
       _pendingOutbox.removeWhere(
@@ -178,52 +204,95 @@ class ChatController extends GetxController with WidgetsBindingObserver {
     final activePeer = activeChatUserId;
     if (activePeer != null &&
         (message.senderId == activePeer || message.receiverId == activePeer)) {
-      _upsertMessage(message.copyWith(isPending: false, isPersisted: true));
+      _upsertMessage(
+        message.copyWith(isPending: false, sendError: false, isPersisted: true),
+      );
       _saveConversationCache(activePeer);
       if (message.senderId == activePeer &&
           message.receiverId == currentUserId) {
         _chatSocket.markRead(activePeer);
       }
     }
-    fetchConversations();
+
+    _updateConversationForIncomingMessage(message);
+  }
+
+  void _updateConversationForIncomingMessage(MessageModel message) {
+    final otherUserId = message.senderId == currentUserId
+        ? message.receiverId
+        : message.senderId;
+    final index = conversations.indexWhere((c) {
+      final cId = (c['conversationUserId'] ??
+              c['conversation_user_id'] ??
+              c['userId'] ??
+              c['id'])
+          ?.toString();
+      return cId == otherUserId;
+    });
+
+    final isFromActiveChat = activeChatUserId == otherUserId;
+    final isUnread = !isFromActiveChat && message.senderId != currentUserId;
+
+    if (index != -1) {
+      final existing = Map<String, dynamic>.from(conversations[index]);
+      existing['lastMessage'] = message.message;
+      existing['lastMessageTime'] = message.createdAt.toIso8601String();
+      existing['messageType'] = message.messageType;
+      existing['isRead'] = !isUnread;
+      existing['unread'] = isUnread;
+      conversations.removeAt(index);
+      conversations.insert(0, existing);
+    } else {
+      fetchConversations();
+    }
   }
 
   void _onTypingUpdate(Map<String, dynamic> update) {
-    if (update['userId']?.toString() == activeChatUserId) {
-      peerTyping.value = update['isTyping'] == true;
+    final senderId = (update['userId'] ?? update['senderId'] ?? update['user_id'])
+        ?.toString();
+    if (senderId == activeChatUserId) {
+      final isTyping =
+          update['isTyping'] == true || update['is_typing'] == true;
+      peerTyping.value = isTyping;
+
+      _typingAutoClearTimer?.cancel();
+      if (isTyping) {
+        _typingAutoClearTimer = Timer(const Duration(seconds: 5), () {
+          peerTyping.value = false;
+        });
+      }
     }
   }
 
   void _onReadUpdate(Map<String, dynamic> update) {
-    if (update['readerId']?.toString() != activeChatUserId) return;
-    messages.assignAll(
-      messages
-          .map(
-            (message) =>
-                message.senderId == currentUserId &&
-                    message.receiverId == activeChatUserId
-                ? message.copyWith(isRead: true)
-                : message,
-          )
-          .toList(),
-    );
-    _saveConversationCache(activeChatUserId!);
+    final readerId = (update['readerId'] ?? update['senderId'] ?? update['userId'])
+        ?.toString();
+    if (readerId == activeChatUserId) {
+      final updated = messages.map((msg) {
+        if (msg.senderId == currentUserId &&
+            msg.receiverId == activeChatUserId) {
+          return msg.copyWith(isRead: true);
+        }
+        return msg;
+      }).toList();
+      messages.assignAll(updated);
+      if (activeChatUserId != null) {
+        _saveConversationCache(activeChatUserId!);
+      }
+    }
   }
 
   void _onPresenceUpdate(Map<String, dynamic> update) {
-    final userId = update['userId']?.toString();
-    if (userId == null) return;
-    if (update['isOnline'] == true) {
-      onlineUserIds.add(userId);
-    } else {
-      onlineUserIds.remove(userId);
-    }
     _syncPeerPresence();
   }
 
   void _syncPeerPresence() {
-    peerOnline.value =
-        activeChatUserId != null && onlineUserIds.contains(activeChatUserId);
+    final peerId = activeChatUserId;
+    if (peerId == null) {
+      peerOnline.value = false;
+      return;
+    }
+    peerOnline.value = _chatSocket.isUserOnline(peerId);
   }
 
   void _upsertMessage(MessageModel message) {
@@ -249,6 +318,7 @@ class ChatController extends GetxController with WidgetsBindingObserver {
           'id': 'local-${item['clientMessageId']}',
           'senderId': currentUserId ?? '',
           'isPending': true,
+          'sendError': false,
           'isPersisted': false,
         }),
       )
@@ -271,7 +341,7 @@ class ChatController extends GetxController with WidgetsBindingObserver {
           );
         }
       } on FormatException catch (error) {
-        print('Could not restore chat history: $error');
+        debugPrint('Could not restore chat history: $error');
         await _storage.delete(key: 'chat_cache_$userId');
       }
     }
@@ -346,7 +416,7 @@ class ChatController extends GetxController with WidgetsBindingObserver {
       savedItemsError.value = '';
       _syncSavedMessageFlags();
     } catch (e) {
-      print("Error fetching saved items: $e");
+      debugPrint("Error fetching saved items: $e");
       savedItemsError.value = 'Could not load saved items. Please try again.';
     } finally {
       isLoadingSaved.value = false;
@@ -499,9 +569,9 @@ class ChatController extends GetxController with WidgetsBindingObserver {
   void onClose() {
     WidgetsBinding.instance.removeObserver(this);
     _heartbeatTimer?.cancel();
-    stopLiveMessages();
+    _typingAutoClearTimer?.cancel();
     _typingStopTimer?.cancel();
-    _chatSocket.disconnect();
+    stopLiveMessages();
     super.onClose();
   }
 
@@ -519,7 +589,10 @@ class ChatController extends GetxController with WidgetsBindingObserver {
     _loadConversationCache(userId).then((_) {
       if (activeChatUserId == userId) fetchMessages(userId);
     });
-    if (_chatSocket.isConnected) _chatSocket.joinConversation(userId);
+    if (_chatSocket.isConnected) {
+      _chatSocket.joinConversation(userId);
+      _chatSocket.markRead(userId);
+    }
   }
 
   void stopLiveMessages() {
@@ -528,6 +601,7 @@ class ChatController extends GetxController with WidgetsBindingObserver {
       _chatSocket.setTyping(peerId, false);
     }
     _typingStopTimer?.cancel();
+    _typingAutoClearTimer?.cancel();
     _typingSent = false;
     activeChatUserId = null;
     peerTyping.value = false;
@@ -563,10 +637,10 @@ class ChatController extends GetxController with WidgetsBindingObserver {
         final List convos = data['data'] ?? [];
         conversations.assignAll(List<Map<String, dynamic>>.from(convos));
       } else {
-        print('Could not load conversations: ${response.body}');
+        debugPrint('Could not load conversations: ${response.body}');
       }
     } catch (error) {
-      print('Error fetching conversations: $error');
+      debugPrint('Error fetching conversations: $error');
     } finally {
       isLoading.value = false;
     }
@@ -604,12 +678,18 @@ class ChatController extends GetxController with WidgetsBindingObserver {
             'Could not load this conversation.';
       }
     } catch (e) {
-      print("Error fetching messages: $e");
+      debugPrint("Error fetching messages: $e");
       messageLoadError.value =
           'Could not connect to the chat server. Showing saved messages.';
     } finally {
       isLoadingMessages.value = false;
     }
+  }
+
+  String _generateClientMessageId() {
+    final now = DateTime.now().microsecondsSinceEpoch;
+    final random = Random().nextInt(900000) + 100000;
+    return 'c_${now}_$random';
   }
 
   Future<bool> sendMessage(
@@ -631,10 +711,11 @@ class ChatController extends GetxController with WidgetsBindingObserver {
         receiverId == myId) {
       Get.snackbar(
         'Message not sent',
-        'This conversation has an invalid user. Open the profile again.',
+        'This conversation has an invalid user.',
       );
       return false;
     }
+
     final messageType =
         messageTypeOverride ??
         (reelId != null
@@ -642,21 +723,16 @@ class ChatController extends GetxController with WidgetsBindingObserver {
             : postId != null
             ? 'post'
             : 'text');
-    if (!['text', 'image', 'video', 'reel', 'post'].contains(messageType) ||
-        ((messageType == 'image' || messageType == 'video') &&
-            (mediaUrl == null || mediaUrl.isEmpty))) {
-      Get.snackbar('Message not sent', 'This message type is not supported.');
-      return false;
-    }
-    final clientMessageId =
-        '${myId}_${receiverId}_${DateTime.now().microsecondsSinceEpoch}';
+
+    final clientMessageId = _generateClientMessageId();
+
     final payload = <String, dynamic>{
-      'receiverId': receiverId,
+      'receiverId': parsedReceiverId,
       'message': text,
       'messageType': messageType,
-      if (mediaUrl != null) 'mediaUrl': mediaUrl,
       'clientMessageId': clientMessageId,
       'createdAt': DateTime.now().toIso8601String(),
+      if (mediaUrl != null) 'mediaUrl': mediaUrl,
       if (reelId != null) 'reelId': reelId,
       if (postId != null) 'postId': postId,
       if (postImageUrl != null) 'postImageUrl': postImageUrl,
@@ -664,33 +740,80 @@ class ChatController extends GetxController with WidgetsBindingObserver {
       if (postOwnerUsername != null) 'postOwnerUsername': postOwnerUsername,
     };
 
+    final optimisticMsg = MessageModel(
+      id: 'local-$clientMessageId',
+      clientMessageId: clientMessageId,
+      senderId: myId,
+      receiverId: receiverId,
+      message: text,
+      messageType: messageType,
+      mediaUrl: mediaUrl,
+      reelId: reelId,
+      postId: postId,
+      postImageUrl: postImageUrl,
+      postCaption: postCaption,
+      postOwnerUsername: postOwnerUsername,
+      createdAt: DateTime.now(),
+      isRead: false,
+      isPersisted: false,
+      isPending: true,
+      sendError: false,
+    );
+
     _pendingOutbox.add(payload);
     await _persistPendingOutbox();
+
     if (activeChatUserId == receiverId) {
-      _upsertMessage(
-        MessageModel(
-          id: 'local-$clientMessageId',
-          clientMessageId: clientMessageId,
-          senderId: myId,
-          receiverId: receiverId,
-          message: text,
-          messageType: messageType,
-          mediaUrl: mediaUrl,
-          reelId: reelId,
-          postId: postId,
-          postImageUrl: postImageUrl,
-          postCaption: postCaption,
-          postOwnerUsername: postOwnerUsername,
-          createdAt: DateTime.now(),
-          isRead: false,
-          isPersisted: false,
-          isPending: true,
-        ),
-      );
+      _upsertMessage(optimisticMsg);
       _saveConversationCache(receiverId);
     }
-    if (!socketConnected.value) return true;
-    return _deliverPendingMessage(payload);
+
+    _updateConversationForIncomingMessage(optimisticMsg);
+
+    if (!_chatSocket.isConnected) {
+      _chatSocket.connect();
+      return true;
+    }
+
+    return _deliverPendingMessage(payload, optimisticMsg);
+  }
+
+  Future<bool> retryMessage(MessageModel msg) async {
+    final clientMsgId = msg.clientMessageId;
+    if (clientMsgId == null) return false;
+
+    final index = messages.indexWhere(
+      (m) => m.clientMessageId == clientMsgId || m.id == msg.id,
+    );
+    if (index != -1) {
+      messages[index] = messages[index].copyWith(
+        isPending: true,
+        sendError: false,
+      );
+    }
+
+    final parsedReceiverId =
+        int.tryParse(msg.receiverId) ?? msg.receiverId;
+
+    final payload = <String, dynamic>{
+      'receiverId': parsedReceiverId,
+      'message': msg.message,
+      'messageType': msg.messageType,
+      'clientMessageId': clientMsgId,
+      if (msg.mediaUrl != null) 'mediaUrl': msg.mediaUrl,
+      if (msg.reelId != null) 'reelId': msg.reelId,
+      if (msg.postId != null) 'postId': msg.postId,
+      if (msg.postImageUrl != null) 'postImageUrl': msg.postImageUrl,
+      if (msg.postCaption != null) 'postCaption': msg.postCaption,
+      if (msg.postOwnerUsername != null)
+        'postOwnerUsername': msg.postOwnerUsername,
+    };
+
+    if (!_chatSocket.isConnected) {
+      await _chatSocket.connect();
+    }
+
+    return _deliverPendingMessage(payload, msg);
   }
 
   Future<bool> sendImage(String receiverId, String filePath) async {
@@ -726,7 +849,7 @@ class ChatController extends GetxController with WidgetsBindingObserver {
         messageTypeOverride: 'image',
       );
     } catch (error) {
-      print('Error uploading chat image: $error');
+      debugPrint('Error uploading chat image: $error');
       Get.snackbar('Photo not sent', 'Could not upload this photo.');
       return false;
     }
@@ -734,46 +857,49 @@ class ChatController extends GetxController with WidgetsBindingObserver {
 
   Future<void> _flushPendingMessages() async {
     for (final item in List<Map<String, dynamic>>.from(_pendingOutbox)) {
-      if (!socketConnected.value) return;
+      if (!_chatSocket.isConnected) return;
       await _deliverPendingMessage(item);
     }
   }
 
-  Future<bool> _deliverPendingMessage(Map<String, dynamic> payload) async {
+  Future<bool> _deliverPendingMessage(
+    Map<String, dynamic> payload, [
+    MessageModel? optimisticMsg,
+  ]) async {
+    final clientMessageId = payload['clientMessageId']?.toString();
     final response = await _chatSocket.sendMessage(payload);
-    if (response == null) return true;
-    if (response['success'] != true || response['data'] is! Map) {
-      final code = response['code']?.toString();
-      final clientMessageId = payload['clientMessageId']?.toString();
-      if (code == 'RECEIVER_NOT_FOUND' ||
-          code == 'USER_NOT_FOUND' ||
-          code == 'INVALID_MESSAGE' ||
-          code == 'CHAT_IDEMPOTENCY_MIGRATION_REQUIRED' ||
-          code == 'REEL_MESSAGE_MIGRATION_REQUIRED') {
-        _pendingOutbox.removeWhere(
-          (item) => item['clientMessageId'] == clientMessageId,
+
+    if (response == null || response['success'] != true || response['data'] is! Map) {
+      if (clientMessageId != null) {
+        final index = messages.indexWhere(
+          (m) =>
+              m.clientMessageId == clientMessageId ||
+              m.id == 'local-$clientMessageId',
         );
-        messages.removeWhere(
-          (message) => message.clientMessageId == clientMessageId,
-        );
-        await _persistPendingOutbox();
+        if (index != -1) {
+          messages[index] = messages[index].copyWith(
+            isPending: false,
+            sendError: true,
+          );
+        }
       }
-      final errorMessage =
-          response['message']?.toString() ?? 'Message could not be delivered.';
-      Get.snackbar('Message not sent', errorMessage);
       return false;
     }
 
     final message = MessageModel.fromJson(
       Map<String, dynamic>.from(response['data'] as Map),
     );
-    final clientMessageId = payload['clientMessageId']?.toString();
+
     _pendingOutbox.removeWhere(
       (item) => item['clientMessageId'] == clientMessageId,
     );
     await _persistPendingOutbox();
-    if (activeChatUserId == message.receiverId) {
-      _upsertMessage(message.copyWith(isPending: false, isPersisted: true));
+
+    if (activeChatUserId == message.receiverId ||
+        activeChatUserId == message.senderId) {
+      _upsertMessage(
+        message.copyWith(isPending: false, sendError: false, isPersisted: true),
+      );
       await _saveConversationCache(message.receiverId);
     }
     fetchConversations();

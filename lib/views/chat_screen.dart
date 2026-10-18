@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-
-import '../controllers/chat_controller.dart';
-import '../controllers/reel_controller.dart';
-import '../models/message_model.dart';
-import '../models/post_model.dart';
-import '../models/user_model.dart';
-import '../routes/app_routes.dart';
-import '../utils/api_constants.dart';
-import '../utils/app_colors.dart';
-import '../widgets/user_avatar.dart';
+import 'package:momento/controllers/chat_controller.dart';
+import 'package:momento/controllers/reel_controller.dart';
+import 'package:momento/models/message_model.dart';
+import 'package:momento/models/post_model.dart';
+import 'package:momento/models/user_model.dart';
+import 'package:momento/routes/app_routes.dart';
+import 'package:momento/utils/api_constants.dart';
+import 'package:momento/utils/app_colors.dart';
+import 'package:momento/widgets/user_avatar.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -127,7 +126,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                     Obx(() {
                       final isOnline =
-                          controller.peerOnline.value &&
+                          controller.isUserOnline(_targetUserId) &&
                           controller.showActivityStatus.value;
                       final subtitle = controller.peerTyping.value
                           ? 'Typing...'
@@ -244,106 +243,78 @@ class _ChatScreenState extends State<ChatScreen> {
             }),
           ),
 
-          // Composer
+          // Single Unified Composer
           Container(
             padding: EdgeInsets.fromLTRB(
               12,
-              10,
+              8,
               12,
-              MediaQuery.of(context).padding.bottom + 10,
+              MediaQuery.of(context).padding.bottom + 8,
             ),
-            decoration: const BoxDecoration(
-              color: AppColors.background,
-              border: Border(
-                top: BorderSide(color: Colors.white10, width: 0.5),
+            color: AppColors.background,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(26),
+                border: Border.all(color: Colors.white12, width: 0.8),
               ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: Container(
-                    constraints: const BoxConstraints(
-                      minHeight: 48,
-                      maxHeight: 120,
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.white12),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: messageController,
-                            onChanged: (text) => controller.onMessageInput(
-                              _targetUserId,
-                              text.trim().isNotEmpty,
-                            ),
-                            minLines: 1,
-                            maxLines: 5,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                            ),
-                            decoration: const InputDecoration(
-                              hintText: 'Message...',
-                              hintStyle: TextStyle(
-                                color: Colors.white38,
-                                fontSize: 15,
-                              ),
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                vertical: 10,
-                              ),
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () =>
-                              _pickAndSendImage(ImageSource.camera),
-                          icon: const Icon(
-                            Icons.camera_alt_outlined,
-                            color: Colors.white54,
-                            size: 22,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: () =>
-                              _pickAndSendImage(ImageSource.gallery),
-                          icon: const Icon(
-                            Icons.image_outlined,
-                            color: Colors.white54,
-                            size: 22,
-                          ),
-                        ),
-                      ],
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  IconButton(
+                    padding: const EdgeInsets.all(6),
+                    constraints: const BoxConstraints(),
+                    onPressed: () => _pickAndSendImage(ImageSource.camera),
+                    icon: const Icon(
+                      Icons.camera_alt_outlined,
+                      color: Colors.white54,
+                      size: 22,
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Obx(
-                  () => _hasText.value
-                      ? Container(
-                          width: 44,
-                          height: 44,
-                          decoration: const BoxDecoration(
-                            color: AppColors.purple,
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
+                  IconButton(
+                    padding: const EdgeInsets.all(6),
+                    constraints: const BoxConstraints(),
+                    onPressed: () => _pickAndSendImage(ImageSource.gallery),
+                    icon: const Icon(
+                      Icons.image_outlined,
+                      color: Colors.white54,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: TextField(
+                      controller: messageController,
+                      onChanged: (text) => controller.onMessageInput(
+                        _targetUserId,
+                        text.trim().isNotEmpty,
+                      ),
+                      minLines: 1,
+                      maxLines: 5,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: 'Message...',
+                        hintStyle: TextStyle(
+                          color: Colors.white38,
+                          fontSize: 15,
+                        ),
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(
+                          vertical: 10,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Obx(
+                    () => _hasText.value
+                        ? IconButton(
+                            padding: const EdgeInsets.all(8),
+                            constraints: const BoxConstraints(),
                             onPressed: () async {
                               final text = messageController.text.trim();
                               if (text.isNotEmpty) {
@@ -355,19 +326,13 @@ class _ChatScreenState extends State<ChatScreen> {
                             },
                             icon: const Icon(
                               Icons.send_rounded,
-                              color: Colors.white,
-                              size: 20,
+                              color: AppColors.purple,
+                              size: 22,
                             ),
-                          ),
-                        )
-                      : Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.08),
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
+                          )
+                        : IconButton(
+                            padding: const EdgeInsets.all(8),
+                            constraints: const BoxConstraints(),
                             onPressed: () async {
                               final targetId = _targetUserId;
                               controller.onMessageInput(targetId, false);
@@ -379,9 +344,9 @@ class _ChatScreenState extends State<ChatScreen> {
                               size: 22,
                             ),
                           ),
-                        ),
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -730,7 +695,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                             )) ...[
                                           const SizedBox(height: 6),
                                           Text(
-                                            extractedPostCaption!,
+                                            extractedPostCaption,
                                             maxLines: 2,
                                             overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(
@@ -832,12 +797,48 @@ class _ChatScreenState extends State<ChatScreen> {
                 style: TextStyle(color: Colors.white38, fontSize: 11),
               ),
             ),
-          if (isMe && msg.isPending)
+          if (isMe && msg.sendError)
+            GestureDetector(
+              onTap: () => controller.retryMessage(msg),
+              child: const Padding(
+                padding: EdgeInsets.only(top: 4, right: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.error_outline_rounded,
+                      color: Colors.redAccent,
+                      size: 14,
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      'Failed. Tap to retry',
+                      style: TextStyle(color: Colors.redAccent, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (isMe && msg.isPending && !msg.sendError)
             const Padding(
               padding: EdgeInsets.only(top: 4, right: 4),
-              child: Text(
-                'Waiting for connection',
-                style: TextStyle(color: Colors.white38, fontSize: 11),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 10,
+                    height: 10,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
+                      color: Colors.white38,
+                    ),
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    'Sending...',
+                    style: TextStyle(color: Colors.white38, fontSize: 11),
+                  ),
+                ],
               ),
             ),
         ],

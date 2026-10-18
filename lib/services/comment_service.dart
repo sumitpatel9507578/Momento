@@ -43,18 +43,21 @@ class CommentService extends GetxService {
     String id,
     String comment, {
     bool isReel = false,
+    String? parentId,
   }) async {
     try {
       final endpoint = isReel ? ApiConstants.reels : ApiConstants.posts;
-      var response = await _apiService.post("$endpoint/$id/comments", {
+      final body = <String, dynamic>{
         'comment': comment,
         'text': comment,
-      });
+        if (parentId != null) 'parentId': parentId,
+      };
+      var response = await _apiService.post("$endpoint/$id/comments", body);
 
       if (response.statusCode == 404 && isReel) {
         response = await _apiService.post(
           "${ApiConstants.baseUrl}/comments/reel/$id",
-          {'comment': comment, 'text': comment},
+          body,
         );
       }
 
@@ -63,6 +66,7 @@ class CommentService extends GetxService {
           'reelId': id,
           'comment': comment,
           'text': comment,
+          if (parentId != null) 'parentId': parentId,
         });
       }
 

@@ -42,16 +42,13 @@ class UserAvatar extends StatelessWidget {
                 ? NetworkImage(ApiConstants.getFullUrl(imageUrl!))
                 : null,
             child: !hasImage
-                ? Icon(
-                    Icons.person,
-                    size: radius * 0.9,
-                    color: Colors.white54,
-                  )
+                ? Icon(Icons.person, size: radius * 0.9, color: Colors.white54)
                 : null,
           ),
           if (userId != null && userId!.isNotEmpty && chatController != null)
             Obx(() {
-              final isOnline = chatController.onlineUserIds.contains(userId) &&
+              final isOnline =
+                  chatController.onlineUserIds.contains(userId) &&
                   chatController.showActivityStatus.value;
               if (!isOnline) return const SizedBox.shrink();
               final dotSize = radius * 0.45;

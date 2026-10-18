@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:momento/models/reel_model.dart';
+import 'package:momento/services/api_service.dart';
+import 'package:momento/services/reel_service.dart';
+import 'package:momento/utils/api_constants.dart';
 import 'package:video_player/video_player.dart';
-
-import 'chat_controller.dart';
-import '../models/reel_model.dart';
-import '../services/reel_service.dart';
-import '../utils/api_constants.dart';
 
 class ReelController extends GetxController {
   final ReelService _service = Get.find<ReelService>();
@@ -21,24 +20,68 @@ class ReelController extends GetxController {
   final videoControllers = <String, VideoPlayerController>{};
   final failedInitializations = <String>{}.obs;
 
+  /// Jab bhi koi video ready/dispose/fail ho, ye badhta hai.
+  /// Screen ke Obx me ise read karo, tabhi UI rebuild hoga.
+  final videoVersion = 0.obs;
+
   final savedReels = <String>{}.obs;
+  final isMuted = false.obs;
 
   int _currentPage = 1;
   bool _hasMore = true;
+  bool _active = true; // false = screen se bahar, kuch bhi auto-play na ho
   Future<void>? _initialLoad;
+  final Map<String, Future<void>> _initializing = {};
 
   @override
   void onInit() {
     super.onInit();
-    final argument = Get.arguments;
+    _initialLoad = getReels();
+    // Argument handling ab screen se hota hai (openFromArguments),
+    // kyunki controller persist rehta hai aur onInit sirf ek baar chalta hai.
+  }
+
+  // ---------------------------------------------------------------------------
+  // Entry point: ReelsScreen.initState se HAR BAAR call karo.
+  // ---------------------------------------------------------------------------
+  Future<void> openFromArguments(dynamic argument) async {
     final requestedReelId = argument is ReelModel
         ? argument.id
         : argument is Map
         ? (argument['reelId'] ?? argument['id'])?.toString()
         : argument?.toString();
-    _initialLoad = getReels();
+
     if (requestedReelId != null && requestedReelId.isNotEmpty) {
-      _initialLoad!.then((_) => openReel(requestedReelId));
+      await openReel(requestedReelId);
+      return;
+    }
+
+    // Koi specific reel nahi: jahan the wahin se (page controller sync karke).
+    prepareOpen(currentIndex.value);
+    if (reels.isEmpty) await (_initialLoad ?? Future<void>.value());
+    if (reels.isNotEmpty) {
+      final i = currentIndex.value.clamp(0, reels.length - 1);
+      await playVideo(i);
+    }
+  }
+
+  /// Page controller ko `index` par rakhta hai. PageView build hone se
+  /// PEHLE sync call hota hai, isliye flash/scroll nahi dikhta.
+  void prepareOpen(int index) {
+    currentIndex.value = index;
+    if (_isPageControllerAttached) {
+      pageController.jumpToPage(index);
+    } else {
+      pageController.dispose();
+      pageController = PageController(initialPage: index);
+    }
+  }
+
+  bool get _isPageControllerAttached {
+    try {
+      return pageController.hasClients;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -53,24 +96,13 @@ class ReelController extends GetxController {
       final result = await _service.fetchReels(page: _currentPage);
 
       reels.assignAll(result);
-      if (reels.isNotEmpty) {
-        await initializeVideo(0);
-        playVideo(0);
-      }
-
       if (result.length < 10) _hasMore = false;
+      // NOTE: yahan auto-play nahi. Play openFromArguments / onPageChanged se hoga,
+      // warna requested reel se pehle reel 0 ki awaaz aati thi.
     } catch (e) {
       errorMessage.value = 'Failed to load reels. Please try again.';
     } finally {
       isLoading.value = false;
-    }
-  }
-
-  bool get _isPageControllerAttached {
-    try {
-      return pageController.hasClients;
-    } catch (_) {
-      return false;
     }
   }
 
@@ -86,10 +118,7 @@ class ReelController extends GetxController {
       reels.assignAll(result);
       currentIndex.value = 0;
       if (_isPageControllerAttached) pageController.jumpToPage(0);
-      if (reels.isNotEmpty) {
-        await initializeVideo(0);
-        playVideo(0);
-      }
+      if (reels.isNotEmpty) await playVideo(0);
     } catch (e) {
       Get.snackbar('Error', 'Unable to refresh reels');
     } finally {
@@ -98,7 +127,10 @@ class ReelController extends GetxController {
   }
 
   Future<bool> openReel(String reelId) async {
-    await (_initialLoad ?? Future<void>.value());
+    // Agar reels pehle se loaded hain to yahan koi await nahi hota,
+    // isliye prepareOpen sync chalta hai (first frame se sahi page).
+    if (reels.isEmpty) await (_initialLoad ?? Future<void>.value());
+
     var index = reels.indexWhere((reel) => reel.id == reelId);
     if (index == -1) {
       try {
@@ -115,14 +147,8 @@ class ReelController extends GetxController {
       }
     }
 
-    currentIndex.value = index;
-    if (_isPageControllerAttached) {
-      pageController.jumpToPage(index);
-    } else {
-      pageController = PageController(initialPage: index);
-    }
-    await initializeVideo(index);
-    playVideo(index);
+    prepareOpen(index);
+    await playVideo(index);
     return true;
   }
 
@@ -152,95 +178,131 @@ class ReelController extends GetxController {
     }
   }
 
-  Future<void> initializeVideo(int index) async {
-    if (index < 0 || index >= reels.length) return;
-
+  // ---------------------------------------------------------------------------
+  // Video init (race-free: ek reel ke liye ek hi init chalta hai)
+  // ---------------------------------------------------------------------------
+  Future<void> initializeVideo(int index) {
+    if (index < 0 || index >= reels.length) return Future<void>.value();
     final reel = reels[index];
-    if (videoControllers.containsKey(reel.id)) return;
-    if (failedInitializations.contains(reel.id)) return;
+    if (videoControllers.containsKey(reel.id) ||
+        failedInitializations.contains(reel.id)) {
+      return Future<void>.value();
+    }
+    return _initializing[reel.id] ??= _initVideo(
+      reel,
+    ).whenComplete(() => _initializing.remove(reel.id));
+  }
 
+  Future<void> _initVideo(ReelModel reel) async {
     final videoUrl = ApiConstants.getFullUrl(reel.videoUrl);
-    print("ReelController: Initializing Video -> $videoUrl");
-    final controller = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
+    final c = VideoPlayerController.networkUrl(Uri.parse(videoUrl));
     try {
-      await controller.initialize().timeout(const Duration(seconds: 15));
-      await controller.setLooping(true);
-      videoControllers[reel.id] = controller;
+      await c.initialize().timeout(const Duration(seconds: 15));
+
+      // Init ke dauraan user aage nikal gaya? To is controller ki zaroorat nahi.
+      final idx = reels.indexWhere((r) => r.id == reel.id);
+      if (idx == -1 || (idx - currentIndex.value).abs() > 1) {
+        await c.dispose();
+        return;
+      }
+
+      await c.setLooping(true);
+      await c.setVolume(isMuted.value ? 0.0 : 1.0);
+      videoControllers[reel.id] = c;
       failedInitializations.remove(reel.id);
-      update(); // Update UI for initialized state
+
+      if (_active && idx == currentIndex.value) c.play();
+      videoVersion.value++;
     } catch (e) {
-      print("Video Init Error for ${reel.id} ($videoUrl): $e");
+      debugPrint('Video init error for ${reel.id} ($videoUrl): $e');
+      await c.dispose(); // pehle leak ho jata tha
       failedInitializations.add(reel.id);
-      update();
+      videoVersion.value++;
     }
   }
 
   Future<void> retryVideo(int index) async {
     if (index < 0 || index >= reels.length) return;
-    final reel = reels[index];
-    failedInitializations.remove(reel.id);
-    update();
-    await initializeVideo(index);
-    playVideo(index);
+    failedInitializations.remove(reels[index].id);
+    videoVersion.value++;
+    await playVideo(index);
   }
 
-  void playVideo(int index) async {
+  // ---------------------------------------------------------------------------
+  // Playback
+  // ---------------------------------------------------------------------------
+  Future<void> playVideo(int index) async {
     if (index < 0 || index >= reels.length) return;
 
     currentIndex.value = index;
-    final currentReel = reels[index];
+    _active = true;
+    final reel = reels[index];
 
-    // Ensure initialized
-    if (!videoControllers.containsKey(currentReel.id)) {
+    // Baaki sab pause (aur purani reel shuru se).
+    videoControllers.forEach((id, c) {
+      if (id != reel.id && c.value.isPlaying) {
+        c.pause();
+        c.seekTo(Duration.zero);
+      }
+    });
+
+    final current = videoControllers[reel.id];
+    if (current != null) {
+      current.setVolume(isMuted.value ? 0.0 : 1.0);
+      current.play();
+    } else {
+      // _initVideo khud play kar dega jab ready ho (agar ab bhi current hai).
       await initializeVideo(index);
+      if (currentIndex.value != index) return; // user aage nikal gaya
     }
 
-    final controller = videoControllers[currentReel.id];
-    if (controller != null) {
-      // Pause others
-      videoControllers.forEach((id, ctrl) {
-        if (id != currentReel.id) ctrl.pause();
-      });
-      controller.play();
-    }
+    // Agli aur pichli dono preload (pehle sirf agli hoti thi).
+    initializeVideo(index + 1);
+    initializeVideo(index - 1);
 
-    // Preload next
-    if (index + 1 < reels.length) {
-      initializeVideo(index + 1);
-    }
-
-    // Cleanup old controllers (keep 3 around current)
     _cleanupOldControllers(index);
   }
 
   void _cleanupOldControllers(int currentIndex) {
     final idsToKeep = <String>{};
     for (int i = currentIndex - 1; i <= currentIndex + 1; i++) {
-      if (i >= 0 && i < reels.length) {
-        idsToKeep.add(reels[i].id);
-      }
+      if (i >= 0 && i < reels.length) idsToKeep.add(reels[i].id);
     }
 
     final keysToRemove = videoControllers.keys
         .where((id) => !idsToKeep.contains(id))
         .toList();
-    for (var key in keysToRemove) {
-      videoControllers[key]?.dispose();
-      videoControllers.remove(key);
+    if (keysToRemove.isEmpty) return;
+
+    for (final key in keysToRemove) {
+      final c = videoControllers.remove(key);
+      // Thoda ruk ke dispose: widget ko pehle rebuild hone do,
+      // warna "used after being disposed" error aata hai.
+      if (c != null) {
+        Future.delayed(const Duration(milliseconds: 400), c.dispose);
+      }
     }
+    videoVersion.value++;
   }
 
   void togglePlayPause(int index) {
-    final reel = reels[index];
-    final controller = videoControllers[reel.id];
+    if (index < 0 || index >= reels.length) return;
+    final controller = videoControllers[reels[index].id];
     if (controller == null) return;
+    controller.value.isPlaying ? controller.pause() : controller.play();
+  }
 
-    if (controller.value.isPlaying) {
-      controller.pause();
-    } else {
-      controller.play();
+  /// Mute global hai: sab loaded controllers par lagta hai.
+  void toggleMute([int? index]) {
+    isMuted.value = !isMuted.value;
+    final vol = isMuted.value ? 0.0 : 1.0;
+    for (final c in videoControllers.values) {
+      c.setVolume(vol);
     }
-    update();
+  }
+
+  void seekTo(int index, Duration position) {
+    getVideoController(index)?.seekTo(position);
   }
 
   VideoPlayerController? getVideoController(int index) {
@@ -249,19 +311,20 @@ class ReelController extends GetxController {
   }
 
   void pauseAllVideos() {
-    videoControllers.forEach((id, controller) {
-      controller.pause();
-    });
-    update();
+    _active = false;
+    for (final c in videoControllers.values) {
+      c.pause();
+    }
   }
 
   void resumeCurrentVideo() {
     if (reels.isEmpty) return;
-    final reelId = reels[currentIndex.value].id;
-    final controller = videoControllers[reelId];
+    _active = true;
+    final i = currentIndex.value.clamp(0, reels.length - 1);
+    final controller = videoControllers[reels[i].id];
     if (controller != null && !controller.value.isPlaying) {
+      controller.setVolume(isMuted.value ? 0.0 : 1.0);
       controller.play();
-      update();
     }
   }
 
@@ -272,92 +335,126 @@ class ReelController extends GetxController {
     final originalState = reel.isLiked;
     final originalLikes = reel.likesCount;
 
-    // Optimistic UI update
     reels[index] = reel.copyWith(
       isLiked: !reel.isLiked,
       likesCount: reel.isLiked ? reel.likesCount - 1 : reel.likesCount + 1,
     );
 
     try {
-      await _service.toggleLike(reel.id);
-      Get.snackbar(
-        'Success',
-        reels[index].isLiked ? 'Reel liked' : 'Reel unliked',
-        snackPosition: SnackPosition.BOTTOM,
-        duration: const Duration(seconds: 1),
-      );
-    } catch (e) {
-      // Revert on error
+      final success = await _service.toggleLike(reel.id);
+      if (!success) {
+        reels[index] = reel.copyWith(
+          isLiked: originalState,
+          likesCount: originalLikes,
+        );
+      }
+    } catch (_) {
       reels[index] = reel.copyWith(
         isLiked: originalState,
         likesCount: originalLikes,
       );
-      Get.snackbar(
-        'Like Error',
-        e.toString().replaceAll('Exception: ', ''),
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.redAccent,
-        colorText: Colors.white,
+    }
+  }
+
+  Future<void> deleteReel(String reelId) async {
+    try {
+      final success = await _service.deleteReel(reelId);
+      if (success) {
+        final c = videoControllers.remove(reelId);
+        reels.removeWhere((r) => r.id == reelId);
+        videoVersion.value++;
+        if (c != null) {
+          Future.delayed(const Duration(milliseconds: 400), c.dispose);
+        }
+        Get.snackbar('Success', 'Reel deleted successfully');
+      } else {
+        Get.snackbar('Error', 'Failed to delete reel');
+      }
+    } catch (e) {
+      Get.snackbar('Error', 'Could not delete reel');
+    }
+  }
+
+  Future<void> toggleRepost(
+    int index, {
+    String? note,
+    bool removeNote = false,
+  }) async {
+    if (index < 0 || index >= reels.length) return;
+
+    final reel = reels[index];
+    final originalState = reel.isReposted;
+    final originalCount = reel.repostsCount;
+    final originalNote = reel.repostNote;
+    final originalAvatar = reel.repostUserAvatar;
+
+    Map<String, dynamic>? currentUser;
+    if (Get.isRegistered<ApiService>()) {
+      currentUser = await Get.find<ApiService>().getUser();
+    }
+    final userAvatar =
+        (currentUser?['profileImage'] ??
+                currentUser?['profile_image'] ??
+                currentUser?['profileimage'] ??
+                currentUser?['avatar'] ??
+                '')
+            .toString();
+
+    final bool newRepostedState = removeNote ? false : true;
+    final newCount = newRepostedState
+        ? (originalState ? originalCount : originalCount + 1)
+        : (originalCount > 0 ? originalCount - 1 : 0);
+
+    final String finalNote = (note != null && note.trim().isNotEmpty)
+        ? note.trim()
+        : 'Drop an emoji...';
+
+    // Optimistic UI update
+    reels[index] = reel.copyWith(
+      isReposted: newRepostedState,
+      repostsCount: newCount,
+      repostNote: newRepostedState ? finalNote : null,
+      repostUserAvatar: newRepostedState ? userAvatar : null,
+    );
+
+    Get.snackbar(
+      newRepostedState ? 'Reposted' : 'Removed',
+      newRepostedState ? 'Reel reposted with note!' : 'Repost removed',
+      snackPosition: SnackPosition.BOTTOM,
+      backgroundColor: newRepostedState ? Colors.green : Colors.grey[800],
+      colorText: Colors.white,
+      duration: const Duration(seconds: 2),
+    );
+
+    try {
+      await _service.toggleRepost(
+        reel.id,
+        note: newRepostedState ? finalNote : null,
+      );
+    } catch (_) {
+      reels[index] = reel.copyWith(
+        isReposted: originalState,
+        repostsCount: originalCount,
+        repostNote: originalNote,
+        repostUserAvatar: originalAvatar,
       );
     }
   }
 
-  bool isLiked(int index) {
-    if (index < 0 || index >= reels.length) return false;
-    return reels[index].isLiked;
-  }
-
-  Future<void> toggleSave(int index) async {
-    if (index < 0 || index >= reels.length) return;
-    final reelId = reels[index].id;
-    final isCurrentlySaved = isSaved(reelId);
-    final chatController = Get.find<ChatController>();
-    final success = await chatController.toggleSaveReel(
-      reelId,
-      isSaved: isCurrentlySaved,
-    );
-    if (!success) return;
-
-    if (isCurrentlySaved) {
-      savedReels.remove(reelId);
-    } else {
-      savedReels.add(reelId);
-    }
-    update();
-  }
-
-  bool isSaved(String reelId) =>
-      savedReels.contains(reelId) ||
-      (Get.isRegistered<ChatController>() &&
-          Get.find<ChatController>().isReelSaved(reelId));
-
-  Future<bool> deleteReel(String reelId) async {
-    final success = await _service.deleteReel(reelId);
-    if (success) {
-      reels.removeWhere((r) => r.id == reelId);
-      Get.snackbar('Success', 'Reel deleted successfully');
-    } else {
-      Get.snackbar('Error', 'Failed to delete reel');
-    }
-    return success;
-  }
-
   Future<void> _disposeVideos() async {
-    for (final controller in videoControllers.values) {
-      await controller.dispose();
-    }
+    final all = videoControllers.values.toList();
     videoControllers.clear();
     failedInitializations.clear();
+    videoVersion.value++;
+    for (final c in all) {
+      await c.dispose();
+    }
   }
 
   @override
   void onClose() {
     _disposeVideos();
-    try {
-      if (_isPageControllerAttached) {
-        pageController.dispose();
-      }
-    } catch (_) {}
+    pageController.dispose();
     super.onClose();
   }
 }

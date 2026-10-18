@@ -9,7 +9,12 @@ class ReelModel {
   final String thumbnail;
   final int likesCount;
   final int commentsCount;
+  final int repostsCount;
   final bool isLiked;
+  final bool isReposted;
+  final String? repostNote;
+  final String? repostUserAvatar;
+  final String? repostUsername;
 
   ReelModel({
     required this.id,
@@ -22,12 +27,15 @@ class ReelModel {
     this.thumbnail = '',
     this.likesCount = 0,
     this.commentsCount = 0,
+    this.repostsCount = 0,
     this.isLiked = false,
+    this.isReposted = false,
+    this.repostNote,
+    this.repostUserAvatar,
+    this.repostUsername,
   });
 
   factory ReelModel.fromJson(Map<String, dynamic> json) {
-    print("DEBUG Reel JSON: $json");
-
     final rawUser =
         json['user'] ??
         json['userId'] ??
@@ -92,11 +100,29 @@ class ReelModel {
       commentsCount: _toInt(
         json['commentsCount'] ?? json['comments_count'] ?? json['comments'],
       ),
+      repostsCount: _toInt(
+        json['repostsCount'] ?? json['reposts_count'] ?? json['reposts'],
+      ),
       isLiked:
           json['isLiked'] == 1 ||
           json['isLiked'] == true ||
           json['is_liked'] == true ||
           json['liked'] == true,
+      isReposted:
+          json['isReposted'] == 1 ||
+          json['isReposted'] == true ||
+          json['is_reposted'] == true ||
+          json['reposted'] == true,
+      repostNote:
+          (json['repostNote'] ?? json['repost_note'] ?? json['note'])
+              ?.toString(),
+      repostUserAvatar:
+          (json['repostUserAvatar'] ??
+                  json['repost_user_avatar'] ??
+                  json['repostProfileImage'])
+              ?.toString(),
+      repostUsername:
+          (json['repostUsername'] ?? json['repost_username'])?.toString(),
     );
   }
 
@@ -120,7 +146,12 @@ class ReelModel {
     String? thumbnail,
     int? likesCount,
     int? commentsCount,
+    int? repostsCount,
     bool? isLiked,
+    bool? isReposted,
+    String? repostNote,
+    String? repostUserAvatar,
+    String? repostUsername,
   }) {
     return ReelModel(
       id: id ?? this.id,
@@ -133,7 +164,12 @@ class ReelModel {
       thumbnail: thumbnail ?? this.thumbnail,
       likesCount: likesCount ?? this.likesCount,
       commentsCount: commentsCount ?? this.commentsCount,
+      repostsCount: repostsCount ?? this.repostsCount,
       isLiked: isLiked ?? this.isLiked,
+      isReposted: isReposted ?? this.isReposted,
+      repostNote: repostNote ?? this.repostNote,
+      repostUserAvatar: repostUserAvatar ?? this.repostUserAvatar,
+      repostUsername: repostUsername ?? this.repostUsername,
     );
   }
 }

@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models/song_model.dart';
+import '../routes/app_routes.dart';
 import '../services/post_service.dart';
 import '../services/reel_service.dart';
 import '../services/story_service.dart';
@@ -30,13 +31,22 @@ class CreatePostController extends GetxController {
     try {
       final XFile? image = await _picker.pickImage(
         source: source,
-        maxWidth: 800,
-        maxHeight: 800,
-        imageQuality: 50,
+        maxWidth: 1080,
+        maxHeight: 1080,
+        imageQuality: 85,
       );
 
       if (image != null) {
         selectedFile.value = File(image.path);
+        if (selectedType.value == 2) {
+          Get.toNamed(
+            AppRoutes.storyEditor,
+            arguments: {
+              'mediaPath': image.path,
+              'mediaType': 'image',
+            },
+          );
+        }
       }
     } catch (e) {
       Get.snackbar('Error', 'Failed to pick image');
@@ -49,6 +59,15 @@ class CreatePostController extends GetxController {
 
       if (video != null) {
         selectedFile.value = File(video.path);
+        if (selectedType.value == 2) {
+          Get.toNamed(
+            AppRoutes.storyEditor,
+            arguments: {
+              'mediaPath': video.path,
+              'mediaType': 'video',
+            },
+          );
+        }
       }
     } catch (e) {
       Get.snackbar('Error', 'Failed to pick video');

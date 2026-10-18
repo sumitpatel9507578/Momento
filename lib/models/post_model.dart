@@ -8,9 +8,14 @@ class PostModel {
   final String caption;
   final int likesCount;
   final int commentsCount;
+  final int repostsCount;
   final bool isLiked;
   final bool isSaved;
   final bool isFollowing;
+  final bool isReposted;
+  final String? repostNote;
+  final String? repostUserAvatar;
+  final String? repostUsername;
   final DateTime timestamp;
   final String? location;
 
@@ -24,17 +29,19 @@ class PostModel {
     required this.caption,
     required this.likesCount,
     required this.commentsCount,
+    this.repostsCount = 0,
     this.isLiked = false,
     this.isSaved = false,
     this.isFollowing = false,
+    this.isReposted = false,
+    this.repostNote,
+    this.repostUserAvatar,
+    this.repostUsername,
     required this.timestamp,
     this.location,
   });
 
   factory PostModel.fromJson(Map<String, dynamic> json) {
-    // CRITICAL DEBUG: Print the JSON to see why images are broken
-    print("DEBUG Post JSON: $json");
-
     final rawUser =
         json['user'] ??
         json['userId'] ??
@@ -119,6 +126,9 @@ class PostModel {
       commentsCount: _toInt(
         json['commentsCount'] ?? json['comments_count'] ?? json['comments'],
       ),
+      repostsCount: _toInt(
+        json['repostsCount'] ?? json['reposts_count'] ?? json['reposts'],
+      ),
       isLiked:
           json['isLiked'] == 1 ||
           json['isLiked'] == true ||
@@ -134,6 +144,20 @@ class PostModel {
           json['isFollowing'] == true ||
           json['is_following'] == true ||
           json['following'] == true,
+      isReposted:
+          json['isReposted'] == 1 ||
+          json['isReposted'] == true ||
+          json['is_reposted'] == true ||
+          json['reposted'] == true,
+      repostNote: (json['repostNote'] ?? json['repost_note'] ?? json['note'])
+          ?.toString(),
+      repostUserAvatar:
+          (json['repostUserAvatar'] ??
+                  json['repost_user_avatar'] ??
+                  json['repostProfileImage'])
+              ?.toString(),
+      repostUsername: (json['repostUsername'] ?? json['repost_username'])
+          ?.toString(),
       timestamp: _parseDate(
         json['createdAt'] ??
             json['created_at'] ??
@@ -173,9 +197,14 @@ class PostModel {
     String? caption,
     int? likesCount,
     int? commentsCount,
+    int? repostsCount,
     bool? isLiked,
     bool? isSaved,
     bool? isFollowing,
+    bool? isReposted,
+    String? repostNote,
+    String? repostUserAvatar,
+    String? repostUsername,
     DateTime? timestamp,
     String? location,
   }) {
@@ -189,9 +218,14 @@ class PostModel {
       caption: caption ?? this.caption,
       likesCount: likesCount ?? this.likesCount,
       commentsCount: commentsCount ?? this.commentsCount,
+      repostsCount: repostsCount ?? this.repostsCount,
       isLiked: isLiked ?? this.isLiked,
       isSaved: isSaved ?? this.isSaved,
       isFollowing: isFollowing ?? this.isFollowing,
+      isReposted: isReposted ?? this.isReposted,
+      repostNote: repostNote ?? this.repostNote,
+      repostUserAvatar: repostUserAvatar ?? this.repostUserAvatar,
+      repostUsername: repostUsername ?? this.repostUsername,
       timestamp: timestamp ?? this.timestamp,
       location: location ?? this.location,
     );

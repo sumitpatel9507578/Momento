@@ -3,8 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:video_player/video_player.dart';
 
 import '../controllers/create_post_controller.dart';
+import '../routes/app_routes.dart';
 
 class CreatePostScreen extends GetView<CreatePostController> {
   const CreatePostScreen({super.key});
@@ -109,50 +111,8 @@ class CreatePostScreen extends GetView<CreatePostController> {
                               fit: StackFit.expand,
                               children: [
                                 _isVideoFile(controller.selectedFile.value!)
-                                    ? Container(
-                                        color: Colors.black87,
-                                        child: Column(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            const Icon(
-                                              Icons.video_library_rounded,
-                                              size: 60,
-                                              color: Colors.blueAccent,
-                                            ),
-                                            const SizedBox(height: 12),
-                                            const Text(
-                                              'Video Selected',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 24,
-                                                  ),
-                                              child: Text(
-                                                controller
-                                                    .selectedFile
-                                                    .value!
-                                                    .path
-                                                    .split('/')
-                                                    .last,
-                                                style: const TextStyle(
-                                                  color: Colors.white54,
-                                                  fontSize: 12,
-                                                ),
-                                                textAlign: TextAlign.center,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                    ? _VideoPreviewWidget(
+                                        file: controller.selectedFile.value!,
                                       )
                                     : Image.file(
                                         controller.selectedFile.value!,
@@ -161,15 +121,47 @@ class CreatePostScreen extends GetView<CreatePostController> {
                                 Positioned(
                                   top: 10,
                                   right: 10,
-                                  child: CircleAvatar(
-                                    backgroundColor: Colors.black54,
-                                    child: IconButton(
-                                      icon: const Icon(
-                                        Icons.close,
-                                        color: Colors.white,
+                                  child: Row(
+                                    children: [
+                                      // Open in Full Story Editor Panel
+                                      CircleAvatar(
+                                        backgroundColor: Colors.black67,
+                                        child: IconButton(
+                                          tooltip: 'Open Editor Panel',
+                                          icon: const Icon(
+                                            Icons.auto_awesome,
+                                            color: Colors.white,
+                                            size: 20,
+                                          ),
+                                          onPressed: () {
+                                            final file =
+                                                controller.selectedFile.value!;
+                                            final isVideo = _isVideoFile(file);
+                                            Get.toNamed(
+                                              AppRoutes.storyEditor,
+                                              arguments: {
+                                                'mediaPath': file.path,
+                                                'mediaType': isVideo
+                                                    ? 'video'
+                                                    : 'image',
+                                              },
+                                            );
+                                          },
+                                        ),
                                       ),
-                                      onPressed: controller.removeFile,
-                                    ),
+                                      const SizedBox(width: 8),
+                                      CircleAvatar(
+                                        backgroundColor: Colors.black67,
+                                        child: IconButton(
+                                          icon: const Icon(
+                                            Icons.close,
+                                            color: Colors.white,
+                                            size: 20,
+                                          ),
+                                          onPressed: controller.removeFile,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
@@ -214,13 +206,13 @@ class CreatePostScreen extends GetView<CreatePostController> {
           ),
 
           // Bottom Mode Selector Bar (POST | REEL | STORY)
-          _buildModeSelector(),
+          _buildModeSelector(context),
         ],
       ),
     );
   }
 
-  Widget _buildModeSelector() {
+  Widget _buildModeSelector(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       color: Colors.black,
@@ -229,22 +221,23 @@ class CreatePostScreen extends GetView<CreatePostController> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _buildModeTab('POST', 0),
-            _buildModeTab('REEL', 3),
-            _buildModeTab('STORY', 2),
+            _buildModeTab(context, 'POST', 0),
+            _buildModeTab(context, 'REEL', 3),
+            _buildModeTab(context, 'STORY', 2),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildModeTab(String label, int type) {
+  Widget _buildModeTab(BuildContext context, String label, int type) {
     return Obx(() {
       final isSelected = controller.selectedType.value == type;
       return GestureDetector(
         onTap: () {
           controller.selectedType.value = type;
           controller.removeFile();
+          _showPickerOptions(context);
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
@@ -329,5 +322,94 @@ class CreatePostScreen extends GetView<CreatePostController> {
         lower.endsWith('.mov') ||
         lower.endsWith('.avi') ||
         lower.endsWith('.mkv');
+  }
+}
+
+class _VideoPreviewWidget extends StatefulWidget {
+  final File file;
+  const _VideoPreviewWidget({required this.file});
+
+  @override
+  State<_VideoPreviewWidget> createState() => _VideoPreviewWidgetState();
+}
+
+class _VideoPreviewWidgetState extends State<_VideoPreviewWidget> {
+  VideoPlayerController? _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _initVideo();
+  }
+
+  @override
+  void didUpdateWidget(covariant _VideoPreviewWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.file.path != widget.file.path) {
+      _initVideo();
+    }
+  }
+
+  Future<void> _initVideo() async {
+    await _controller?.dispose();
+    _controller = VideoPlayerController.file(widget.file);
+    try {
+      await _controller!.initialize();
+      await _controller!.setLooping(true);
+      await _controller!.play();
+      if (mounted) setState(() {});
+    } catch (e) {
+      debugPrint('Error initializing preview video: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = _controller;
+    if (c == null || !c.value.isInitialized) {
+      return const Center(
+        child: CircularProgressIndicator(color: Colors.white),
+      );
+    }
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          c.value.isPlaying ? c.pause() : c.play();
+        });
+      },
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          FittedBox(
+            fit: BoxFit.cover,
+            child: SizedBox(
+              width: c.value.size.width,
+              height: c.value.size.height,
+              child: VideoPlayer(c),
+            ),
+          ),
+          if (!c.value.isPlaying)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: const BoxDecoration(
+                color: Colors.black45,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.play_arrow_rounded,
+                color: Colors.white,
+                size: 44,
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }

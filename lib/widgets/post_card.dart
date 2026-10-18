@@ -1,313 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:momento/controllers/home_controller.dart';
+import 'package:momento/controllers/profile_controller.dart';
+import 'package:momento/models/post_model.dart';
+import 'package:momento/services/api_service.dart';
+import 'package:momento/utils/api_constants.dart';
+import 'package:momento/utils/app_colors.dart';
+import 'package:momento/views/reels_screen.dart';
 import 'package:momento/widgets/comment_bottom_sheet.dart';
+import 'package:momento/widgets/share_bottom_sheet.dart';
+import 'package:momento/widgets/user_avatar.dart';
+import 'package:video_player/video_player.dart';
 
-import '../controllers/home_controller.dart';
-import '../controllers/profile_controller.dart';
-import '../models/post_model.dart';
-import '../services/api_service.dart';
-import '../utils/api_constants.dart';
-import '../utils/app_colors.dart';
-import 'share_bottom_sheet.dart';
-import 'user_avatar.dart';
-
-class PostCard extends StatelessWidget {
+class PostCard extends StatefulWidget {
   final PostModel post;
   final VoidCallback onLike;
   final VoidCallback onSave;
   final VoidCallback onFollow;
   final VoidCallback onComment;
+  final VoidCallback? onRepost;
   final VoidCallback? onMore;
 
-  PostCard({
+  const PostCard({
     super.key,
     required this.post,
     required this.onLike,
     required this.onSave,
     required this.onFollow,
     required this.onComment,
+    this.onRepost,
     this.onMore,
   });
 
-  final _showHeart = false.obs;
-
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.background,
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Perfect Instagram Header
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            child: Row(
-              children: [
-                OnlineAvatar(
-                  userId: post.userId,
-                  imageUrl: post.profileImage,
-                  radius: 17,
-                  backgroundColor: AppColors.surface,
-                  onTap: () => Get.toNamed('/profile', arguments: post.userId),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () =>
-                        Get.toNamed('/profile', arguments: post.userId),
-                    child: Text(
-                      post.username,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13.5,
-                      ),
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed:
-                      onMore ??
-                      () {
-                        PostCard.showPostOptionsBottomSheet(
-                          context,
-                          post,
-                          onDelete: () {
-                            if (Get.isRegistered<HomeController>()) {
-                              Get.find<HomeController>().deletePost(
-                                post.postId,
-                              );
-                            } else if (Get.isRegistered<ProfileController>(
-                              tag: 'me',
-                            )) {
-                              Get.find<ProfileController>(
-                                tag: 'me',
-                              ).deletePost(post.postId);
-                            }
-                          },
-                          onUpdateCaption: (newCaption) {
-                            if (Get.isRegistered<HomeController>()) {
-                              Get.find<HomeController>().updatePostCaption(
-                                post.postId,
-                                newCaption,
-                              );
-                            } else if (Get.isRegistered<ProfileController>(
-                              tag: 'me',
-                            )) {
-                              Get.find<ProfileController>(
-                                tag: 'me',
-                              ).updatePostCaption(post.postId, newCaption);
-                            }
-                          },
-                        );
-                      },
-                  icon: const Icon(
-                    Icons.more_horiz,
-                    color: Colors.white,
-                    size: 22,
-                  ),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                ),
-              ],
-            ),
-          ),
-
-          // Content
-          GestureDetector(
-            onDoubleTap: () {
-              if (!post.isLiked) onLike();
-              _showHeart.value = true;
-              Future.delayed(
-                const Duration(milliseconds: 700),
-                () => _showHeart.value = false,
-              );
-            },
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                if (post.mediaUrl.toLowerCase().endsWith('.mp4') ||
-                    post.mediaType == 'video')
-                  Container(
-                    height: 350,
-                    width: double.infinity,
-                    color: AppColors.surface,
-                    child: const Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.videocam, color: Colors.white24, size: 50),
-                        SizedBox(height: 12),
-                        Text(
-                          'Video Post',
-                          style: TextStyle(color: Colors.white24),
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  Image.network(
-                    ApiConstants.getFullUrl(post.mediaUrl),
-                    width: double.infinity,
-                    fit: BoxFit.fitWidth,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Container(
-                        height: 350,
-                        color: AppColors.surface,
-                        child: const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      height: 250,
-                      color: AppColors.surface,
-                      child: const Center(
-                        child: Icon(
-                          Icons.image_not_supported_outlined,
-                          color: Colors.white24,
-                          size: 40,
-                        ),
-                      ),
-                    ),
-                  ),
-                Obx(
-                  () => AnimatedScale(
-                    duration: const Duration(milliseconds: 200),
-                    scale: _showHeart.value ? 1.0 : 0.0,
-                    child: const Icon(
-                      Icons.favorite,
-                      color: Colors.white,
-                      size: 110,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Actions
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 2, 4, 0),
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: onLike,
-                  icon: Icon(
-                    post.isLiked ? Icons.favorite : Icons.favorite_border,
-                    color: post.isLiked ? Colors.red : Colors.white,
-                    size: 27,
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => Get.bottomSheet(
-                    CommentBottomSheet(id: post.postId),
-                    isScrollControlled: true,
-                  ),
-                  icon: const Icon(
-                    Icons.mode_comment_outlined,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => Get.bottomSheet(
-                    ShareBottomSheet(
-                      contentUrl: post.mediaUrl,
-                      postId: post.postId,
-                      postCaption: post.caption,
-                      postOwnerUsername: post.username,
-                    ),
-                  ),
-                  icon: const Icon(
-                    Icons.send_outlined,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
-                const Spacer(),
-                IconButton(
-                  onPressed: onSave,
-                  icon: Icon(
-                    post.isSaved ? Icons.bookmark : Icons.bookmark_border,
-                    color: Colors.white,
-                    size: 26,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Details
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (post.likesCount > 0)
-                  Text(
-                    '${post.likesCount} likes',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13.5,
-                    ),
-                  ),
-                const SizedBox(height: 5),
-                RichText(
-                  text: TextSpan(
-                    style: const TextStyle(color: Colors.white, fontSize: 13.5),
-                    children: [
-                      TextSpan(
-                        text: '${post.username} ',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      TextSpan(text: post.caption),
-                    ],
-                  ),
-                ),
-                if (post.commentsCount > 0)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 5),
-                    child: GestureDetector(
-                      onTap: () => Get.bottomSheet(
-                        CommentBottomSheet(id: post.postId),
-                        isScrollControlled: true,
-                      ),
-                      child: Text(
-                        post.commentsCount == 1
-                            ? 'View 1 comment'
-                            : 'View all ${post.commentsCount} comments',
-                        style: const TextStyle(
-                          color: Colors.white54,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 4),
-                Text(
-                  _formatTimestamp(post.timestamp).toUpperCase(),
-                  style: const TextStyle(color: Colors.white38, fontSize: 9.5),
-                ),
-                const SizedBox(height: 10),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatTimestamp(DateTime timestamp) {
-    final diff = DateTime.now().difference(timestamp);
-    if (diff.inDays > 0) return '${diff.inDays}d ago';
-    if (diff.inHours > 0) return '${diff.inHours}h ago';
-    if (diff.inMinutes > 0) return '${diff.inMinutes}m ago';
-    return 'Just now';
-  }
+  State<PostCard> createState() => _PostCardState();
 
   static void showPostOptionsBottomSheet(
     BuildContext context,
@@ -464,6 +191,627 @@ class PostCard extends StatelessWidget {
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PostCardState extends State<PostCard> {
+  final _showHeart = false.obs;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.background,
+      margin: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Perfect Instagram Header
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            child: Row(
+              children: [
+                OnlineAvatar(
+                  userId: widget.post.userId,
+                  imageUrl: widget.post.profileImage,
+                  radius: 17,
+                  backgroundColor: AppColors.surface,
+                  onTap: () =>
+                      Get.toNamed('/profile', arguments: widget.post.userId),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () =>
+                        Get.toNamed('/profile', arguments: widget.post.userId),
+                    child: Text(
+                      widget.post.username,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed:
+                      widget.onMore ??
+                      () {
+                        PostCard.showPostOptionsBottomSheet(
+                          context,
+                          widget.post,
+                          onDelete: () {
+                            if (Get.isRegistered<HomeController>()) {
+                              Get.find<HomeController>().deletePost(
+                                widget.post.postId,
+                              );
+                            } else if (Get.isRegistered<ProfileController>(
+                              tag: 'me',
+                            )) {
+                              Get.find<ProfileController>(
+                                tag: 'me',
+                              ).deletePost(widget.post.postId);
+                            }
+                          },
+                          onUpdateCaption: (newCaption) {
+                            if (Get.isRegistered<HomeController>()) {
+                              Get.find<HomeController>().updatePostCaption(
+                                widget.post.postId,
+                                newCaption,
+                              );
+                            } else if (Get.isRegistered<ProfileController>(
+                              tag: 'me',
+                            )) {
+                              Get.find<ProfileController>(
+                                tag: 'me',
+                              ).updatePostCaption(
+                                widget.post.postId,
+                                newCaption,
+                              );
+                            }
+                          },
+                        );
+                      },
+                  icon: const Icon(
+                    Icons.more_horiz,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+          ),
+
+          if (widget.post.isReposted ||
+              (widget.post.repostNote != null &&
+                  widget.post.repostNote!.trim().isNotEmpty))
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: GestureDetector(
+                onTap: () {
+                  if (Get.isRegistered<HomeController>()) {
+                    final homeCtrl = Get.find<HomeController>();
+                    final idx = homeCtrl.posts.indexWhere(
+                      (p) => p.postId == widget.post.postId,
+                    );
+                    if (idx != -1) {
+                      showRepostSheet(
+                        context: context,
+                        isCurrentlyReposted: widget.post.isReposted,
+                        currentNote: widget.post.repostNote,
+                        onRepost: (note) =>
+                            homeCtrl.toggleRepost(idx, note: note),
+                        onRemoveRepost: () =>
+                            homeCtrl.toggleRepost(idx, removeNote: true),
+                      );
+                    }
+                  }
+                },
+                child: Row(
+                  children: [
+                    Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: AppColors.darkGrey,
+                          backgroundImage:
+                              (widget.post.repostUserAvatar != null &&
+                                  widget.post.repostUserAvatar!.isNotEmpty)
+                              ? NetworkImage(
+                                  ApiConstants.getFullUrl(
+                                    widget.post.repostUserAvatar!,
+                                  ),
+                                )
+                              : null,
+                          child:
+                              (widget.post.repostUserAvatar == null ||
+                                  widget.post.repostUserAvatar!.isEmpty)
+                              ? const Icon(
+                                  Icons.person,
+                                  color: Colors.white70,
+                                  size: 16,
+                                )
+                              : null,
+                        ),
+                        Positioned(
+                          right: -3,
+                          bottom: -3,
+                          child: Container(
+                            padding: const EdgeInsets.all(2.5),
+                            decoration: const BoxDecoration(
+                              color: AppColors.purple,
+                              shape: BoxShape.circle,
+                              border: Border.fromBorderSide(
+                                BorderSide(color: Colors.black, width: 1.5),
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.repeat_rounded,
+                              color: Colors.white,
+                              size: 9,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      child: Text(
+                        (widget.post.repostNote != null &&
+                                widget.post.repostNote!.trim().isNotEmpty)
+                            ? widget.post.repostNote!
+                            : 'Drop an emoji...',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // Content
+          GestureDetector(
+            onDoubleTap: () {
+              if (!widget.post.isLiked) widget.onLike();
+              _showHeart.value = true;
+              Future.delayed(
+                const Duration(milliseconds: 700),
+                () => _showHeart.value = false,
+              );
+            },
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                if (widget.post.mediaUrl.toLowerCase().endsWith('.mp4') ||
+                    widget.post.mediaType == 'video')
+                  _PostVideoPlayer(videoUrl: widget.post.mediaUrl)
+                else
+                  Image.network(
+                    ApiConstants.getFullUrl(widget.post.mediaUrl),
+                    width: double.infinity,
+                    fit: BoxFit.fitWidth,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        height: 350,
+                        color: AppColors.surface,
+                        child: const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      height: 250,
+                      color: AppColors.surface,
+                      child: const Center(
+                        child: Icon(
+                          Icons.image_not_supported_outlined,
+                          color: Colors.white24,
+                          size: 40,
+                        ),
+                      ),
+                    ),
+                  ),
+                Obx(
+                  () => AnimatedScale(
+                    duration: const Duration(milliseconds: 200),
+                    scale: _showHeart.value ? 1.0 : 0.0,
+                    child: const Icon(
+                      Icons.favorite,
+                      color: Colors.white,
+                      size: 110,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Actions
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 2, 4, 0),
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: widget.onLike,
+                  icon: Icon(
+                    widget.post.isLiked
+                        ? Icons.favorite
+                        : Icons.favorite_border,
+                    color: widget.post.isLiked ? Colors.red : Colors.white,
+                    size: 27,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Get.bottomSheet(
+                    CommentBottomSheet(id: widget.post.postId),
+                    isScrollControlled: true,
+                  ),
+                  icon: const Icon(
+                    Icons.mode_comment_outlined,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap:
+                      widget.onRepost ??
+                      () {
+                        if (Get.isRegistered<HomeController>()) {
+                          final homeCtrl = Get.find<HomeController>();
+                          final idx = homeCtrl.posts.indexWhere(
+                            (p) => p.postId == widget.post.postId,
+                          );
+                          if (idx != -1) {
+                            showRepostSheet(
+                              context: context,
+                              isCurrentlyReposted: widget.post.isReposted,
+                              currentNote: widget.post.repostNote,
+                              onRepost: (note) =>
+                                  homeCtrl.toggleRepost(idx, note: note),
+                              onRemoveRepost: () =>
+                                  homeCtrl.toggleRepost(idx, removeNote: true),
+                            );
+                          }
+                        }
+                      },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 6,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.repeat_rounded,
+                          color: widget.post.isReposted
+                              ? Colors.greenAccent
+                              : Colors.white,
+                          size: 24,
+                        ),
+                        if (widget.post.repostsCount > 0) ...[
+                          const SizedBox(width: 4),
+                          Text(
+                            '${widget.post.repostsCount}',
+                            style: TextStyle(
+                              color: widget.post.isReposted
+                                  ? Colors.greenAccent
+                                  : Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Get.bottomSheet(
+                    ShareBottomSheet(
+                      contentUrl: widget.post.mediaUrl,
+                      postId: widget.post.postId,
+                      postCaption: widget.post.caption,
+                      postOwnerUsername: widget.post.username,
+                    ),
+                  ),
+                  icon: const Icon(
+                    Icons.send_outlined,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  onPressed: widget.onSave,
+                  icon: Icon(
+                    widget.post.isSaved
+                        ? Icons.bookmark
+                        : Icons.bookmark_border,
+                    color: Colors.white,
+                    size: 26,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (widget.post.likesCount > 0 || widget.post.repostsCount > 0)
+                  Row(
+                    children: [
+                      if (widget.post.likesCount > 0)
+                        Text(
+                          '${widget.post.likesCount} likes',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13.5,
+                          ),
+                        ),
+                      if (widget.post.likesCount > 0 &&
+                          widget.post.repostsCount > 0)
+                        const Text(
+                          ' • ',
+                          style: TextStyle(
+                            color: Colors.white54,
+                            fontSize: 13.5,
+                          ),
+                        ),
+                      if (widget.post.repostsCount > 0)
+                        Text(
+                          '${widget.post.repostsCount} reposts',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13.5,
+                          ),
+                        ),
+                    ],
+                  ),
+                const SizedBox(height: 5),
+                RichText(
+                  text: TextSpan(
+                    style: const TextStyle(color: Colors.white, fontSize: 13.5),
+                    children: [
+                      TextSpan(
+                        text: '${widget.post.username} ',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      TextSpan(text: widget.post.caption),
+                    ],
+                  ),
+                ),
+                if (widget.post.commentsCount > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 5),
+                    child: GestureDetector(
+                      onTap: () => Get.bottomSheet(
+                        CommentBottomSheet(id: widget.post.postId),
+                        isScrollControlled: true,
+                      ),
+                      child: Text(
+                        widget.post.commentsCount == 1
+                            ? 'View 1 comment'
+                            : 'View all ${widget.post.commentsCount} comments',
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                const SizedBox(height: 4),
+                Text(
+                  _formatTimestamp(widget.post.timestamp).toUpperCase(),
+                  style: const TextStyle(color: Colors.white38, fontSize: 9.5),
+                ),
+                const SizedBox(height: 10),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTimestamp(DateTime timestamp) {
+    final diff = DateTime.now().difference(timestamp);
+    if (diff.inDays > 0) return '${diff.inDays}d ago';
+    if (diff.inHours > 0) return '${diff.inHours}h ago';
+    if (diff.inMinutes > 0) return '${diff.inMinutes}m ago';
+    return 'Just now';
+  }
+}
+
+class _PostVideoPlayer extends StatefulWidget {
+  final String videoUrl;
+  const _PostVideoPlayer({required this.videoUrl});
+
+  @override
+  State<_PostVideoPlayer> createState() => _PostVideoPlayerState();
+}
+
+class _PostVideoPlayerState extends State<_PostVideoPlayer>
+    with SingleTickerProviderStateMixin {
+  VideoPlayerController? _controller;
+  bool _isInitialized = false;
+  bool _isMuted = false;
+  bool _showPlayIconBriefly = false;
+  AnimationController? _animController;
+  Animation<double>? _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fadeAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.0,
+    ).animate(CurvedAnimation(parent: _animController!, curve: Curves.easeOut));
+    _initVideo();
+  }
+
+  Future<void> _initVideo() async {
+    final fullUrl = ApiConstants.getFullUrl(widget.videoUrl);
+    _controller = VideoPlayerController.networkUrl(Uri.parse(fullUrl));
+    try {
+      await _controller!.initialize();
+      await _controller!.setLooping(true);
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+        });
+      }
+    } catch (e) {
+      debugPrint("PostVideoPlayer init error: $e");
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    _animController?.dispose();
+    super.dispose();
+  }
+
+  void _togglePlayPause() {
+    if (_controller == null || !_isInitialized) return;
+    if (_controller!.value.isPlaying) {
+      _controller!.pause();
+      setState(() {
+        _showPlayIconBriefly = false;
+      });
+    } else {
+      _controller!.play();
+      setState(() {
+        _showPlayIconBriefly = true;
+      });
+      _animController?.forward(from: 0.0).then((_) {
+        if (mounted) {
+          setState(() {
+            _showPlayIconBriefly = false;
+          });
+        }
+      });
+    }
+  }
+
+  void _toggleMute() {
+    if (_controller == null) return;
+    setState(() {
+      _isMuted = !_isMuted;
+      _controller!.setVolume(_isMuted ? 0.0 : 1.0);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isInitialized || _controller == null) {
+      return Container(
+        height: 350,
+        width: double.infinity,
+        color: AppColors.surface,
+        child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+
+    final isPlaying = _controller!.value.isPlaying;
+
+    return GestureDetector(
+      onTap: _togglePlayPause,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox(
+            height: 350,
+            width: double.infinity,
+            child: FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: _controller!.value.size.width,
+                height: _controller!.value.size.height,
+                child: VideoPlayer(_controller!),
+              ),
+            ),
+          ),
+          if (!isPlaying && !_showPlayIconBriefly)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: const BoxDecoration(
+                color: Colors.black45,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.pause_rounded,
+                color: Colors.white,
+                size: 50,
+              ),
+            ),
+          if (_showPlayIconBriefly)
+            FadeTransition(
+              opacity: _fadeAnimation!,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: const BoxDecoration(
+                  color: Colors.black45,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.play_arrow_rounded,
+                  color: Colors.white,
+                  size: 50,
+                ),
+              ),
+            ),
+
+          if (!isPlaying)
+            Positioned(
+              right: 12,
+              bottom: 12,
+              child: GestureDetector(
+                onTap: _toggleMute,
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: const BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _isMuted ? Icons.volume_off : Icons.volume_up,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
