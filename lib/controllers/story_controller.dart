@@ -267,6 +267,15 @@ class StoryController extends GetxController {
       );
 
       if (success) {
+        if (uploadPath != selectedImage.value!.path) {
+          try {
+            final tempFile = File(uploadPath);
+            if (await tempFile.exists()) {
+              await tempFile.delete();
+            }
+          } catch (_) {}
+        }
+
         selectedImage.value = null;
         selectedSong.value = null;
         await loadStories();
