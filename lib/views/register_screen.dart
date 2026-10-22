@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+
 import '../controllers/network_controller.dart';
 import '../controllers/register_controller.dart';
 import '../utils/api_constants.dart';
@@ -128,9 +129,12 @@ class RegisterScreen extends GetView<RegisterController> {
                   decoration: const InputDecoration(
                     hintText: 'Username',
                     prefixIcon: Icon(Icons.alternate_email),
+                    helperText:
+                        'Must include a-z, A-Z, 0-9 & special char (@, #, _)',
+                    helperStyle: TextStyle(color: Colors.white38, fontSize: 11),
                   ),
                 ),
-                SizedBox(height: size.height * 0.02),
+                SizedBox(height: size.height * 0.015),
 
                 TextField(
                   controller: controller.emailController,
@@ -141,7 +145,7 @@ class RegisterScreen extends GetView<RegisterController> {
                     prefixIcon: Icon(Icons.email_outlined),
                   ),
                 ),
-                SizedBox(height: size.height * 0.02),
+                SizedBox(height: size.height * 0.015),
 
                 Obx(
                   () => TextField(
@@ -151,6 +155,12 @@ class RegisterScreen extends GetView<RegisterController> {
                     decoration: InputDecoration(
                       hintText: 'Password',
                       prefixIcon: const Icon(Icons.lock_outline),
+                      helperText:
+                          'Min 6 chars with a-z, A-Z, 0-9 & special char',
+                      helperStyle: const TextStyle(
+                        color: Colors.white38,
+                        fontSize: 11,
+                      ),
                       suffixIcon: IconButton(
                         icon: Icon(
                           controller.obscurePassword.value
@@ -163,7 +173,7 @@ class RegisterScreen extends GetView<RegisterController> {
                     ),
                   ),
                 ),
-                SizedBox(height: size.height * 0.02),
+                SizedBox(height: size.height * 0.015),
 
                 Obx(
                   () => TextField(

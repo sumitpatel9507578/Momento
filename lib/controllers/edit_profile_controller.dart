@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../repositories/user_repository.dart';
+import '../utils/app_validators.dart';
 import 'profile_controller.dart';
 
 class EditProfileController extends GetxController {
@@ -65,14 +66,21 @@ class EditProfileController extends GetxController {
     final user = profileController.currentUser.value;
     if (user == null) return;
 
-    final name = nameController.text.trim();
-    final username = usernameController.text.trim().toLowerCase();
-    final bio = bioController.text.trim();
-
-    if (name.isEmpty || username.isEmpty) {
-      Get.snackbar('Required', 'Name and Username are required.');
+    final nameError = AppValidators.validateName(nameController.text);
+    if (nameError != null) {
+      Get.snackbar('Invalid Name', nameError, snackPosition: SnackPosition.BOTTOM);
       return;
     }
+
+    final usernameError = AppValidators.validateUsername(usernameController.text);
+    if (usernameError != null) {
+      Get.snackbar('Invalid Username', usernameError, snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+
+    final name = nameController.text.trim();
+    final username = usernameController.text.trim();
+    final bio = bioController.text.trim();
 
     try {
       isSaving.value = true;

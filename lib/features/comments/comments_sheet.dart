@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:momento/features/comments/models/comment_model.dart';
 import 'package:momento/features/comments/widgets/comment_input_bar.dart';
-import 'package:momento/features/comments/widgets/comment_tile.d'
-    'art';
+import 'package:momento/features/comments/widgets/comment_tile.dart';
 import 'package:momento/features/comments/widgets/emoji_quick_row.dart';
 import 'package:momento/services/api_service.dart';
 import 'package:momento/services/chat_socket_service.dart';
@@ -32,10 +31,10 @@ class _CommentsSheetState extends State<CommentsSheet> {
   final sortOption = 'newest'.obs; // 'top' or 'newest'
   final commentController = TextEditingController();
 
-  String? replyingToCommentId;
-  String? replyingToUsername;
-  String? currentUsername;
-  String? currentProfileImage;
+  final replyingToCommentId = RxnString();
+  final replyingToUsername = RxnString();
+  final currentUsername = RxnString();
+  final currentProfileImage = RxnString();
   String? currentUserId;
   Timer? _pollingTimer;
 
@@ -83,12 +82,9 @@ class _CommentsSheetState extends State<CommentsSheet> {
       final user = await _apiService.getUser();
       currentUserId = (user?['id'] ?? user?['uid'] ?? user?['userId'])
           ?.toString();
-      if (mounted) {
-        setState(() {
-          currentUsername = user?['username'] ?? user?['name'];
-          currentProfileImage = user?['profileImage'] ?? user?['profile_image'];
-        });
-      }
+      currentUsername.value = user?['username'] ?? user?['name'];
+      currentProfileImage.value =
+          user?['profileImage'] ?? user?['profile_image'];
     } catch (_) {}
     await _fetchComments();
   }
@@ -121,10 +117,10 @@ class _CommentsSheetState extends State<CommentsSheet> {
     final tempComment = CommentModel(
       id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
       postId: widget.id,
-      parentId: replyingToCommentId,
+      parentId: replyingToCommentId.value,
       userId: currentUserId ?? 'me',
-      username: currentUsername ?? 'You',
-      profileImage: currentProfileImage ?? '',
+      username: currentUsername.value ?? 'You',
+      profileImage: currentProfileImage.value ?? '',
       text: text,
       createdAt: DateTime.now(),
       isPending: true,
@@ -133,13 +129,9 @@ class _CommentsSheetState extends State<CommentsSheet> {
 
     comments.insert(0, tempComment);
     commentController.clear();
-    final parentIdCopy = replyingToCommentId;
-    if (mounted) {
-      setState(() {
-        replyingToCommentId = null;
-        replyingToUsername = null;
-      });
-    }
+    final parentIdCopy = replyingToCommentId.value;
+    replyingToCommentId.value = null;
+    replyingToUsername.value = null;
 
     try {
       final success = await _commentService.addComment(
@@ -407,12 +399,8 @@ class _CommentsSheetState extends State<CommentsSheet> {
                           }
                         },
                         onReply: () {
-                          if (mounted) {
-                            setState(() {
-                              replyingToCommentId = comment.id;
-                              replyingToUsername = comment.username;
-                            });
-                          }
+                          replyingToCommentId.value = comment.id;
+                          replyingToUsername.value = comment.username;
                           commentController.text = '@${comment.username} ';
                         },
                       );
@@ -433,22 +421,22 @@ class _CommentsSheetState extends State<CommentsSheet> {
             ),
 
             // Input Bar
-            CommentInputBar(
-              controller: commentController,
-              onPost: _postComment,
-              onGallery: () =>
-                  Get.snackbar('Gallery', 'Photo comment feature coming soon'),
-              replyingToUsername: replyingToUsername,
-              onCancelReply: () {
-                if (mounted) {
-                  setState(() {
-                    replyingToCommentId = null;
-                    replyingToUsername = null;
-                  });
-                }
-              },
-              currentUsername: currentUsername ?? 'You',
-              currentProfileImage: currentProfileImage,
+            Obx(
+              () => CommentInputBar(
+                controller: commentController,
+                onPost: _postComment,
+                onGallery: () => Get.snackbar(
+                  'Gallery',
+                  'Photo comment feature coming soon',
+                ),
+                replyingToUsername: replyingToUsername.value,
+                onCancelReply: () {
+                  replyingToCommentId.value = null;
+                  replyingToUsername.value = null;
+                },
+                currentUsername: currentUsername.value ?? 'You',
+                currentProfileImage: currentProfileImage.value,
+              ),
             ),
           ],
         ),

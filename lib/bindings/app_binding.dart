@@ -10,7 +10,9 @@ import '../services/comment_service.dart';
 import '../services/music_service.dart';
 import '../services/post_service.dart';
 import '../services/reel_service.dart';
+import '../services/report_service.dart';
 import '../services/story_service.dart';
+import '../services/verification_service.dart';
 
 class AppBinding extends Bindings {
   @override
@@ -39,6 +41,14 @@ class AppBinding extends Bindings {
     );
     Get.lazyPut<MusicService>(
       () => MusicService(Get.find<ApiService>()),
+      fenix: true,
+    );
+    Get.lazyPut<VerificationService>(
+      () => VerificationService(Get.find<ApiService>()),
+      fenix: true,
+    );
+    Get.lazyPut<ReportService>(
+      () => ReportService(Get.find<ApiService>()),
       fenix: true,
     );
 

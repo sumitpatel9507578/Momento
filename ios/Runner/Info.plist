@@ -66,5 +66,13 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Momento requires camera access for Snapchat AR Face Filters.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Momento requires microphone access to record audio with AR videos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Momento requires photo library access to save AR photos and videos.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Momento requires permission to save photos and videos to your gallery.</string>
 </dict>
 </plist>

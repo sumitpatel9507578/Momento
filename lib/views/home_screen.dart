@@ -21,6 +21,15 @@ class HomeScreen extends GetView<HomeController> {
         ),
         actions: [
           IconButton(
+            tooltip: 'AR Camera',
+            onPressed: () => Get.toNamed('/ar-camera'),
+            icon: const Icon(
+              Icons.auto_awesome,
+              color: Colors.purpleAccent,
+              size: 26,
+            ),
+          ),
+          IconButton(
             onPressed: () => Get.toNamed('/notifications'),
             icon: const Icon(Icons.favorite_border, size: 28),
           ),

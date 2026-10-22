@@ -25,7 +25,10 @@ class FindPeopleController extends GetxController {
       isLoading.value = true;
       final currentUserId = await apiService.getUserId();
 
-      final response = await apiService.get(ApiConstants.users);
+      var response = await apiService.get("${ApiConstants.users}/search?q=");
+      if (response.statusCode != 200) {
+        response = await apiService.get(ApiConstants.users);
+      }
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> body = jsonDecode(response.body);

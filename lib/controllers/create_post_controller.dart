@@ -41,10 +41,7 @@ class CreatePostController extends GetxController {
         if (selectedType.value == 2) {
           Get.toNamed(
             AppRoutes.storyEditor,
-            arguments: {
-              'mediaPath': image.path,
-              'mediaType': 'image',
-            },
+            arguments: {'mediaPath': image.path, 'mediaType': 'image'},
           );
         }
       }
@@ -62,10 +59,7 @@ class CreatePostController extends GetxController {
         if (selectedType.value == 2) {
           Get.toNamed(
             AppRoutes.storyEditor,
-            arguments: {
-              'mediaPath': video.path,
-              'mediaType': 'video',
-            },
+            arguments: {'mediaPath': video.path, 'mediaType': 'video'},
           );
         }
       }

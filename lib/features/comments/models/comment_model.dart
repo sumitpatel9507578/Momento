@@ -13,6 +13,7 @@ class CommentModel {
   final bool isLikedByMe;
   final bool isLikedByAuthor;
   final bool isPinned;
+  final bool isVerified;
   final int replyCount;
   final List<String> mentions;
   final bool isAuthor;
@@ -35,6 +36,7 @@ class CommentModel {
     this.isLikedByMe = false,
     this.isLikedByAuthor = false,
     this.isPinned = false,
+    this.isVerified = false,
     this.replyCount = 0,
     this.mentions = const [],
     this.isAuthor = false,
@@ -52,6 +54,19 @@ class CommentModel {
           : DateTime.now();
     } catch (_) {
       parsedDate = DateTime.now();
+    }
+
+    final rawUser = json['user'];
+    bool extractedIsVerified =
+        json['isVerified'] == true ||
+        json['is_verified'] == true ||
+        json['verified'] == true;
+
+    if (!extractedIsVerified && rawUser is Map) {
+      extractedIsVerified =
+          rawUser['isVerified'] == true ||
+          rawUser['is_verified'] == true ||
+          rawUser['verified'] == true;
     }
 
     return CommentModel(
@@ -97,6 +112,7 @@ class CommentModel {
       isLikedByAuthor:
           json['isLikedByAuthor'] == true || json['is_liked_by_author'] == true,
       isPinned: json['isPinned'] == true || json['is_pinned'] == true,
+      isVerified: extractedIsVerified,
       replyCount:
           int.tryParse(
             (json['replyCount'] ?? json['reply_count'] ?? 0).toString(),
@@ -127,6 +143,7 @@ class CommentModel {
     bool? isLikedByMe,
     bool? isLikedByAuthor,
     bool? isPinned,
+    bool? isVerified,
     int? replyCount,
     List<String>? mentions,
     bool? isAuthor,
@@ -149,6 +166,7 @@ class CommentModel {
       isLikedByMe: isLikedByMe ?? this.isLikedByMe,
       isLikedByAuthor: isLikedByAuthor ?? this.isLikedByAuthor,
       isPinned: isPinned ?? this.isPinned,
+      isVerified: isVerified ?? this.isVerified,
       replyCount: replyCount ?? this.replyCount,
       mentions: mentions ?? this.mentions,
       isAuthor: isAuthor ?? this.isAuthor,
@@ -156,15 +174,5 @@ class CommentModel {
       sendError: sendError ?? this.sendError,
       isEdited: isEdited ?? this.isEdited,
     );
-  }
-
-  String get timeAgo {
-    final diff = DateTime.now().difference(createdAt);
-    if (diff.inDays > 365) return '${(diff.inDays / 365).floor()}y';
-    if (diff.inDays > 30) return '${(diff.inDays / 30).floor()}mo';
-    if (diff.inDays > 0) return '${diff.inDays}d';
-    if (diff.inHours > 0) return '${diff.inHours}h';
-    if (diff.inMinutes > 0) return '${diff.inMinutes}m';
-    return 'Just now';
   }
 }

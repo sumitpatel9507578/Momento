@@ -13,6 +13,7 @@ class PostModel {
   final bool isSaved;
   final bool isFollowing;
   final bool isReposted;
+  final bool isVerified;
   final String? repostNote;
   final String? repostUserAvatar;
   final String? repostUsername;
@@ -34,6 +35,7 @@ class PostModel {
     this.isSaved = false,
     this.isFollowing = false,
     this.isReposted = false,
+    this.isVerified = false,
     this.repostNote,
     this.repostUserAvatar,
     this.repostUsername,
@@ -56,6 +58,13 @@ class PostModel {
         json['profile_image'] ??
         json['profileimage'] ??
         '';
+
+    bool extractedIsVerified =
+        json['isVerified'] == 1 ||
+        json['isVerified'] == true ||
+        json['is_verified'] == 1 ||
+        json['is_verified'] == true ||
+        json['verified'] == true;
 
     if (rawUser is Map) {
       extractedUserId =
@@ -83,6 +92,14 @@ class PostModel {
                     rawUser['image'] ??
                     '')
                 .toString();
+      }
+      if (!extractedIsVerified) {
+        extractedIsVerified =
+            rawUser['isVerified'] == 1 ||
+            rawUser['isVerified'] == true ||
+            rawUser['is_verified'] == 1 ||
+            rawUser['is_verified'] == true ||
+            rawUser['verified'] == true;
       }
     } else if (rawUser != null && rawUser.toString().isNotEmpty) {
       extractedUserId = rawUser.toString();
@@ -149,6 +166,7 @@ class PostModel {
           json['isReposted'] == true ||
           json['is_reposted'] == true ||
           json['reposted'] == true,
+      isVerified: extractedIsVerified,
       repostNote: (json['repostNote'] ?? json['repost_note'] ?? json['note'])
           ?.toString(),
       repostUserAvatar:
@@ -202,6 +220,7 @@ class PostModel {
     bool? isSaved,
     bool? isFollowing,
     bool? isReposted,
+    bool? isVerified,
     String? repostNote,
     String? repostUserAvatar,
     String? repostUsername,
@@ -223,6 +242,7 @@ class PostModel {
       isSaved: isSaved ?? this.isSaved,
       isFollowing: isFollowing ?? this.isFollowing,
       isReposted: isReposted ?? this.isReposted,
+      isVerified: isVerified ?? this.isVerified,
       repostNote: repostNote ?? this.repostNote,
       repostUserAvatar: repostUserAvatar ?? this.repostUserAvatar,
       repostUsername: repostUsername ?? this.repostUsername,

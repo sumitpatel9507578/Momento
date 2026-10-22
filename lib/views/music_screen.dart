@@ -417,4 +417,23 @@ class MusicScreen extends StatelessWidget {
       );
     });
   }
+
+  void _handleSongTap(
+    SongModel song,
+    BuildContext context,
+    bool isTrending,
+    int index,
+  ) {
+    if (isSelectionMode) {
+      if (onSongSelected != null) {
+        onSongSelected!(song);
+      }
+      Get.back();
+    } else {
+      final queueList = isTrending
+          ? _musicController.trendingSongs
+          : _musicController.songs;
+      _musicController.playSong(song, newQueue: queueList, index: index);
+    }
+  }
 }

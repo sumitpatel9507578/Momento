@@ -3,8 +3,8 @@ import 'package:get/get.dart';
 
 import '../controllers/explore_controller.dart';
 import '../utils/api_constants.dart';
-import '../utils/app_colors.dart';
 import '../widgets/user_avatar.dart';
+import 'package:momento/widgets/verification_badge.dart';
 
 class SearchScreen extends GetView<ExploreController> {
   const SearchScreen({super.key});
@@ -47,12 +47,14 @@ class SearchScreen extends GetView<ExploreController> {
   }
 
   Widget _buildResults() {
-    if (controller.isLoading.value)
+    if (controller.isLoading.value) {
       return const Center(child: CircularProgressIndicator());
-    if (controller.searchResults.isEmpty)
+    }
+    if (controller.searchResults.isEmpty) {
       return const Center(
         child: Text('No results', style: TextStyle(color: Colors.white)),
       );
+    }
 
     return ListView.builder(
       itemCount: controller.searchResults.length,
@@ -64,7 +66,12 @@ class SearchScreen extends GetView<ExploreController> {
             imageUrl: user.profileImage,
             radius: 20,
           ),
-          title: Text(user.name, style: const TextStyle(color: Colors.white)),
+          title: Row(
+            children: [
+              Text(user.name, style: const TextStyle(color: Colors.white)),
+              VerificationBadge(isVerified: user.isVerified, size: 14),
+            ],
+          ),
           subtitle: Text(
             '@${user.username}',
             style: const TextStyle(color: Colors.white54),
@@ -76,8 +83,9 @@ class SearchScreen extends GetView<ExploreController> {
   }
 
   Widget _buildExplore() {
-    if (controller.isLoadingExplore.value)
+    if (controller.isLoadingExplore.value) {
       return const Center(child: CircularProgressIndicator());
+    }
     return GridView.builder(
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,

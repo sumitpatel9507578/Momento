@@ -22,6 +22,7 @@ class ChatSocketService extends GetxService {
   void Function(Map<String, dynamic> message)? onMessage;
   void Function(Map<String, dynamic> update)? onTyping;
   void Function(Map<String, dynamic> update)? onRead;
+  void Function(Map<String, dynamic> update)? onMessageUnsent;
   void Function(Map<String, dynamic> update)? onPresenceUpdate;
   void Function(List<String> userIds)? onPresenceSnapshot;
 
@@ -130,6 +131,16 @@ class ChatSocketService extends GetxService {
     socket.on('chat:read', (dynamic data) {
       debugPrint('[SOCKET] Received chat:read: $data');
       if (data is Map) onRead?.call(Map<String, dynamic>.from(data));
+    });
+
+    socket.on('chat:unsend', (dynamic data) {
+      debugPrint('[SOCKET] Received chat:unsend: $data');
+      if (data is Map) onMessageUnsent?.call(Map<String, dynamic>.from(data));
+    });
+
+    socket.on('chat:deleted', (dynamic data) {
+      debugPrint('[SOCKET] Received chat:deleted: $data');
+      if (data is Map) onMessageUnsent?.call(Map<String, dynamic>.from(data));
     });
 
     socket.on('presence:snapshot', (dynamic data) {
@@ -262,6 +273,18 @@ class ChatSocketService extends GetxService {
     final payload = {'senderId': parsedId};
     debugPrint('[SOCKET] Emitting chat:read: $payload');
     _socket?.emit('chat:read', payload);
+  }
+
+  void unsendMessage(String messageId, String receiverId) {
+    final parsedMsgId = int.tryParse(messageId) ?? messageId;
+    final parsedReceiverId = int.tryParse(receiverId) ?? receiverId;
+    final payload = {
+      'messageId': parsedMsgId,
+      'id': parsedMsgId,
+      'receiverId': parsedReceiverId,
+    };
+    debugPrint('[SOCKET] Emitting chat:unsend: $payload');
+    _socket?.emit('chat:unsend', payload);
   }
 
   void emitPresenceOnline() {

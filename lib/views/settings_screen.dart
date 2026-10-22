@@ -33,24 +33,59 @@ class SettingsScreen extends StatelessWidget {
               title: 'Account',
               items: [
                 _buildSettingItem(
+                  Icons.bookmark_outline_rounded,
+                  'Saved Posts, Reels & Messages',
+                  iconColor: AppColors.purple,
+                  onTap: () => Get.toNamed('/saved'),
+                ),
+                _buildSettingItem(
+                  Icons.download_rounded,
+                  'Save / Download Post & Reel',
+                  iconColor: Colors.blueAccent,
+                  onTap: () => Get.toNamed(AppRoutes.savePostReel),
+                ),
+                _buildSettingItem(
                   Icons.person_outline_rounded,
                   'Account & Security',
+                  onTap: () {},
+                ),
+                _buildSettingItem(
+                  Icons.verified_rounded,
+                  'Request Verification / Blue Tick',
+                  iconColor: const Color(0xFF2563EB),
+                  onTap: () => Get.toNamed('/verification-info'),
                 ),
                 _buildSettingItem(
                   Icons.lock_outline_rounded,
                   'Privacy Settings',
+                  onTap: () {},
                 ),
                 _buildSettingItem(
                   Icons.notifications_none_rounded,
                   'Notifications',
+                  onTap: () {},
                 ),
               ],
             ),
             _buildSection(
               title: 'Preferences',
               items: [
-                _buildSettingItem(Icons.language_rounded, 'Language'),
-                _buildSettingItem(Icons.help_outline_rounded, 'Help & Support'),
+                _buildSettingItem(
+                  Icons.pan_tool_rounded,
+                  'AI Motion & Gesture Controls',
+                  iconColor: AppColors.purple,
+                  onTap: () => Get.toNamed('/motion-settings'),
+                ),
+                _buildSettingItem(
+                  Icons.language_rounded,
+                  'Language',
+                  onTap: () {},
+                ),
+                _buildSettingItem(
+                  Icons.help_outline_rounded,
+                  'Help & Support',
+                  onTap: () {},
+                ),
               ],
             ),
 
@@ -241,9 +276,14 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSettingItem(IconData icon, String title) {
+  Widget _buildSettingItem(
+    IconData icon,
+    String title, {
+    Color? iconColor,
+    VoidCallback? onTap,
+  }) {
     return ListTile(
-      leading: Icon(icon, color: Colors.white70, size: 22),
+      leading: Icon(icon, color: iconColor ?? Colors.white70, size: 22),
       title: Text(
         title,
         style: const TextStyle(color: Colors.white, fontSize: 15),
@@ -253,7 +293,7 @@ class SettingsScreen extends StatelessWidget {
         color: Colors.white24,
         size: 14,
       ),
-      onTap: () {},
+      onTap: onTap,
     );
   }
 }

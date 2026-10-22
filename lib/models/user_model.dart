@@ -9,6 +9,8 @@ class UserModel {
   final int followingCount;
   final int postsCount;
   final bool isFollowing;
+  final bool isVerified;
+  final String role;
   final DateTime createdAt;
 
   UserModel({
@@ -22,8 +24,12 @@ class UserModel {
     this.followingCount = 0,
     this.postsCount = 0,
     this.isFollowing = false,
+    this.isVerified = false,
+    this.role = 'user',
     required this.createdAt,
   });
+
+  bool get isAdmin => role.toLowerCase() == 'admin';
 
   static int _toInt(dynamic value) {
     if (value == null) return 0;
@@ -44,7 +50,6 @@ class UserModel {
   }
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
-    print("DEBUG User JSON: $map");
     final String extractedUid =
         (map['uid'] ??
                 map['id'] ??
@@ -82,6 +87,14 @@ class UserModel {
           map['isFollowing'] == true ||
           map['is_following'] == true ||
           map['following'] == true,
+      isVerified:
+          map['isVerified'] == 1 ||
+          map['isVerified'] == true ||
+          map['is_verified'] == 1 ||
+          map['is_verified'] == true ||
+          map['verified'] == 1 ||
+          map['verified'] == true,
+      role: (map['role'] ?? 'user').toString(),
       createdAt: _parseDate(map['created_at'] ?? map['createdAt']),
     );
   }
@@ -98,6 +111,8 @@ class UserModel {
       'followingCount': followingCount,
       'postsCount': postsCount,
       'isFollowing': isFollowing,
+      'isVerified': isVerified,
+      'role': role,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -113,6 +128,8 @@ class UserModel {
     int? followingCount,
     int? postsCount,
     bool? isFollowing,
+    bool? isVerified,
+    String? role,
     DateTime? createdAt,
   }) {
     return UserModel(
@@ -126,6 +143,8 @@ class UserModel {
       followingCount: followingCount ?? this.followingCount,
       postsCount: postsCount ?? this.postsCount,
       isFollowing: isFollowing ?? this.isFollowing,
+      isVerified: isVerified ?? this.isVerified,
+      role: role ?? this.role,
       createdAt: createdAt ?? this.createdAt,
     );
   }

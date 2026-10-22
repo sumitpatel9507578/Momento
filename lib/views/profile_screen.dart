@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:momento/models/post_model.dart';
 
 import '../controllers/profile_controller.dart';
 import '../routes/app_routes.dart';
 import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
 import '../widgets/post_card.dart';
+import '../widgets/report_bottom_sheet.dart';
 import '../widgets/user_avatar.dart';
+import '../widgets/verification_badge.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, this.tag});
@@ -120,14 +123,35 @@ class ProfileScreen extends StatelessWidget {
                 pinned: true,
                 backgroundColor: AppColors.background,
                 elevation: 0,
-                title: Text(
-                  user.username.isNotEmpty ? '@${user.username}' : 'Profile',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                title: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      user.username.isNotEmpty
+                          ? '@${user.username}'
+                          : 'Profile',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    VerificationBadge(isVerified: user.isVerified, size: 16),
+                  ],
                 ),
                 actions: [
+                  if (!isMe)
+                    IconButton(
+                      onPressed: () => ReportBottomSheet.show(
+                        context: context,
+                        targetId: user.uid,
+                        targetType: 'user',
+                        targetTitle: user.username,
+                      ),
+                      icon: const Icon(
+                        Icons.flag_outlined,
+                        color: Colors.white,
+                      ),
+                    ),
                   IconButton(
                     onPressed: () => Get.toNamed(AppRoutes.settings),
                     icon: const Icon(Icons.menu, color: Colors.white),

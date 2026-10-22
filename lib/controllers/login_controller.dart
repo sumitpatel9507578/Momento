@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
-import 'auth_controller.dart';
-import '../routes/app_routes.dart';
-import '../services/api_service.dart';
+import 'package:momento/controllers/auth_controller.dart';
+import 'package:momento/routes/app_routes.dart';
+import 'package:momento/services/api_service.dart';
 
 class LoginController extends GetxController {
   final AuthController authController = Get.find<AuthController>();
@@ -16,7 +15,11 @@ class LoginController extends GetxController {
     final password = passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
-      Get.snackbar('Error', 'Please fill all fields');
+      Get.snackbar(
+        'Required',
+        'Please enter your email and password',
+        snackPosition: SnackPosition.BOTTOM,
+      );
       return;
     }
 

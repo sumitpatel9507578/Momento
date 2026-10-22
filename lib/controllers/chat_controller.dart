@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get/get.dart';
@@ -142,6 +141,7 @@ class ChatController extends GetxController with WidgetsBindingObserver {
       ..onMessage = _onSocketMessage
       ..onTyping = _onTypingUpdate
       ..onRead = _onReadUpdate
+      ..onMessageUnsent = _onSocketMessageUnsent
       ..onPresenceUpdate = _onPresenceUpdate
       ..onPresenceSnapshot = (ids) {
         _syncPeerPresence();
@@ -222,11 +222,12 @@ class ChatController extends GetxController with WidgetsBindingObserver {
         ? message.receiverId
         : message.senderId;
     final index = conversations.indexWhere((c) {
-      final cId = (c['conversationUserId'] ??
-              c['conversation_user_id'] ??
-              c['userId'] ??
-              c['id'])
-          ?.toString();
+      final cId =
+          (c['conversationUserId'] ??
+                  c['conversation_user_id'] ??
+                  c['userId'] ??
+                  c['id'])
+              ?.toString();
       return cId == otherUserId;
     });
 
@@ -248,8 +249,9 @@ class ChatController extends GetxController with WidgetsBindingObserver {
   }
 
   void _onTypingUpdate(Map<String, dynamic> update) {
-    final senderId = (update['userId'] ?? update['senderId'] ?? update['user_id'])
-        ?.toString();
+    final senderId =
+        (update['userId'] ?? update['senderId'] ?? update['user_id'])
+            ?.toString();
     if (senderId == activeChatUserId) {
       final isTyping =
           update['isTyping'] == true || update['is_typing'] == true;
@@ -265,8 +267,9 @@ class ChatController extends GetxController with WidgetsBindingObserver {
   }
 
   void _onReadUpdate(Map<String, dynamic> update) {
-    final readerId = (update['readerId'] ?? update['senderId'] ?? update['userId'])
-        ?.toString();
+    final readerId =
+        (update['readerId'] ?? update['senderId'] ?? update['userId'])
+            ?.toString();
     if (readerId == activeChatUserId) {
       final updated = messages.map((msg) {
         if (msg.senderId == currentUserId &&
@@ -279,6 +282,29 @@ class ChatController extends GetxController with WidgetsBindingObserver {
       if (activeChatUserId != null) {
         _saveConversationCache(activeChatUserId!);
       }
+    }
+  }
+
+  void _onSocketMessageUnsent(Map<String, dynamic> update) {
+    debugPrint('[CHAT] Processing unsent socket message: $update');
+    final messageId = (update['messageId'] ?? update['id'] ?? update['_id'])
+        ?.toString();
+    final clientMsgId = update['clientMessageId']?.toString();
+
+    if (messageId != null || clientMsgId != null) {
+      messages.removeWhere(
+        (msg) =>
+            (messageId != null &&
+                messageId.isNotEmpty &&
+                msg.id == messageId) ||
+            (clientMsgId != null &&
+                clientMsgId.isNotEmpty &&
+                msg.clientMessageId == clientMsgId),
+      );
+      if (activeChatUserId != null) {
+        _saveConversationCache(activeChatUserId!);
+      }
+      fetchConversations();
     }
   }
 
@@ -792,8 +818,7 @@ class ChatController extends GetxController with WidgetsBindingObserver {
       );
     }
 
-    final parsedReceiverId =
-        int.tryParse(msg.receiverId) ?? msg.receiverId;
+    final parsedReceiverId = int.tryParse(msg.receiverId) ?? msg.receiverId;
 
     final payload = <String, dynamic>{
       'receiverId': parsedReceiverId,
@@ -869,7 +894,9 @@ class ChatController extends GetxController with WidgetsBindingObserver {
     final clientMessageId = payload['clientMessageId']?.toString();
     final response = await _chatSocket.sendMessage(payload);
 
-    if (response == null || response['success'] != true || response['data'] is! Map) {
+    if (response == null ||
+        response['success'] != true ||
+        response['data'] is! Map) {
       if (clientMessageId != null) {
         final index = messages.indexWhere(
           (m) =>
@@ -903,6 +930,86 @@ class ChatController extends GetxController with WidgetsBindingObserver {
       await _saveConversationCache(message.receiverId);
     }
     fetchConversations();
+    return true;
+  }
+
+  Future<bool> unsendMessage(MessageModel msg) async {
+    try {
+      final msgId = msg.id;
+      final clientMsgId = msg.clientMessageId;
+
+      // 1. Remove locally immediately for optimistic response
+      messages.removeWhere(
+        (m) =>
+            (msgId.isNotEmpty && m.id == msgId) ||
+            (clientMsgId != null &&
+                clientMsgId.isNotEmpty &&
+                m.clientMessageId == clientMsgId),
+      );
+
+      // 2. Remove from pending outbox if pending
+      if (clientMsgId != null) {
+        _pendingOutbox.removeWhere(
+          (item) => item['clientMessageId'] == clientMsgId,
+        );
+        await _persistPendingOutbox();
+      }
+
+      if (activeChatUserId != null) {
+        await _saveConversationCache(activeChatUserId!);
+      }
+      fetchConversations();
+
+      // 3. Emit socket event and call REST API if persisted
+      if (msg.isPersisted && msgId.isNotEmpty && !msgId.startsWith('local-')) {
+        _chatSocket.unsendMessage(msgId, msg.receiverId);
+        try {
+          final response = await _apiService.delete(
+            '${ApiConstants.messages}/$msgId',
+          );
+          debugPrint('[CHAT] Unsend message response: ${response.statusCode}');
+        } catch (e) {
+          debugPrint('[CHAT] Unsend API call exception (socket sent): $e');
+        }
+      }
+
+      Get.snackbar(
+        'Message Unsent',
+        'Message was unsent.',
+        snackPosition: SnackPosition.BOTTOM,
+        duration: const Duration(seconds: 2),
+      );
+      return true;
+    } catch (e) {
+      debugPrint("Error unsending message: $e");
+      Get.snackbar('Error', 'Could not unsend message');
+      return false;
+    }
+  }
+
+  Future<bool> deleteMessageLocally(MessageModel msg) async {
+    final msgId = msg.id;
+    final clientMsgId = msg.clientMessageId;
+
+    messages.removeWhere(
+      (m) =>
+          (msgId.isNotEmpty && m.id == msgId) ||
+          (clientMsgId != null &&
+              clientMsgId.isNotEmpty &&
+              m.clientMessageId == clientMsgId),
+    );
+
+    if (activeChatUserId != null) {
+      await _saveConversationCache(activeChatUserId!);
+    }
+    fetchConversations();
+
+    Get.snackbar(
+      'Deleted',
+      'Message removed from your chat',
+      snackPosition: SnackPosition.BOTTOM,
+      duration: const Duration(seconds: 2),
+    );
     return true;
   }
 }

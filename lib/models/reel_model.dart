@@ -12,6 +12,7 @@ class ReelModel {
   final int repostsCount;
   final bool isLiked;
   final bool isReposted;
+  final bool isVerified;
   final String? repostNote;
   final String? repostUserAvatar;
   final String? repostUsername;
@@ -30,6 +31,7 @@ class ReelModel {
     this.repostsCount = 0,
     this.isLiked = false,
     this.isReposted = false,
+    this.isVerified = false,
     this.repostNote,
     this.repostUserAvatar,
     this.repostUsername,
@@ -45,6 +47,13 @@ class ReelModel {
     String extractedUserId = '';
     String extractedCreatorName =
         json['username'] ?? json['creator_name'] ?? json['full_name'] ?? '';
+
+    bool extractedIsVerified =
+        json['isVerified'] == 1 ||
+        json['isVerified'] == true ||
+        json['is_verified'] == 1 ||
+        json['is_verified'] == true ||
+        json['verified'] == true;
 
     if (rawUser is Map) {
       extractedUserId =
@@ -63,6 +72,14 @@ class ReelModel {
                     rawUser['name'] ??
                     '')
                 .toString();
+      }
+      if (!extractedIsVerified) {
+        extractedIsVerified =
+            rawUser['isVerified'] == 1 ||
+            rawUser['isVerified'] == true ||
+            rawUser['is_verified'] == 1 ||
+            rawUser['is_verified'] == true ||
+            rawUser['verified'] == true;
       }
     } else if (rawUser != null && rawUser.toString().isNotEmpty) {
       extractedUserId = rawUser.toString();
@@ -113,16 +130,16 @@ class ReelModel {
           json['isReposted'] == true ||
           json['is_reposted'] == true ||
           json['reposted'] == true,
-      repostNote:
-          (json['repostNote'] ?? json['repost_note'] ?? json['note'])
-              ?.toString(),
+      isVerified: extractedIsVerified,
+      repostNote: (json['repostNote'] ?? json['repost_note'] ?? json['note'])
+          ?.toString(),
       repostUserAvatar:
           (json['repostUserAvatar'] ??
                   json['repost_user_avatar'] ??
                   json['repostProfileImage'])
               ?.toString(),
-      repostUsername:
-          (json['repostUsername'] ?? json['repost_username'])?.toString(),
+      repostUsername: (json['repostUsername'] ?? json['repost_username'])
+          ?.toString(),
     );
   }
 
@@ -149,6 +166,7 @@ class ReelModel {
     int? repostsCount,
     bool? isLiked,
     bool? isReposted,
+    bool? isVerified,
     String? repostNote,
     String? repostUserAvatar,
     String? repostUsername,
@@ -167,6 +185,7 @@ class ReelModel {
       repostsCount: repostsCount ?? this.repostsCount,
       isLiked: isLiked ?? this.isLiked,
       isReposted: isReposted ?? this.isReposted,
+      isVerified: isVerified ?? this.isVerified,
       repostNote: repostNote ?? this.repostNote,
       repostUserAvatar: repostUserAvatar ?? this.repostUserAvatar,
       repostUsername: repostUsername ?? this.repostUsername,

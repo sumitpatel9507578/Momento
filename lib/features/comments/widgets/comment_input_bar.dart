@@ -47,6 +47,53 @@ class _CommentInputBarState extends State<CommentInputBar> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Mira AI Suggestions
+          Obx(() {
+            if (_isGenerating.value) {
+              return const Padding(
+                padding: EdgeInsets.only(bottom: 8.0),
+                child: SizedBox(
+                  height: 30,
+                  child: Row(
+                    children: [
+                      Icon(Icons.auto_awesome, color: Colors.purple, size: 14),
+                      SizedBox(width: 8),
+                      Text('Mira is thinking...', style: TextStyle(color: Colors.purple, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              );
+            }
+            
+            if (_miraSuggestions.isEmpty) return const SizedBox.shrink();
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: SizedBox(
+                height: 32,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _miraSuggestions.length,
+                  separatorBuilder: (context, index) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final suggestion = _miraSuggestions[index];
+                    return ActionChip(
+                      label: Text(suggestion, style: const TextStyle(fontSize: 12)),
+                      avatar: const Icon(Icons.auto_awesome, color: Colors.purple, size: 14),
+                      backgroundColor: Colors.purple.withValues(alpha: 0.1),
+                      side: BorderSide(
+                        color: Colors.purple.withValues(alpha: 0.3),
+                      ),
+                      onPressed: () {
+                        widget.controller.text = suggestion;
+                      },
+                    );
+                  },
+                ),
+              ),
+            );
+          }),
+
           if (widget.replyingToUsername != null) ...[
             Row(
               children: [

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+
 import '../../../utils/app_colors.dart';
 import '../../../widgets/user_avatar.dart';
+import '../../../widgets/verification_badge.dart';
 import '../models/comment_model.dart';
 
 class CommentTile extends StatelessWidget {
@@ -23,13 +25,12 @@ class CommentTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onLongPress: onLongPress,
-      onDoubleTap: onLike,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            UserAvatar(
+            OnlineAvatar(
               userId: comment.userId,
               imageUrl: comment.profileImage,
               radius: 18,
@@ -41,17 +42,25 @@ class CommentTile extends StatelessWidget {
                 children: [
                   RichText(
                     text: TextSpan(
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                      ),
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
                       children: [
                         TextSpan(
-                          text: '${comment.username}  ',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
+                          text: '${comment.username} ',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
+                        if (comment.isVerified) ...[
+                          WidgetSpan(
+                            alignment: PlaceholderAlignment.middle,
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: VerificationBadge(
+                                isVerified: true,
+                                size: 13,
+                                padding: EdgeInsets.zero,
+                              ),
+                            ),
+                          ),
+                        ],
                         if (comment.isAuthor) ...[
                           WidgetSpan(
                             alignment: PlaceholderAlignment.middle,
@@ -78,9 +87,7 @@ class CommentTile extends StatelessWidget {
                         ],
                         TextSpan(
                           text: comment.text,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                          ),
+                          style: const TextStyle(color: Colors.white),
                         ),
                       ],
                     ),
@@ -89,14 +96,25 @@ class CommentTile extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        comment.timeAgo,
+                        _formatTime(comment.createdAt),
                         style: const TextStyle(
-                          color: Colors.white24,
+                          color: Colors.white38,
                           fontSize: 11,
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      if (onReply != null)
+                      if (comment.likeCount > 0) ...[
+                        const SizedBox(width: 12),
+                        Text(
+                          '${comment.likeCount} likes',
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                      if (onReply != null) ...[
+                        const SizedBox(width: 12),
                         GestureDetector(
                           onTap: onReply,
                           child: const Text(
@@ -108,49 +126,45 @@ class CommentTile extends StatelessWidget {
                             ),
                           ),
                         ),
-                      if (comment.isLikedByAuthor) ...[
-                        const SizedBox(width: 16),
-                        const Icon(Icons.favorite, color: Colors.redAccent, size: 10),
-                        const SizedBox(width: 4),
-                        const Text(
-                          'Liked by author',
-                          style: TextStyle(color: Colors.white38, fontSize: 10),
-                        ),
                       ],
                     ],
                   ),
+                  if (comment.replyCount > 0 && onViewReplies != null) ...[
+                    const SizedBox(height: 6),
+                    GestureDetector(
+                      onTap: onViewReplies,
+                      child: Text(
+                        '—— View ${comment.replyCount} replies',
+                        style: const TextStyle(
+                          color: Colors.white38,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  icon: Icon(
-                    comment.isLikedByMe ? Icons.favorite : Icons.favorite_border,
-                    color: comment.isLikedByMe ? Colors.redAccent : Colors.white54,
-                    size: 16,
-                  ),
-                  onPressed: onLike,
-                ),
-                if (comment.likeCount > 0) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    '${comment.likeCount}',
-                    style: const TextStyle(
-                      color: Colors.white54,
-                      fontSize: 10,
-                    ),
-                  ),
-                ],
-              ],
+            IconButton(
+              onPressed: onLike,
+              icon: Icon(
+                comment.isLikedByMe ? Icons.favorite : Icons.favorite_border,
+                color: comment.isLikedByMe ? Colors.redAccent : Colors.white54,
+                size: 16,
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  String _formatTime(DateTime dateTime) {
+    final diff = DateTime.now().difference(dateTime);
+    if (diff.inDays > 0) return '${diff.inDays}d';
+    if (diff.inHours > 0) return '${diff.inHours}h';
+    if (diff.inMinutes > 0) return '${diff.inMinutes}m';
+    return 'Just now';
   }
 }

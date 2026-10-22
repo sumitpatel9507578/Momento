@@ -1,8 +1,9 @@
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
-import '../models/report_model.dart';
-import '../utils/api_constants.dart';
+import 'package:momento/models/report_model.dart';
+import 'package:momento/utils/api_constants.dart';
 import 'api_service.dart';
 
 class ReportService extends GetxService {
@@ -23,7 +24,8 @@ class ReportService extends GetxService {
     final reporterId = (user?['id'] ?? user?['uid'] ?? '').toString();
     final reporterUsername = (user?['username'] ?? 'User').toString();
 
-    final reportId = "REP-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}";
+    final reportId =
+        "REP-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}";
 
     final body = <String, dynamic>{
       'id': reportId,
@@ -36,7 +38,10 @@ class ReportService extends GetxService {
     };
 
     try {
-      final response = await _apiService.post("${ApiConstants.baseUrl}/reports", body);
+      final response = await _apiService.post(
+        "${ApiConstants.baseUrl}/reports",
+        body,
+      );
       if (response.statusCode == 200 || response.statusCode == 201) {
         return true;
       }
@@ -73,7 +78,9 @@ class ReportService extends GetxService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final List list = data['data'] ?? data['reports'] ?? [];
-        return list.map((e) => ReportModel.fromMap(Map<String, dynamic>.from(e))).toList();
+        return list
+            .map((e) => ReportModel.fromMap(Map<String, dynamic>.from(e)))
+            .toList();
       }
     } catch (e) {
       debugPrint("ReportService fetchAdminReports error: $e");
@@ -90,11 +97,7 @@ class ReportService extends GetxService {
     try {
       final response = await _apiService.post(
         "${ApiConstants.baseUrl}/admin/reports/action",
-        {
-          'reportId': reportId,
-          'action': action,
-          'adminNote': adminNote,
-        },
+        {'reportId': reportId, 'action': action, 'adminNote': adminNote},
       );
       if (response.statusCode == 200) {
         return true;

@@ -7,6 +7,7 @@ import 'package:video_player/video_player.dart';
 
 import '../controllers/create_post_controller.dart';
 import '../routes/app_routes.dart';
+import 'video_filter_preview_screen.dart';
 
 class CreatePostScreen extends GetView<CreatePostController> {
   const CreatePostScreen({super.key});
@@ -123,9 +124,43 @@ class CreatePostScreen extends GetView<CreatePostController> {
                                   right: 10,
                                   child: Row(
                                     children: [
+                                      if (_isVideoFile(
+                                        controller.selectedFile.value!,
+                                      )) ...[
+                                        CircleAvatar(
+                                          backgroundColor: Colors.black54,
+                                          child: IconButton(
+                                            tooltip:
+                                                'Apply GPU Video Filters (250 Presets)',
+                                            icon: const Icon(
+                                              Icons.movie_filter,
+                                              color: Colors.amber,
+                                              size: 20,
+                                            ),
+                                            onPressed: () async {
+                                              final filtered = await Get.to(
+                                                () => VideoFilterPreviewScreen(
+                                                  videoFile: controller
+                                                      .selectedFile
+                                                      .value!,
+                                                ),
+                                              );
+                                              if (filtered is File) {
+                                                controller.selectedFile.value =
+                                                    filtered;
+                                                Get.snackbar(
+                                                  'Success',
+                                                  'GPU video filter applied successfully!',
+                                                );
+                                              }
+                                            },
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                      ],
                                       // Open in Full Story Editor Panel
                                       CircleAvatar(
-                                        backgroundColor: Colors.black67,
+                                        backgroundColor: Colors.black54,
                                         child: IconButton(
                                           tooltip: 'Open Editor Panel',
                                           icon: const Icon(
@@ -137,6 +172,9 @@ class CreatePostScreen extends GetView<CreatePostController> {
                                             final file =
                                                 controller.selectedFile.value!;
                                             final isVideo = _isVideoFile(file);
+                                            final isReel =
+                                                controller.selectedType.value ==
+                                                3;
                                             Get.toNamed(
                                               AppRoutes.storyEditor,
                                               arguments: {
@@ -144,6 +182,9 @@ class CreatePostScreen extends GetView<CreatePostController> {
                                                 'mediaType': isVideo
                                                     ? 'video'
                                                     : 'image',
+                                                'contentType': isReel
+                                                    ? 'reel'
+                                                    : 'story',
                                               },
                                             );
                                           },
@@ -151,7 +192,7 @@ class CreatePostScreen extends GetView<CreatePostController> {
                                       ),
                                       const SizedBox(width: 8),
                                       CircleAvatar(
-                                        backgroundColor: Colors.black67,
+                                        backgroundColor: Colors.black54,
                                         child: IconButton(
                                           icon: const Icon(
                                             Icons.close,
@@ -335,6 +376,8 @@ class _VideoPreviewWidget extends StatefulWidget {
 
 class _VideoPreviewWidgetState extends State<_VideoPreviewWidget> {
   VideoPlayerController? _controller;
+  final RxBool isInitialized = false.obs;
+  final RxBool isPlaying = false.obs;
 
   @override
   void initState() {
@@ -351,13 +394,15 @@ class _VideoPreviewWidgetState extends State<_VideoPreviewWidget> {
   }
 
   Future<void> _initVideo() async {
+    isInitialized.value = false;
     await _controller?.dispose();
     _controller = VideoPlayerController.file(widget.file);
     try {
       await _controller!.initialize();
       await _controller!.setLooping(true);
       await _controller!.play();
-      if (mounted) setState(() {});
+      isPlaying.value = true;
+      isInitialized.value = true;
     } catch (e) {
       debugPrint('Error initializing preview video: $e');
     }
@@ -371,45 +416,51 @@ class _VideoPreviewWidgetState extends State<_VideoPreviewWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final c = _controller;
-    if (c == null || !c.value.isInitialized) {
-      return const Center(
-        child: CircularProgressIndicator(color: Colors.white),
-      );
-    }
+    return Obx(() {
+      final c = _controller;
+      if (!isInitialized.value || c == null || !c.value.isInitialized) {
+        return const Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        );
+      }
 
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          c.value.isPlaying ? c.pause() : c.play();
-        });
-      },
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          FittedBox(
-            fit: BoxFit.cover,
-            child: SizedBox(
-              width: c.value.size.width,
-              height: c.value.size.height,
-              child: VideoPlayer(c),
-            ),
-          ),
-          if (!c.value.isPlaying)
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: const BoxDecoration(
-                color: Colors.black45,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.play_arrow_rounded,
-                color: Colors.white,
-                size: 44,
+      return GestureDetector(
+        onTap: () {
+          if (c.value.isPlaying) {
+            c.pause();
+            isPlaying.value = false;
+          } else {
+            c.play();
+            isPlaying.value = true;
+          }
+        },
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: c.value.size.width,
+                height: c.value.size.height,
+                child: VideoPlayer(c),
               ),
             ),
-        ],
-      ),
-    );
+            if (!isPlaying.value)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: const BoxDecoration(
+                  color: Colors.black45,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.play_arrow_rounded,
+                  color: Colors.white,
+                  size: 44,
+                ),
+              ),
+          ],
+        ),
+      );
+    });
   }
 }

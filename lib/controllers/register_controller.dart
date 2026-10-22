@@ -3,9 +3,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
-
-import 'auth_controller.dart';
-import '../routes/app_routes.dart';
+import 'package:momento/controllers/auth_controller.dart';
+import 'package:momento/routes/app_routes.dart';
+import 'package:momento/utils/app_validators.dart';
 
 class RegisterController extends GetxController {
   final AuthController authController = Get.find<AuthController>();
@@ -55,40 +55,63 @@ class RegisterController extends GetxController {
   Future<void> register() async {
     if (authController.isLoading.value) return;
 
+    final nameError = AppValidators.validateName(nameController.text);
+    if (nameError != null) {
+      Get.snackbar(
+        'Invalid Name',
+        nameError,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    final usernameError = AppValidators.validateUsername(
+      usernameController.text,
+    );
+    if (usernameError != null) {
+      Get.snackbar(
+        'Invalid Username',
+        usernameError,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    final emailError = AppValidators.validateEmail(emailController.text);
+    if (emailError != null) {
+      Get.snackbar(
+        'Invalid Email',
+        emailError,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    final passwordError = AppValidators.validatePassword(
+      passwordController.text,
+    );
+    if (passwordError != null) {
+      Get.snackbar(
+        'Weak Password',
+        passwordError,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    if (passwordController.text != confirmPasswordController.text) {
+      Get.snackbar(
+        'Password Error',
+        'Passwords do not match.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
     final name = nameController.text.trim();
-    final username = usernameController.text.trim().toLowerCase();
+    final username = usernameController.text.trim();
     final email = emailController.text.trim().toLowerCase();
     final password = passwordController.text;
-    final confirmPassword = confirmPasswordController.text;
-
-    if (name.isEmpty ||
-        username.isEmpty ||
-        email.isEmpty ||
-        password.isEmpty ||
-        confirmPassword.isEmpty) {
-      Get.snackbar('Required', 'Please fill all fields.');
-      return;
-    }
-
-    if (username.contains(' ')) {
-      Get.snackbar('Invalid Username', 'Username cannot contain spaces.');
-      return;
-    }
-
-    if (!GetUtils.isEmail(email)) {
-      Get.snackbar('Invalid Email', 'Please enter a valid email address.');
-      return;
-    }
-
-    if (password.length < 6) {
-      Get.snackbar('Weak Password', 'Password must be at least 6 characters.');
-      return;
-    }
-
-    if (password != confirmPassword) {
-      Get.snackbar('Password Error', 'Passwords do not match.');
-      return;
-    }
 
     final success = await authController.register(
       name: name,

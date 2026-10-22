@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:momento/utils/image_filter_utils.dart';
 
 class FilterStrip extends StatelessWidget {
   final String selectedFilter;
@@ -10,34 +11,29 @@ class FilterStrip extends StatelessWidget {
     required this.onFilterSelected,
   });
 
-  static const filters = [
-    'Normal',
-    'Vivid',
-    'Warm',
-    'Cool',
-    'B&W',
-    'Vintage',
-    'Fade',
-    'Drama',
-    'Noir',
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final filters = ImageFilterUtils.availableFilters;
+
     return SizedBox(
-      height: 90,
+      height: 95,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: filters.length,
         itemBuilder: (context, index) {
-          final filter = filters[index];
-          final isSelected = selectedFilter == filter;
+          final filterSpec = filters[index];
+          final filterName = filterSpec.name;
+          final isSelected =
+              selectedFilter.toLowerCase() == filterName.toLowerCase() ||
+              (selectedFilter == 'B&W' && filterName == 'Black & White');
+
+          final matrix = ImageFilterUtils.getMatrixByName(filterName);
 
           return GestureDetector(
-            onTap: () => onFilterSelected(filter),
+            onTap: () => onFilterSelected(filterName),
             child: Container(
-              margin: const EdgeInsets.only(right: 12),
+              margin: const EdgeInsets.only(right: 14),
               child: Column(
                 children: [
                   Container(
@@ -46,25 +42,49 @@ class FilterStrip extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: isSelected ? Colors.purple : Colors.white24,
+                        color:
+                            isSelected ? Colors.purpleAccent : Colors.white24,
                         width: isSelected ? 3 : 1.5,
                       ),
-                      color: Colors.grey[850],
                     ),
-                    child: Center(
-                      child: Text(
-                        filter.substring(0, 1),
-                        style: TextStyle(
-                          color: isSelected ? Colors.purpleAccent : Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                      ),
+                    child: ClipOval(
+                      child: matrix != null
+                          ? ColorFiltered(
+                              colorFilter: ColorFilter.matrix(matrix),
+                              child: Container(
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Color(0xFFFF7E5F),
+                                      Color(0xFFFEB47B),
+                                      Color(0xFF86A8E7),
+                                      Color(0xFF91EAE4),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : Container(
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Color(0xFFFF7E5F),
+                                    Color(0xFFFEB47B),
+                                    Color(0xFF86A8E7),
+                                    Color(0xFF91EAE4),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    filter,
+                    filterName,
                     style: TextStyle(
                       color: isSelected ? Colors.purpleAccent : Colors.white70,
                       fontSize: 11,

@@ -23,4 +23,21 @@ class AppRoutes {
   static const String completeProfile = '/complete-profile';
   static const String findPeople = '/find-people';
   static const String logoutLoading = '/logout-loading';
+  static const String arCamera = '/ar-camera';
+  static const String arMediaPreview = '/ar-media-preview';
+
+  // Verification Routes
+  static const String verificationInfo = '/verification-info';
+  static const String verificationEligibility = '/verification-eligibility';
+  static const String verificationForm = '/verification-form';
+  static const String verificationDocument = '/verification-document';
+  static const String verificationSummary = '/verification-summary';
+  static const String verificationStatus = '/verification-status';
+  static const String verificationResubmit = '/verification-resubmit';
+
+  // Admin Routes
+  static const String adminDashboard = '/admin-dashboard';
+  static const String adminVerificationList = '/admin-verification-list';
+  static const String adminVerificationDetail = '/admin-verification-detail';
+  static const String adminReportList = '/admin-report-list';
 }

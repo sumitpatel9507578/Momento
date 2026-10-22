@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:momento/controllers/chat_controller.dart';
@@ -292,10 +293,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                       minLines: 1,
                       maxLines: 5,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                      ),
+                      style: const TextStyle(color: Colors.white, fontSize: 15),
                       decoration: const InputDecoration(
                         hintText: 'Message...',
                         hintStyle: TextStyle(
@@ -304,9 +302,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                         border: InputBorder.none,
                         isDense: true,
-                        contentPadding: EdgeInsets.symmetric(
-                          vertical: 10,
-                        ),
+                        contentPadding: EdgeInsets.symmetric(vertical: 10),
                       ),
                     ),
                   ),
@@ -355,6 +351,8 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _showMessageMenu(BuildContext context, MessageModel msg) {
+    final isMe = msg.senderId == controller.currentUserId;
+
     Get.bottomSheet(
       Container(
         decoration: const BoxDecoration(
@@ -364,6 +362,57 @@ class _ChatScreenState extends State<ChatScreen> {
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
         child: Wrap(
           children: [
+            if (msg.message.isNotEmpty && msg.messageType == 'text')
+              ListTile(
+                leading: const Icon(Icons.copy_rounded, color: Colors.white),
+                title: const Text(
+                  'Copy Text',
+                  style: TextStyle(color: Colors.white),
+                ),
+                onTap: () {
+                  Get.back();
+                  Clipboard.setData(ClipboardData(text: msg.message));
+                  Get.snackbar(
+                    'Copied',
+                    'Message copied to clipboard',
+                    snackPosition: SnackPosition.BOTTOM,
+                    duration: const Duration(seconds: 2),
+                  );
+                },
+              ),
+            if (isMe)
+              ListTile(
+                leading: const Icon(
+                  Icons.undo_rounded,
+                  color: Colors.redAccent,
+                ),
+                title: const Text(
+                  'Unsend Message',
+                  style: TextStyle(
+                    color: Colors.redAccent,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                onTap: () {
+                  Get.back();
+                  _confirmUnsend(context, msg);
+                },
+              )
+            else
+              ListTile(
+                leading: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: Colors.redAccent,
+                ),
+                title: const Text(
+                  'Delete for me',
+                  style: TextStyle(color: Colors.redAccent),
+                ),
+                onTap: () {
+                  Get.back();
+                  controller.deleteMessageLocally(msg);
+                },
+              ),
             Obx(() {
               final isSaving = controller.savingMessageIds.contains(msg.id);
               return ListTile(
@@ -460,6 +509,44 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _confirmUnsend(BuildContext context, MessageModel msg) {
+    Get.dialog(
+      AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text(
+          'Unsend Message?',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Unsending will remove the message for everyone. Recipient may have already seen it.',
+          style: TextStyle(color: Colors.white70, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white54),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Get.back();
+              controller.unsendMessage(msg);
+            },
+            child: const Text(
+              'Unsend',
+              style: TextStyle(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

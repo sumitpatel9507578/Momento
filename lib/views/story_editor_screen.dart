@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../controllers/story_controller.dart';
+import '../features/story_editor/widgets/filter_strip.dart';
 import '../routes/app_routes.dart';
 import '../utils/app_colors.dart';
+import 'package:momento/utils/image_filter_utils.dart';
 import '../widgets/glass_container.dart';
 
 class StoryEditorScreen extends StatefulWidget {
@@ -23,9 +25,10 @@ class _StoryEditorScreenState extends State<StoryEditorScreen> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Selected Image
+          // Selected Image with Live Filter Preview
           Obx(() {
-            if (controller.selectedImage.value == null) {
+            final imageFile = controller.selectedImage.value;
+            if (imageFile == null) {
               return const Center(
                 child: Text(
                   'No image selected',
@@ -33,14 +36,25 @@ class _StoryEditorScreenState extends State<StoryEditorScreen> {
                 ),
               );
             }
-            return Center(
-              child: Image.file(
-                controller.selectedImage.value!,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                height: double.infinity,
-              ),
+
+            final filterName = controller.selectedFilter.value;
+            final matrix = ImageFilterUtils.getMatrixByName(filterName);
+
+            Widget imageWidget = Image.file(
+              imageFile,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
             );
+
+            if (matrix != null) {
+              imageWidget = ColorFiltered(
+                colorFilter: ColorFilter.matrix(matrix),
+                child: imageWidget,
+              );
+            }
+
+            return Center(child: imageWidget);
           }),
 
           // Overlays
@@ -147,9 +161,24 @@ class _StoryEditorScreenState extends State<StoryEditorScreen> {
             ),
           ),
 
+          // Filter Selection Bar
+          Positioned(
+            bottom: 90,
+            left: 0,
+            right: 0,
+            child: Obx(
+              () => FilterStrip(
+                selectedFilter: controller.selectedFilter.value,
+                onFilterSelected: (filter) {
+                  controller.selectedFilter.value = filter;
+                },
+              ),
+            ),
+          ),
+
           // Bottom Actions
           Positioned(
-            bottom: 30,
+            bottom: 24,
             left: 20,
             right: 20,
             child: Row(
@@ -160,7 +189,7 @@ class _StoryEditorScreenState extends State<StoryEditorScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
-                      vertical: 14,
+                      vertical: 12,
                     ),
                     decoration: BoxDecoration(
                       gradient: AppColors.primaryGradient,

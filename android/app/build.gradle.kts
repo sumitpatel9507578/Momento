@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.momento"
-    compileSdk = 37
+    compileSdk = 35
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -20,7 +20,7 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
-        targetSdk = 37
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }

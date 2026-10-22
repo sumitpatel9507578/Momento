@@ -96,7 +96,7 @@ class ExploreController extends GetxController {
         }
       } else if (response.statusCode == 500) {
         // Fallback for 500 Error
-        final allUsersResp = await _apiService.get(ApiConstants.users);
+        final allUsersResp = await _apiService.get("${ApiConstants.users}/search?q=");
         if (allUsersResp.statusCode == 200) {
           final data = jsonDecode(allUsersResp.body);
           final List userJson = data['data'] ?? [];

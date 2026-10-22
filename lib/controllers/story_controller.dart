@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:momento/utils/image_filter_utils.dart';
 
 import '../models/song_model.dart';
 import '../models/story_model.dart';
@@ -236,6 +237,7 @@ class StoryController extends GetxController {
   final ImagePicker _picker = ImagePicker();
   final Rx<File?> selectedImage = Rx<File?>(null);
   final selectedSong = Rxn<SongModel>();
+  final selectedFilter = 'Normal'.obs;
 
   Future<void> pickStoryImage(ImageSource source) async {
     try {
@@ -248,6 +250,7 @@ class StoryController extends GetxController {
       if (image != null) {
         selectedImage.value = File(image.path);
         selectedSong.value = null;
+        selectedFilter.value = 'Normal';
         Get.toNamed('/story-editor');
       }
     } catch (e) {
@@ -260,8 +263,17 @@ class StoryController extends GetxController {
 
     try {
       isLoading.value = true;
+      String uploadPath = selectedImage.value!.path;
+
+      if (selectedFilter.value != 'Normal') {
+        uploadPath = await ImageFilterUtils.processImageWithFilter(
+          inputPath: selectedImage.value!.path,
+          filterName: selectedFilter.value,
+        );
+      }
+
       final success = await _service.createStory(
-        selectedImage.value!.path,
+        uploadPath,
         'image',
         caption: text,
       );
@@ -278,13 +290,14 @@ class StoryController extends GetxController {
 
         selectedImage.value = null;
         selectedSong.value = null;
+        selectedFilter.value = 'Normal';
         await loadStories();
         Get.offAllNamed('/home');
       } else {
         Get.snackbar('Error', 'Failed to post story. Try again.');
       }
     } catch (e) {
-      print("Story Post Error: $e");
+      debugPrint("Story Post Error: $e");
       Get.snackbar('Error', 'Something went wrong: $e');
     } finally {
       isLoading.value = false;

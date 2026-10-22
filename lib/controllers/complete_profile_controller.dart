@@ -8,6 +8,8 @@ import '../repositories/user_repository.dart';
 import '../routes/app_routes.dart';
 import '../services/api_service.dart';
 
+import '../utils/app_validators.dart';
+
 class CompleteProfileController extends GetxController {
   final nameController = TextEditingController();
   final usernameController = TextEditingController();
@@ -63,36 +65,21 @@ class CompleteProfileController extends GetxController {
   }
 
   Future<void> continueToFindPeople() async {
+    final nameError = AppValidators.validateName(nameController.text);
+    if (nameError != null) {
+      Get.snackbar('Invalid Name', nameError, snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+
+    final usernameError = AppValidators.validateUsername(usernameController.text);
+    if (usernameError != null) {
+      Get.snackbar('Invalid Username', usernameError, snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+
     final name = nameController.text.trim();
-    final username = usernameController.text.trim().toLowerCase();
+    final username = usernameController.text.trim();
     final bio = bioController.text.trim();
-
-    if (name.isEmpty) {
-      Get.snackbar(
-        'Required',
-        'Please enter your name',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      return;
-    }
-
-    if (username.isEmpty) {
-      Get.snackbar(
-        'Required',
-        'Please enter a username',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      return;
-    }
-
-    if (username.contains(' ')) {
-      Get.snackbar(
-        'Invalid username',
-        'Username cannot contain spaces',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      return;
-    }
 
     try {
       isSaving.value = true;

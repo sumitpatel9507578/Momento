@@ -1,36 +1,49 @@
 import 'package:get/get.dart';
-import 'package:momento/views/logout_loading_screen.dart';
-
-import '../bindings/auth_binding.dart';
-import '../bindings/home_binding.dart';
-import '../bindings/music_binding.dart';
-import '../bindings/profile_binding.dart';
-import '../bindings/reel_binding.dart';
-import '../bindings/splash_binding.dart';
-import '../views/chat_list_screen.dart';
-import '../views/chat_screen.dart';
-import '../views/complete_profile_screen.dart';
-import '../views/create_post_screen.dart';
-import '../views/edit_profile_screen.dart';
-import '../views/find_people_screen.dart';
-import '../views/followers_screen.dart';
-import '../views/following_screen.dart';
-import '../views/forgot_password_screen.dart';
-import '../views/login_screen.dart';
-import '../views/main_screen.dart';
-import '../views/music_screen.dart';
-import '../views/notifications_screen.dart';
-import '../views/post_details_screen.dart';
-import '../views/profile_screen.dart';
-import '../views/reels_screen.dart';
-import '../views/register_screen.dart';
-import '../views/saved_posts_screen.dart';
-import '../views/search_screen.dart';
-import '../views/settings_screen.dart';
-import '../views/splash_screen.dart';
+import 'package:momento/bindings/auth_binding.dart';
+import 'package:momento/bindings/home_binding.dart';
+import 'package:momento/bindings/music_binding.dart';
+import 'package:momento/bindings/profile_binding.dart';
+import 'package:momento/bindings/reel_binding.dart';
+import 'package:momento/bindings/splash_binding.dart';
+import 'package:momento/features/ar_camera/ar_camera_screen.dart';
+import 'package:momento/features/ar_camera/ar_media_preview_screen.dart';
 import 'package:momento/features/story_editor/story_editor_screen.dart';
-import '../views/story_viewer_screen.dart';
-import 'app_routes.dart';
+import 'package:momento/routes/app_routes.dart';
+import 'package:momento/views/admin/admin_report_list_screen.dart';
+import 'package:momento/views/admin/admin_verification_dashboard_screen.dart';
+import 'package:momento/views/admin/admin_verification_detail_screen.dart';
+import 'package:momento/views/admin/admin_verification_list_screen.dart';
+import 'package:momento/views/chat_list_screen.dart';
+import 'package:momento/views/chat_screen.dart';
+import 'package:momento/views/complete_profile_screen.dart';
+import 'package:momento/views/create_post_screen.dart';
+import 'package:momento/views/edit_profile_screen.dart';
+import 'package:momento/views/find_people_screen.dart';
+import 'package:momento/views/followers_screen.dart';
+import 'package:momento/views/following_screen.dart';
+import 'package:momento/views/forgot_password_screen.dart';
+import 'package:momento/views/login_screen.dart';
+import 'package:momento/views/logout_loading_screen.dart';
+import 'package:momento/views/main_screen.dart';
+import 'package:momento/views/music_screen.dart';
+import 'package:momento/views/notifications_screen.dart';
+import 'package:momento/views/post_details_screen.dart';
+import 'package:momento/views/profile_screen.dart';
+import 'package:momento/views/reels_screen.dart';
+import 'package:momento/views/register_screen.dart';
+import 'package:momento/views/saved_posts_screen.dart';
+import 'package:momento/views/search_screen.dart';
+import 'package:momento/views/settings_screen.dart';
+import 'package:momento/views/splash_screen.dart';
+import 'package:momento/views/story_viewer_screen.dart';
+import 'package:momento/views/verification/verification_document_screen.dart';
+import 'package:momento/views/verification/verification_eligibility_screen.dart';
+import 'package:momento/views/verification/verification_form_screen.dart';
+import 'package:momento/views/verification/verification_info_screen.dart';
+import 'package:momento/views/verification/verification_resubmit_screen.dart';
+import 'package:momento/views/verification/verification_status_screen.dart';
+import 'package:momento/views/verification/verification_summary_screen.dart';
+
 
 class AppPages {
   static final List<GetPage<dynamic>> pages = [
@@ -152,6 +165,63 @@ class AppPages {
     GetPage(
       name: AppRoutes.logoutLoading,
       page: () => const LogoutLoadingScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.arCamera,
+      page: () => const ArCameraScreen(),
+      binding: HomeBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.arMediaPreview,
+      page: () => const ArMediaPreviewScreen(),
+    ),
+
+    // Verification Flow Routes
+    GetPage(
+      name: AppRoutes.verificationInfo,
+      page: () => const VerificationInfoScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.verificationEligibility,
+      page: () => const VerificationEligibilityScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.verificationForm,
+      page: () => const VerificationFormScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.verificationDocument,
+      page: () => const VerificationDocumentScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.verificationSummary,
+      page: () => const VerificationSummaryScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.verificationStatus,
+      page: () => const VerificationStatusScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.verificationResubmit,
+      page: () => const VerificationResubmitScreen(),
+    ),
+
+    // Admin & Moderation Routes
+    GetPage(
+      name: AppRoutes.adminDashboard,
+      page: () => const AdminVerificationDashboardScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.adminVerificationList,
+      page: () => const AdminVerificationListScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.adminVerificationDetail,
+      page: () => const AdminVerificationDetailScreen(),
+    ),
+    GetPage(
+      name: AppRoutes.adminReportList,
+      page: () => const AdminReportListScreen(),
     ),
   ];
 }

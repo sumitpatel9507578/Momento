@@ -38,7 +38,6 @@ class MainScreen extends StatelessWidget {
             ),
           ),
 
-          // Global Offline Banner
           Obx(() {
             final networkController = Get.find<NetworkController>();
             if (networkController.isConnected.value) {
@@ -71,38 +70,52 @@ class MainScreen extends StatelessWidget {
           }),
         ],
       ),
-      bottomNavigationBar: Obx(
-        () => Container(
-          decoration: const BoxDecoration(
-            color: Colors.black,
-            border: Border(top: BorderSide(color: Colors.white10, width: 0.3)),
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildNavItem(
-                    0,
-                    Icons.home_filled,
-                    Icons.home_outlined,
-                    controller,
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const MiniPlayerWidget(),
+          Obx(
+            () => Container(
+              decoration: const BoxDecoration(
+                color: Colors.black,
+                border: Border(
+                  top: BorderSide(color: Colors.white10, width: 0.3),
+                ),
+              ),
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildNavItem(
+                        0,
+                        Icons.home_filled,
+                        Icons.home_outlined,
+                        controller,
+                      ),
+                      _buildNavItem(1, Icons.search, Icons.search, controller),
+                      _buildCreatePostNavItem(2, controller),
+                      _buildNavItem(
+                        3,
+                        Icons.play_circle_fill,
+                        Icons.play_circle_outline,
+                        controller,
+                      ),
+                      _buildNavItem(
+                        5,
+                        Icons.music_note,
+                        Icons.music_note_outlined,
+                        controller,
+                      ),
+                      _buildProfileNavItem(4, controller),
+                    ],
                   ),
-                  _buildNavItem(1, Icons.search, Icons.search, controller),
-                  _buildCreatePostNavItem(2, controller),
-                  _buildNavItem(
-                    3,
-                    Icons.play_circle_fill,
-                    Icons.play_circle_outline,
-                    controller,
-                  ),
-                  _buildProfileNavItem(4, controller),
-                ],
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

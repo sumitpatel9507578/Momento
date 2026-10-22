@@ -7,6 +7,7 @@ import 'package:momento/utils/app_colors.dart';
 import 'package:momento/widgets/comment_bottom_sheet.dart';
 import 'package:momento/widgets/share_bottom_sheet.dart';
 import 'package:momento/widgets/user_avatar.dart';
+import 'package:momento/widgets/verification_badge.dart';
 import 'package:video_player/video_player.dart';
 
 class ReelsScreen extends StatefulWidget {
@@ -436,6 +437,7 @@ class _ReelPageItemState extends State<_ReelPageItem>
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      VerificationBadge(isVerified: reel.isVerified, size: 15),
                     ],
                   ),
                 ),

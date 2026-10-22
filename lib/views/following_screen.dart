@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import '../controllers/profile_controller.dart';
 import '../repositories/user_repository.dart';
 import '../routes/app_routes.dart';
-import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
 import '../widgets/user_avatar.dart';
 

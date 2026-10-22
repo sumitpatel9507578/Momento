@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../controllers/find_people_controller.dart';
-import '../utils/api_constants.dart';
 import '../widgets/user_avatar.dart';
+import 'package:momento/widgets/verification_badge.dart';
 
 class FindPeopleScreen extends StatelessWidget {
   FindPeopleScreen({super.key});
@@ -136,15 +136,28 @@ class FindPeopleScreen extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    user['name']?.toString() ?? 'User',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                  Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          user['name']?.toString() ?? 'User',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      VerificationBadge(
+                                        isVerified:
+                                            user['isVerified'] == true ||
+                                            user['is_verified'] == true ||
+                                            user['verified'] == true,
+                                        size: 15,
+                                      ),
+                                    ],
                                   ),
                                   const SizedBox(height: 4),
                                   Text(

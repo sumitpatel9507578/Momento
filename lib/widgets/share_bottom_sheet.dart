@@ -59,7 +59,10 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
   Future<void> _loadFriends() async {
     try {
       isLoading.value = true;
-      final response = await apiService.get(ApiConstants.users);
+      var response = await apiService.get("${ApiConstants.users}/search?q=");
+      if (response.statusCode != 200) {
+        response = await apiService.get(ApiConstants.users);
+      }
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final List list = data['data'] ?? data['users'] ?? [];
