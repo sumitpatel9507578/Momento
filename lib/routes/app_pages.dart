@@ -22,9 +22,11 @@ import 'package:momento/views/find_people_screen.dart';
 import 'package:momento/views/followers_screen.dart';
 import 'package:momento/views/following_screen.dart';
 import 'package:momento/views/forgot_password_screen.dart';
+import 'package:momento/views/gesture_screen.dart';
 import 'package:momento/views/login_screen.dart';
 import 'package:momento/views/logout_loading_screen.dart';
 import 'package:momento/views/main_screen.dart';
+import 'package:momento/views/motion_settings_screen.dart';
 import 'package:momento/views/music_screen.dart';
 import 'package:momento/views/notifications_screen.dart';
 import 'package:momento/views/post_details_screen.dart';
@@ -32,6 +34,7 @@ import 'package:momento/views/profile_screen.dart';
 import 'package:momento/views/reels_screen.dart';
 import 'package:momento/views/register_screen.dart';
 import 'package:momento/views/saved_posts_screen.dart';
+import 'package:momento/views/save_post_reel_screen.dart';
 import 'package:momento/views/search_screen.dart';
 import 'package:momento/views/settings_screen.dart';
 import 'package:momento/views/splash_screen.dart';
@@ -43,7 +46,6 @@ import 'package:momento/views/verification/verification_info_screen.dart';
 import 'package:momento/views/verification/verification_resubmit_screen.dart';
 import 'package:momento/views/verification/verification_status_screen.dart';
 import 'package:momento/views/verification/verification_summary_screen.dart';
-
 
 class AppPages {
   static final List<GetPage<dynamic>> pages = [
@@ -133,6 +135,11 @@ class AppPages {
       binding: HomeBinding(),
     ),
     GetPage(
+      name: AppRoutes.savePostReel,
+      page: () => const SavePostReelScreen(),
+      binding: HomeBinding(),
+    ),
+    GetPage(
       name: AppRoutes.chatList,
       page: () => const ChatListScreen(),
       binding: HomeBinding(),
@@ -149,12 +156,17 @@ class AppPages {
     ),
     GetPage(
       name: AppRoutes.music,
-      page: () => const MusicScreen(),
+      page: () => MusicScreen(),
+      binding: MusicBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.nowPlaying,
+      page: () => MusicScreen(),
       binding: MusicBinding(),
     ),
     GetPage(
       name: AppRoutes.musicPicker,
-      page: () => const MusicScreen(),
+      page: () => MusicScreen(),
       binding: MusicBinding(),
     ),
     GetPage(
@@ -174,6 +186,11 @@ class AppPages {
     GetPage(
       name: AppRoutes.arMediaPreview,
       page: () => const ArMediaPreviewScreen(),
+    ),
+    GetPage(name: AppRoutes.gesture, page: () => GestureScreen()),
+    GetPage(
+      name: AppRoutes.motionSettings,
+      page: () => const MotionSettingsScreen(),
     ),
 
     // Verification Flow Routes

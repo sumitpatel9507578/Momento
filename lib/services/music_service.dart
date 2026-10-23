@@ -1,47 +1,80 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 import '../models/song_model.dart';
 import '../utils/api_constants.dart';
 import 'api_service.dart';
+import 'jamendo_service.dart';
+import 'jiosaavn_service.dart';
 
 class MusicService {
   final ApiService _apiService;
+  final JioSaavnService _jioSaavnService = JioSaavnService();
+  final JamendoService _jamendoService = JamendoService();
 
   MusicService(this._apiService);
 
-  Future<List<SongModel>> fetchSongs({String? query}) async {
+  Future<List<SongModel>> searchSongs(
+    String query, {
+    String language = 'hindi',
+  }) async {
+    if (query.trim().isEmpty) return [];
+
     try {
-      final url = query != null && query.isNotEmpty
-          ? "${ApiConstants.songs}/search?q=$query"
-          : ApiConstants.songs;
+      // 1. Primary: Try JioSaavn API
+      final saavnResults = await _jioSaavnService.searchSongs(query);
+      if (saavnResults.isNotEmpty) return saavnResults;
 
+      // 2. Secondary: Try Momento Backend API
+      final url =
+          "${ApiConstants.songs}/search?q=${Uri.encodeComponent(query)}";
       final response = await _apiService.get(url);
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final List songsJson = data['data'] ?? data['songs'] ?? [];
-        return songsJson.map((json) => SongModel.fromJson(json)).toList();
+        final results = songsJson
+            .whereType<Map>()
+            .map((json) => SongModel.fromJson(Map<String, dynamic>.from(json)))
+            .toList();
+        if (results.isNotEmpty) return results;
       }
-      return [];
+
+      // 3. Fallback: Jamendo API
+      return await _jamendoService.searchSongs(query);
     } catch (e) {
-      print("MusicService Error: $e");
-      return [];
+      debugPrint("MusicService search error: $e");
+      return await _jamendoService.searchSongs(query);
     }
   }
 
-  Future<List<SongModel>> getTrendingSongs() async {
+  Future<List<SongModel>> getTrendingSongs({
+    String language = 'hindi',
+  }) async {
     try {
-      final response = await _apiService.get("${ApiConstants.songs}/trending");
+      // 1. Primary: Try JioSaavn API
+      final saavnResults = await _jioSaavnService.getTrendingSongs(
+        language: language,
+      );
+      if (saavnResults.isNotEmpty) return saavnResults;
 
+      // 2. Secondary: Try Momento Backend API
+      final response = await _apiService.get("${ApiConstants.songs}/trending");
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final List songsJson = data['data'] ?? data['songs'] ?? [];
-        return songsJson.map((json) => SongModel.fromJson(json)).toList();
+        final results = songsJson
+            .whereType<Map>()
+            .map((json) => SongModel.fromJson(Map<String, dynamic>.from(json)))
+            .toList();
+        if (results.isNotEmpty) return results;
       }
-      return [];
+
+      // 3. Fallback: Jamendo API
+      return await _jamendoService.getPopularSongs();
     } catch (e) {
-      print("MusicService Trending Error: $e");
-      return [];
+      debugPrint("MusicService trending error: $e");
+      return await _jamendoService.getPopularSongs();
     }
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../controllers/login_controller.dart';
 import '../routes/app_routes.dart';
@@ -19,11 +20,11 @@ class LoginScreen extends GetView<LoginController> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text(
+                Text(
                   'Momento',
-                  style: TextStyle(
-                    fontSize: 40,
-                    fontWeight: FontWeight.bold,
+                  style: GoogleFonts.grandHotel(
+                    fontSize: 50,
+                    fontWeight: FontWeight.w500,
                     color: Colors.white,
                   ),
                 ),

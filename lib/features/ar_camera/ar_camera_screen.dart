@@ -8,7 +8,7 @@ import '../../utils/app_colors.dart';
 import 'ar_camera_controller.dart';
 import 'ar_filter_model.dart';
 
-class ArCameraScreen extends StatelessWidget {
+class ArCameraScreen extends StatefulWidget {
   const ArCameraScreen({super.key});
 
   @override
@@ -53,10 +53,10 @@ class _ArCameraScreenState extends State<ArCameraScreen> {
           return Stack(
             fit: StackFit.expand,
             children: [
-              // 1. DeepAR Camera Preview
+              // 1. DeepAR Camera Preview - Static, never recreated on filter taps
               DeepArPreview(controller.deepArController),
 
-              // 2. Top Action Bar (Close, Camera Flip, Flash)
+              // 2. Top Action Bar (Close, Category Tabs, Flash, Flip)
               Positioned(
                 top: MediaQuery.of(context).padding.top + 12,
                 left: 16,
@@ -73,49 +73,63 @@ class _ArCameraScreenState extends State<ArCameraScreen> {
                     ),
 
                     // Top Category Selector Tabs (Funny, Romantic, Serious)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black45,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: ArFilterCategory.values.map((cat) {
-                          final isSelected =
-                              controller.selectedCategory.value == cat;
-                          return GestureDetector(
-                            onTap: () => controller.selectCategory(cat),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? AppColors.purple
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Text(
-                                cat.displayName,
-                                style: TextStyle(
-                                  color: isSelected
-                                      ? Colors.white
-                                      : Colors.white70,
-                                  fontWeight: isSelected
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
+                    Flexible(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black45,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Obx(() {
+                            final currentCat =
+                                controller.selectedCategory.value;
+                            return Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: ArFilterCategory.values.map((cat) {
+                                final isSelected = currentCat == cat;
+                                return GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () {
+                                    debugPrint(
+                                      'AR Category Tapped: ${cat.displayName}',
+                                    );
+                                    controller.selectCategory(cat);
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? AppColors.purple
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: Text(
+                                      cat.displayName,
+                                      style: TextStyle(
+                                        color: isSelected
+                                            ? Colors.white
+                                            : Colors.white70,
+                                        fontWeight: isSelected
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            );
+                          }),
+                        ),
                       ),
                     ),
 
@@ -123,14 +137,16 @@ class _ArCameraScreenState extends State<ArCameraScreen> {
                       children: [
                         CircleAvatar(
                           backgroundColor: Colors.black45,
-                          child: IconButton(
-                            icon: Icon(
-                              controller.isFlashOn.value
-                                  ? Icons.flash_on
-                                  : Icons.flash_off,
-                              color: Colors.white,
+                          child: Obx(
+                            () => IconButton(
+                              icon: Icon(
+                                controller.isFlashOn.value
+                                    ? Icons.flash_on
+                                    : Icons.flash_off,
+                                color: Colors.white,
+                              ),
+                              onPressed: controller.toggleFlash,
                             ),
-                            onPressed: controller.toggleFlash,
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -150,9 +166,12 @@ class _ArCameraScreenState extends State<ArCameraScreen> {
                 ),
               ),
 
-              // 3. Recording Timer Indicator (If Recording Video)
-              if (controller.isRecording.value)
-                Positioned(
+              // 3. Recording Timer Indicator
+              Obx(() {
+                if (!controller.isRecording.value) {
+                  return const SizedBox.shrink();
+                }
+                return Positioned(
                   top: MediaQuery.of(context).padding.top + 70,
                   left: 0,
                   right: 0,
@@ -189,9 +208,10 @@ class _ArCameraScreenState extends State<ArCameraScreen> {
                       ),
                     ),
                   ),
-                ),
+                );
+              }),
 
-              // 4. Bottom Controls (Filter Carousel + Snapchat Style Capture Button)
+              // 4. Bottom Controls (Filter Carousel + Capture Button)
               Positioned(
                 bottom: MediaQuery.of(context).padding.bottom + 20,
                 left: 0,
@@ -201,64 +221,78 @@ class _ArCameraScreenState extends State<ArCameraScreen> {
                   children: [
                     // Filter Horizontal Carousel
                     SizedBox(
-                      height: 80,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: controller.currentFilters.length,
-                        itemBuilder: (context, index) {
-                          final filter = controller.currentFilters[index];
-                          final isSelected =
-                              controller.activeFilterIndex.value == index;
+                      height: 92,
+                      child: Obx(() {
+                        final filters = controller.currentFilters;
+                        final activeIdx = controller.activeFilterIndex.value;
 
-                          return GestureDetector(
-                            onTap: () => controller.selectFilterIndex(index),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              margin: const EdgeInsets.symmetric(horizontal: 8),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    width: isSelected ? 56 : 48,
-                                    height: isSelected ? 56 : 48,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
+                        return ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: filters.length,
+                          itemBuilder: (context, index) {
+                            final filter = filters[index];
+                            final isSelected = activeIdx == index;
+
+                            return GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () {
+                                debugPrint(
+                                  'AR Filter Tapped: ${filter.name} (index: $index)',
+                                );
+                                controller.selectFilterIndex(index);
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: isSelected ? 56 : 48,
+                                      height: isSelected ? 56 : 48,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? AppColors.purple
+                                              : Colors.white54,
+                                          width: isSelected ? 3 : 1.5,
+                                        ),
+                                        color: Colors.black45,
+                                      ),
+                                      child: Icon(
+                                        filter.iconData,
                                         color: isSelected
                                             ? AppColors.purple
-                                            : Colors.white54,
-                                        width: isSelected ? 3 : 1.5,
+                                            : Colors.white,
+                                        size: isSelected ? 26 : 22,
                                       ),
-                                      color: Colors.black45,
                                     ),
-                                    child: Icon(
-                                      filter.iconData,
-                                      color: isSelected
-                                          ? AppColors.purple
-                                          : Colors.white,
-                                      size: isSelected ? 26 : 22,
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      filter.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: isSelected
+                                            ? AppColors.purple
+                                            : Colors.white70,
+                                        fontSize: 11,
+                                        fontWeight: isSelected
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    filter.name,
-                                    style: TextStyle(
-                                      color: isSelected
-                                          ? AppColors.purple
-                                          : Colors.white70,
-                                      fontSize: 11,
-                                      fontWeight: isSelected
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
-                                    ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
+                            );
+                          },
+                        );
+                      }),
                     ),
 
                     const SizedBox(height: 16),
@@ -315,8 +349,8 @@ class _ArCameraScreenState extends State<ArCameraScreen> {
                             ),
                           ),
                         ),
-                      ),
-                    ),
+                      );
+                    }),
                   ],
                 ),
               ),

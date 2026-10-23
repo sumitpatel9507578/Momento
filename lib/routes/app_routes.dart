@@ -16,15 +16,19 @@ class AppRoutes {
   static const String notifications = '/notifications';
   static const String create = '/create';
   static const String saved = '/saved';
+  static const String savePostReel = '/save-post-reel';
   static const String chatList = '/chat-list';
   static const String chat = '/chat';
   static const String music = '/music';
   static const String musicPicker = '/music-picker';
+  static const String nowPlaying = '/now-playing';
   static const String completeProfile = '/complete-profile';
   static const String findPeople = '/find-people';
   static const String logoutLoading = '/logout-loading';
   static const String arCamera = '/ar-camera';
   static const String arMediaPreview = '/ar-media-preview';
+  static const String gesture = '/gesture';
+  static const String motionSettings = '/motion-settings';
 
   // Verification Routes
   static const String verificationInfo = '/verification-info';

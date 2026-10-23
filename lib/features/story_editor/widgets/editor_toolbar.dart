@@ -11,6 +11,7 @@ class EditorToolbar extends StatelessWidget {
   final VoidCallback onSave;
   final VoidCallback onAiLabel;
   final VoidCallback onMore;
+  final VoidCallback? onSubtitles;
   final bool isAiActive;
 
   const EditorToolbar({
@@ -25,6 +26,7 @@ class EditorToolbar extends StatelessWidget {
     required this.onSave,
     required this.onAiLabel,
     required this.onMore,
+    this.onSubtitles,
     required this.isAiActive,
   });
 
@@ -48,6 +50,8 @@ class EditorToolbar extends StatelessWidget {
               onStickers,
             ),
             _toolbarButton(Icons.music_note_rounded, 'Music', onMusic),
+            if (onSubtitles != null)
+              _toolbarButton(Icons.subtitles_rounded, 'Subtitles', onSubtitles!),
             _toolbarButton(Icons.palette_outlined, 'Restyle', onRestyle),
             _toolbarButton(Icons.brush_rounded, 'Draw', onDraw),
             _toolbarButton(Icons.auto_fix_high_rounded, 'Effects', onEffects),

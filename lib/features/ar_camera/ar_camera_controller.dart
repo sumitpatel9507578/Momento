@@ -94,7 +94,6 @@ class ArCameraController extends GetxController {
   }
 
   void selectCategory(ArFilterCategory cat) {
-    if (selectedCategory.value == cat) return;
     _updateCategoryFilters(cat);
     if (currentFilters.isNotEmpty) {
       applyFilter(currentFilters[0]);

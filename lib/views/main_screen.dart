@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:momento/utils/app_colors.dart';
+import 'package:momento/views/create_post_screen.dart';
+import 'package:momento/widgets/mini_player_widget.dart';
 
 import '../controllers/home_controller.dart';
 import '../controllers/network_controller.dart';
 import '../controllers/profile_controller.dart';
 import '../utils/api_constants.dart';
-import '../utils/app_colors.dart';
-import 'create_post_screen.dart';
 import 'home_screen.dart';
+import 'music_screen.dart';
 import 'profile_screen.dart';
 import 'reels_screen.dart';
 import 'search_screen.dart';
@@ -25,6 +27,7 @@ class MainScreen extends StatelessWidget {
       const CreatePostScreen(),
       const ReelsScreen(),
       const ProfileScreen(),
+      MusicScreen(), // Index 5
     ];
 
     return Scaffold(
@@ -128,12 +131,14 @@ class MainScreen extends StatelessWidget {
   ) {
     final isSelected = controller.currentIndex.value == index;
     return IconButton(
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      padding: EdgeInsets.zero,
       onPressed: () => controller.changeTab(index),
       highlightColor: Colors.transparent,
       splashColor: Colors.transparent,
       icon: Icon(
         isSelected ? activeIcon : inactiveIcon,
-        size: 28,
+        size: 26,
         color: Colors.white,
       ),
     );

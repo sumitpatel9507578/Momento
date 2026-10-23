@@ -12,7 +12,11 @@ class MusicPickerSheet extends StatelessWidget {
     {'title': 'Blinding Lights', 'artist': 'The Weeknd', 'duration': '0:30'},
     {'title': 'Levitating', 'artist': 'Dua Lipa', 'duration': '0:30'},
     {'title': 'As It Was', 'artist': 'Harry Styles', 'duration': '0:30'},
-    {'title': 'Stay', 'artist': 'The Kid LAROI, Justin Bieber', 'duration': '0:30'},
+    {
+      'title': 'Stay',
+      'artist': 'The Kid LAROI, Justin Bieber',
+      'duration': '0:30',
+    },
     {'title': 'Heat Waves', 'artist': 'Glass Animals', 'duration': '0:30'},
   ];
 
@@ -74,7 +78,10 @@ class MusicPickerSheet extends StatelessWidget {
                       color: Colors.purple.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.music_note, color: Colors.purpleAccent),
+                    child: const Icon(
+                      Icons.music_note,
+                      color: Colors.purpleAccent,
+                    ),
                   ),
                   title: Text(
                     song['title']!,
@@ -88,7 +95,10 @@ class MusicPickerSheet extends StatelessWidget {
                     style: const TextStyle(color: Colors.white54, fontSize: 12),
                   ),
                   trailing: IconButton(
-                    icon: const Icon(Icons.play_circle_fill, color: Colors.white),
+                    icon: const Icon(
+                      Icons.play_circle_fill,
+                      color: Colors.white,
+                    ),
                     onPressed: () {
                       onSongSelected(song);
                       Get.back();

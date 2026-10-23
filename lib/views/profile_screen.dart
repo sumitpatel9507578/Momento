@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:momento/models/post_model.dart';
+import 'package:momento/controllers/profile_controller.dart';
 
-import '../controllers/profile_controller.dart';
 import '../routes/app_routes.dart';
 import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
@@ -139,6 +138,15 @@ class ProfileScreen extends StatelessWidget {
                   ],
                 ),
                 actions: [
+                  if (isMe)
+                    IconButton(
+                      tooltip: 'Saved Items',
+                      onPressed: () => Get.toNamed(AppRoutes.saved),
+                      icon: const Icon(
+                        Icons.bookmark_outline_rounded,
+                        color: Colors.white,
+                      ),
+                    ),
                   if (!isMe)
                     IconButton(
                       onPressed: () => ReportBottomSheet.show(
@@ -349,7 +357,7 @@ class ProfileScreen extends StatelessWidget {
 
                       const SizedBox(height: 16),
 
-                      // Tab Selector Bar (Posts / Reels)
+                      // Tab Selector Bar (Posts / Reels / Saved)
                       Row(
                         children: [
                           Expanded(
@@ -410,6 +418,29 @@ class ProfileScreen extends StatelessWidget {
                               ),
                             ),
                           ),
+                          if (isMe)
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => Get.toNamed(AppRoutes.saved),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
+                                  ),
+                                  decoration: const BoxDecoration(
+                                    border: Border(
+                                      bottom: BorderSide(
+                                        color: Colors.transparent,
+                                        width: 2,
+                                      ),
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.bookmark_outline_rounded,
+                                    color: Colors.white38,
+                                  ),
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ],

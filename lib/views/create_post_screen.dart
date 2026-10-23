@@ -6,7 +6,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
 
 import '../controllers/create_post_controller.dart';
+import '../features/ai/mira_caption_sheet.dart';
 import '../routes/app_routes.dart';
+import '../widgets/mira_ai_button.dart';
 import 'video_filter_preview_screen.dart';
 
 class CreatePostScreen extends GetView<CreatePostController> {
@@ -211,15 +213,63 @@ class CreatePostScreen extends GetView<CreatePostController> {
                   ),
                   Padding(
                     padding: const EdgeInsets.all(16),
-                    child: TextField(
-                      controller: controller.captionController,
-                      maxLines: 3,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
-                        hintText: 'Write a caption...',
-                        hintStyle: TextStyle(color: Colors.white24),
-                        border: InputBorder.none,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Caption',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            MiraAiButton(
+                              label: 'Write with Mira',
+                              compact: true,
+                              onPressed: () {
+                                showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (context) => MiraCaptionSheet(
+                                    imagePath: controller.selectedFile.value?.path,
+                                    onApply: (caption, hashtags) {
+                                      final currentText =
+                                          controller.captionController.text;
+                                      final combined = [
+                                        if (caption.isNotEmpty) caption,
+                                        if (hashtags.isNotEmpty) hashtags,
+                                      ].join('\n\n');
+
+                                      if (currentText.trim().isEmpty) {
+                                        controller.captionController.text =
+                                            combined;
+                                      } else {
+                                        controller.captionController.text =
+                                            '$currentText\n\n$combined';
+                                      }
+                                    },
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: controller.captionController,
+                          maxLines: 3,
+                          style: const TextStyle(color: Colors.white),
+                          decoration: const InputDecoration(
+                            hintText: 'Write a caption...',
+                            hintStyle: TextStyle(color: Colors.white24),
+                            border: InputBorder.none,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const Divider(color: Colors.white10),

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:momento/controllers/home_controller.dart';
 import 'package:momento/controllers/profile_controller.dart';
 import 'package:momento/models/post_model.dart';
+import 'package:momento/routes/app_routes.dart';
 import 'package:momento/services/api_service.dart';
 import 'package:momento/utils/api_constants.dart';
 import 'package:momento/utils/app_colors.dart';
@@ -98,6 +99,17 @@ class PostCard extends StatefulWidget {
                   ClipboardData(text: ApiConstants.getFullUrl(post.mediaUrl)),
                 );
                 Get.snackbar('Share', 'Post link copied to clipboard!');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.download_rounded, color: Colors.white),
+              title: const Text(
+                'Save / Download to Gallery',
+                style: TextStyle(color: Colors.white),
+              ),
+              onTap: () {
+                Get.back();
+                Get.toNamed(AppRoutes.savePostReel, arguments: post);
               },
             ),
             ListTile(

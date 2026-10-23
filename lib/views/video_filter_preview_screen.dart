@@ -167,60 +167,71 @@ class _VideoFilterPreviewScreenState extends State<VideoFilterPreviewScreen> {
                 ),
               ),
               Container(
-                height: 110,
+                height: 120,
                 color: Colors.grey[900],
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _presets.length,
-                  itemBuilder: (context, index) {
-                    final preset = _presets[index];
-                    final isSelected = _selectedPresetName == preset.name;
-                    return GestureDetector(
-                      onTap: () {
-                        _initFilter(preset.createConfiguration(), preset.name);
-                      },
-                      child: Container(
-                        width: 90,
-                        margin: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: isSelected ? Colors.blue : Colors.grey[800],
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: isSelected
-                                ? Colors.white
-                                : Colors.transparent,
-                            width: 2,
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.movie_filter,
-                              color: Colors.white,
-                              size: 28,
+                child: SafeArea(
+                  top: false,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    itemCount: _presets.length,
+                    itemBuilder: (context, index) {
+                      final preset = _presets[index];
+                      final isSelected = _selectedPresetName == preset.name;
+                      return GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          _initFilter(
+                            preset.createConfiguration(),
+                            preset.name,
+                          );
+                        },
+                        child: Container(
+                          width: 85,
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          decoration: BoxDecoration(
+                            color: isSelected ? Colors.blue : Colors.grey[800],
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: isSelected
+                                  ? Colors.white
+                                  : Colors.transparent,
+                              width: 2,
                             ),
-                            const SizedBox(height: 6),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 4.0,
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.movie_filter,
+                                color: Colors.white,
+                                size: 26,
                               ),
-                              child: Text(
-                                preset.name,
-                                maxLines: 2,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
+                              const SizedBox(height: 4),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 4.0,
+                                ),
+                                child: Text(
+                                  preset.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
               ),
             ],

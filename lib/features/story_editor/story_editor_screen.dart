@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../controllers/mira_ai_controller.dart';
 import '../../utils/api_constants.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/image_filter_utils.dart';
 import 'controllers/story_editor_controller.dart';
 import 'widgets/editor_toolbar.dart';
 import 'widgets/filter_strip.dart';
@@ -30,128 +32,98 @@ class StoryEditorScreen extends GetView<StoryEditorController> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Background Media (Image or Video)
+          // Background Media with Instagram-style horizontal swipe for live filter changes
           Positioned.fill(
-            child: Obx(() {
-              final path = controller.mediaPath;
-              final isFile =
-                  path.startsWith('/') ||
-                  path.startsWith('file://') ||
-                  path.startsWith('content://');
-              String cleanPath = path;
-              if (path.startsWith('file://')) {
-                cleanPath = path.replaceFirst(RegExp(r'^file://+'), '');
-                if (!Platform.isWindows && !cleanPath.startsWith('/')) {
-                  cleanPath = '/$cleanPath';
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onHorizontalDragEnd: (details) {
+                if (details.primaryVelocity == null) return;
+                final filters = ImageFilterUtils.availableFilters;
+                final currentIndex = filters.indexWhere(
+                  (f) =>
+                      f.name.toLowerCase() ==
+                      controller.selectedFilter.value.toLowerCase(),
+                );
+                int nextIndex = currentIndex == -1 ? 0 : currentIndex;
+                if (details.primaryVelocity! < -200) {
+                  // Swiped Left -> Next Filter
+                  nextIndex = (nextIndex + 1) % filters.length;
+                } else if (details.primaryVelocity! > 200) {
+                  // Swiped Right -> Previous Filter
+                  nextIndex = (nextIndex - 1 + filters.length) % filters.length;
                 }
-              }
-              final filter = controller.selectedFilter.value;
-              final isVideo = _isVideoFile(cleanPath, controller.mediaType);
-
-              Widget mediaWidget;
-              if (isFile && File(cleanPath).existsSync() && isVideo) {
-                mediaWidget = _EditorVideoPreviewWidget(file: File(cleanPath));
-              } else if (isFile && File(cleanPath).existsSync()) {
-                mediaWidget = Image.file(File(cleanPath), fit: BoxFit.cover);
-              } else {
-                mediaWidget = Image.network(
-                  ApiConstants.getFullUrl(path),
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => Container(
-                    color: Colors.grey[900],
-                    child: const Center(
-                      child: Icon(
-                        Icons.broken_image,
-                        color: Colors.white54,
-                        size: 48,
+                if (nextIndex != currentIndex && currentIndex != -1) {
+                  final newFilter = filters[nextIndex].name;
+                  controller.setFilter(newFilter);
+                  Get.rawSnackbar(
+                    messageText: Text(
+                      'Filter: $newFilter',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
                       ),
                     ),
-                  ),
-                );
-              }
+                    duration: const Duration(milliseconds: 900),
+                    snackPosition: SnackPosition.TOP,
+                    backgroundColor: Colors.purple.withValues(alpha: 0.8),
+                    borderRadius: 20,
+                    margin: const EdgeInsets.only(top: 60, left: 100, right: 100),
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  );
+                }
+              },
+              child: Obx(() {
+                final path = controller.mediaPath;
+                final isFile =
+                    path.startsWith('/') ||
+                    path.startsWith('file://') ||
+                    path.startsWith('content://');
+                String cleanPath = path;
+                if (path.startsWith('file://')) {
+                  cleanPath = path.replaceFirst(RegExp(r'^file://+'), '');
+                  if (!Platform.isWindows && !cleanPath.startsWith('/')) {
+                    cleanPath = '/$cleanPath';
+                  }
+                }
+                final filter = controller.selectedFilter.value;
+                final isVideo = _isVideoFile(cleanPath, controller.mediaType);
 
-              if (filter == 'B&W') {
-                mediaWidget = ColorFiltered(
-                  colorFilter: const ColorFilter.matrix(<double>[
-                    0.2126,
-                    0.7152,
-                    0.0722,
-                    0,
-                    0,
-                    0.2126,
-                    0.7152,
-                    0.0722,
-                    0,
-                    0,
-                    0.2126,
-                    0.7152,
-                    0.0722,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    1,
-                    0,
-                  ]),
-                  child: mediaWidget,
-                );
-              } else if (filter == 'Warm') {
-                mediaWidget = ColorFiltered(
-                  colorFilter: const ColorFilter.matrix(<double>[
-                    1.2,
-                    0,
-                    0,
-                    0,
-                    10,
-                    0,
-                    1.0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0.8,
-                    0,
-                    -10,
-                    0,
-                    0,
-                    0,
-                    1,
-                    0,
-                  ]),
-                  child: mediaWidget,
-                );
-              } else if (filter == 'Cool') {
-                mediaWidget = ColorFiltered(
-                  colorFilter: const ColorFilter.matrix(<double>[
-                    0.9,
-                    0,
-                    0,
-                    0,
-                    -10,
-                    0,
-                    1.0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    0,
-                    1.3,
-                    0,
-                    20,
-                    0,
-                    0,
-                    0,
-                    1,
-                    0,
-                  ]),
-                  child: mediaWidget,
-                );
-              }
+                Widget mediaWidget;
+                if (isFile && File(cleanPath).existsSync() && isVideo) {
+                  mediaWidget = _EditorVideoPreviewWidget(file: File(cleanPath));
+                } else if (isFile && File(cleanPath).existsSync()) {
+                  mediaWidget = Image.file(File(cleanPath), fit: BoxFit.cover);
+                } else {
+                  mediaWidget = Image.network(
+                    ApiConstants.getFullUrl(path),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => Container(
+                      color: Colors.grey[900],
+                      child: const Center(
+                        child: Icon(
+                          Icons.broken_image,
+                          color: Colors.white54,
+                          size: 48,
+                        ),
+                      ),
+                    ),
+                  );
+                }
 
-              return mediaWidget;
-            }),
+                // Apply live color matrix filter
+                final matrix = ImageFilterUtils.getMatrixByName(filter);
+                if (matrix != null) {
+                  mediaWidget = ColorFiltered(
+                    colorFilter: ColorFilter.matrix(matrix),
+                    child: mediaWidget,
+                  );
+                }
+
+                return mediaWidget;
+              }),
+            ),
           ),
 
           // Interactive Layers (Text, Stickers, Mentions)
@@ -279,31 +251,54 @@ class StoryEditorScreen extends GetView<StoryEditorController> {
                     ),
                     isScrollControlled: true,
                   ),
+                  onSubtitles: controller.mediaType == 'video'
+                      ? () => _generateSubtitles(context)
+                      : null,
                   onRestyle: () {
                     Get.bottomSheet(
-                      Container(
-                        color: AppColors.surface,
-                        padding: const EdgeInsets.symmetric(vertical: 20),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Text(
-                              'Restyle Filters',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                      SafeArea(
+                        child: Container(
+                          decoration: const BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(20),
+                            ),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 38,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: Colors.white30,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 12),
-                            FilterStrip(
-                              selectedFilter: controller.selectedFilter.value,
-                              onFilterSelected: (filter) =>
-                                  controller.setFilter(filter),
-                            ),
-                          ],
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Restyle Filters',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Obx(
+                                () => FilterStrip(
+                                  selectedFilter:
+                                      controller.selectedFilter.value,
+                                  onFilterSelected: (filter) =>
+                                      controller.setFilter(filter),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
+                      isScrollControlled: true,
                     );
                   },
                   onDraw: () => Get.snackbar('Draw', 'Drawing mode active'),
@@ -355,6 +350,47 @@ class StoryEditorScreen extends GetView<StoryEditorController> {
         lower.endsWith('.mov') ||
         lower.endsWith('.avi') ||
         lower.endsWith('.mkv');
+  }
+
+  void _generateSubtitles(BuildContext context) async {
+    final miraController = Get.put(MiraAiController());
+    Get.snackbar(
+      'Mira Subtitles',
+      'Transcribing video speech...',
+      snackPosition: SnackPosition.TOP,
+      backgroundColor: Colors.purple.withValues(alpha: 0.8),
+      colorText: Colors.white,
+    );
+
+    final subtitles = await miraController.generateSubtitles(
+      controller.mediaPath,
+    );
+    if (subtitles.isNotEmpty) {
+      for (final sub in subtitles) {
+        final text = sub['text'] ?? sub['subtitle'] ?? '';
+        if (text.toString().trim().isNotEmpty) {
+          controller.addTextLayer(
+            text: text.toString().trim(),
+            hasBackground: true,
+          );
+        }
+      }
+      Get.snackbar(
+        'Success',
+        'Subtitles generated and added to video layers!',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.green.withValues(alpha: 0.8),
+        colorText: Colors.white,
+      );
+    } else {
+      Get.snackbar(
+        'Notice',
+        'No subtitles detected or backend transcription unconfigured.',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.orange.withValues(alpha: 0.8),
+        colorText: Colors.white,
+      );
+    }
   }
 
   void _showAddTextDialog(BuildContext context) {

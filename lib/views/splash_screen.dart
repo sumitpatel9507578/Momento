@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../controllers/splash_controller.dart';
 import '../utils/app_colors.dart';
@@ -32,9 +33,9 @@ class SplashScreen extends StatelessWidget {
 
                 Text(
                   'Momento',
-                  style: TextStyle(
-                    fontSize: size.width * 0.09,
-                    fontWeight: FontWeight.w800,
+                  style: GoogleFonts.grandHotel(
+                    fontSize: 48,
+                    fontWeight: FontWeight.w500,
                     color: Colors.white,
                   ),
                 ),

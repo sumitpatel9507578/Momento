@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../controllers/home_controller.dart';
 import '../widgets/post_card.dart';
@@ -14,10 +15,16 @@ class HomeScreen extends GetView<HomeController> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
-        centerTitle: false,
-        title: const Text(
+        elevation: 0,
+        centerTitle: true,
+        title: Text(
           'Momento',
-          style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+          style: GoogleFonts.grandHotel(
+            fontSize: 34,
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.5,
+          ),
         ),
         actions: [
           IconButton(

@@ -97,32 +97,46 @@ class ApiService {
     );
   }
 
-  // Helper to retry request on Render cold-start / server wakeup (500/502/503/504 or connection drop)
+  // Helper to retry request on Render cold-start / server wakeup (500/502/503/504, ETIMEDOUT or connection drop)
   Future<http.Response> _withRetry(
     Future<http.Response> Function() requestFn, {
-    int maxRetries = 3,
+    int maxRetries = 4,
   }) async {
     int attempts = 0;
     while (attempts < maxRetries) {
       attempts++;
       try {
         final response = await requestFn();
-        if ((response.statusCode == 500 ||
-                response.statusCode == 502 ||
-                response.statusCode == 503 ||
-                response.statusCode == 504) &&
-            attempts < maxRetries) {
+        final isServerError = response.statusCode == 500 ||
+            response.statusCode == 502 ||
+            response.statusCode == 503 ||
+            response.statusCode == 504;
+
+        bool isDbTimeout = false;
+        if (isServerError && response.body.isNotEmpty) {
+          try {
+            final body = jsonDecode(response.body);
+            if (body is Map &&
+                (body['error_detail'] == 'ETIMEDOUT' ||
+                    body['message'] == 'Server Error: ')) {
+              isDbTimeout = true;
+            }
+          } catch (_) {}
+        }
+
+        if ((isServerError || isDbTimeout) && attempts < maxRetries) {
+          final delaySec = attempts * 3;
           print(
-            "ApiService: Server returning ${response.statusCode} (waking up or error), retrying attempt $attempts...",
+            "ApiService: Server/DB waking up (${response.statusCode} ETIMEDOUT - attempt $attempts), retrying in ${delaySec}s...",
           );
-          await Future.delayed(const Duration(seconds: 3));
+          await Future.delayed(Duration(seconds: delaySec));
           continue;
         }
         return response;
       } on TimeoutException {
         if (attempts < maxRetries) {
           print("ApiService: Request timeout, retrying attempt $attempts...");
-          await Future.delayed(const Duration(seconds: 2));
+          await Future.delayed(Duration(seconds: attempts * 2));
           continue;
         }
         rethrow;
@@ -131,7 +145,7 @@ class ApiService {
           print(
             "ApiService: Request error ($e), retrying attempt $attempts...",
           );
-          await Future.delayed(const Duration(seconds: 3));
+          await Future.delayed(Duration(seconds: attempts * 2));
           continue;
         }
         rethrow;

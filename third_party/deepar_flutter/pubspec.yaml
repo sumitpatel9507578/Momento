@@ -1,0 +1,29 @@
+name: deepar_flutter
+description: Official Flutter SDK for DeepAR
+version: 0.0.5
+homepage: http://deepar.ai
+repository: https://github.com/DeepARSDK/deepar-flutter-plugin
+
+environment:
+  sdk: ">=2.16.1 <4.0.0"
+  flutter: ">=2.5.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  permission_handler: ">=10.0.0 <15.0.0"
+  vector_math:
+
+dev_dependencies:
+  flutter_lints: ^1.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.deepar.ai
+        pluginClass: DeepArPlugin
+      ios:
+        pluginClass: DeepArPlugin

@@ -12,6 +12,8 @@ import 'package:momento/utils/api_constants.dart';
 import 'package:momento/utils/app_colors.dart';
 import 'package:momento/widgets/user_avatar.dart';
 
+import '../widgets/mira_chat_replies_widget.dart';
+
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
 
@@ -253,96 +255,127 @@ class _ChatScreenState extends State<ChatScreen> {
               MediaQuery.of(context).padding.bottom + 8,
             ),
             color: AppColors.background,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(26),
-                border: Border.all(color: Colors.white12, width: 0.8),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  IconButton(
-                    padding: const EdgeInsets.all(6),
-                    constraints: const BoxConstraints(),
-                    onPressed: () => _pickAndSendImage(ImageSource.camera),
-                    icon: const Icon(
-                      Icons.camera_alt_outlined,
-                      color: Colors.white54,
-                      size: 22,
-                    ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Mira Smart Replies
+                Obx(() {
+                  final messages = controller.messages;
+                  if (messages.isEmpty) return const SizedBox.shrink();
+
+                  return MiraChatRepliesWidget(
+                    messages: messages,
+                    inputController: messageController,
+                    onSend: (text) async {
+                      if (text.isNotEmpty) {
+                        messageController.clear();
+                        await controller.sendMessage(_targetUserId, text);
+                      }
+                    },
+                  );
+                }),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
                   ),
-                  IconButton(
-                    padding: const EdgeInsets.all(6),
-                    constraints: const BoxConstraints(),
-                    onPressed: () => _pickAndSendImage(ImageSource.gallery),
-                    icon: const Icon(
-                      Icons.image_outlined,
-                      color: Colors.white54,
-                      size: 22,
-                    ),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(26),
+                    border: Border.all(color: Colors.white12, width: 0.8),
                   ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: TextField(
-                      controller: messageController,
-                      onChanged: (text) => controller.onMessageInput(
-                        _targetUserId,
-                        text.trim().isNotEmpty,
-                      ),
-                      minLines: 1,
-                      maxLines: 5,
-                      style: const TextStyle(color: Colors.white, fontSize: 15),
-                      decoration: const InputDecoration(
-                        hintText: 'Message...',
-                        hintStyle: TextStyle(
-                          color: Colors.white38,
-                          fontSize: 15,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        padding: const EdgeInsets.all(6),
+                        constraints: const BoxConstraints(),
+                        onPressed: () => _pickAndSendImage(ImageSource.camera),
+                        icon: const Icon(
+                          Icons.camera_alt_outlined,
+                          color: Colors.white54,
+                          size: 22,
                         ),
-                        border: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.symmetric(vertical: 10),
                       ),
-                    ),
-                  ),
-                  Obx(
-                    () => _hasText.value
-                        ? IconButton(
-                            padding: const EdgeInsets.all(8),
-                            constraints: const BoxConstraints(),
-                            onPressed: () async {
-                              final text = messageController.text.trim();
-                              if (text.isNotEmpty) {
-                                messageController.clear();
-                                final targetId = _targetUserId;
-                                controller.onMessageInput(targetId, false);
-                                await controller.sendMessage(targetId, text);
-                              }
-                            },
-                            icon: const Icon(
-                              Icons.send_rounded,
-                              color: AppColors.purple,
-                              size: 22,
-                            ),
-                          )
-                        : IconButton(
-                            padding: const EdgeInsets.all(8),
-                            constraints: const BoxConstraints(),
-                            onPressed: () async {
-                              final targetId = _targetUserId;
-                              controller.onMessageInput(targetId, false);
-                              await controller.sendMessage(targetId, '❤️');
-                            },
-                            icon: const Icon(
-                              Icons.favorite_rounded,
-                              color: Colors.redAccent,
-                              size: 22,
-                            ),
+                      IconButton(
+                        padding: const EdgeInsets.all(6),
+                        constraints: const BoxConstraints(),
+                        onPressed: () => _pickAndSendImage(ImageSource.gallery),
+                        icon: const Icon(
+                          Icons.image_outlined,
+                          color: Colors.white54,
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: TextField(
+                          controller: messageController,
+                          onChanged: (text) => controller.onMessageInput(
+                            _targetUserId,
+                            text.trim().isNotEmpty,
                           ),
+                          minLines: 1,
+                          maxLines: 5,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                          ),
+                          decoration: const InputDecoration(
+                            hintText: 'Message...',
+                            hintStyle: TextStyle(
+                              color: Colors.white38,
+                              fontSize: 15,
+                            ),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(vertical: 10),
+                          ),
+                        ),
+                      ),
+                      Obx(
+                        () => _hasText.value
+                            ? IconButton(
+                                padding: const EdgeInsets.all(8),
+                                constraints: const BoxConstraints(),
+                                onPressed: () async {
+                                  final text = messageController.text.trim();
+                                  if (text.isNotEmpty) {
+                                    messageController.clear();
+                                    final targetId = _targetUserId;
+                                    controller.onMessageInput(targetId, false);
+                                    await controller.sendMessage(
+                                      targetId,
+                                      text,
+                                    );
+                                  }
+                                },
+                                icon: const Icon(
+                                  Icons.send_rounded,
+                                  color: AppColors.purple,
+                                  size: 22,
+                                ),
+                              )
+                            : IconButton(
+                                padding: const EdgeInsets.all(8),
+                                constraints: const BoxConstraints(),
+                                onPressed: () async {
+                                  final targetId = _targetUserId;
+                                  controller.onMessageInput(targetId, false);
+                                  await controller.sendMessage(targetId, '❤️');
+                                },
+                                icon: const Icon(
+                                  Icons.favorite_rounded,
+                                  color: Colors.redAccent,
+                                  size: 22,
+                                ),
+                              ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
@@ -707,8 +740,10 @@ class _ChatScreenState extends State<ChatScreen> {
                                     extractedPostOwnerUsername,
                                     msg.createdAt,
                                   ),
-                                  child: SizedBox(
-                                    width: 230,
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 210,
+                                    ),
                                     child: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
@@ -741,12 +776,12 @@ class _ChatScreenState extends State<ChatScreen> {
                                                   ApiConstants.getFullUrl(
                                                     extractedPostImageUrl!,
                                                   ),
-                                                  width: 230,
-                                                  height: 180,
+                                                  width: double.infinity,
+                                                  height: 160,
                                                   fit: BoxFit.cover,
-                                                  errorBuilder: (_, __, ___) =>
+                                                  errorBuilder: (_, _, _) =>
                                                       Container(
-                                                        width: 230,
+                                                        width: double.infinity,
                                                         height: 120,
                                                         color: Colors.black26,
                                                         child: const Center(
@@ -761,7 +796,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                                       ),
                                                 )
                                               : Container(
-                                                  width: 230,
+                                                  width: double.infinity,
                                                   height: 120,
                                                   color: Colors.black26,
                                                   child: const Center(
@@ -797,60 +832,71 @@ class _ChatScreenState extends State<ChatScreen> {
                                   ),
                                 )
                               : msg.mediaUrl != null && msg.mediaUrl!.isNotEmpty
-                              ? Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    if (msg.messageType == 'video')
-                                      const SizedBox(
-                                        width: 220,
-                                        height: 150,
-                                        child: Center(
-                                          child: Icon(
-                                            Icons.play_circle_fill,
-                                            size: 48,
-                                            color: Colors.white,
+                              ? ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 210,
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      if (msg.messageType == 'video')
+                                        const SizedBox(
+                                          width: double.infinity,
+                                          height: 150,
+                                          child: Center(
+                                            child: Icon(
+                                              Icons.play_circle_fill,
+                                              size: 48,
+                                              color: Colors.white,
+                                            ),
                                           ),
-                                        ),
-                                      )
-                                    else
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(12),
-                                        child: Image.network(
-                                          ApiConstants.getFullUrl(msg.mediaUrl),
-                                          width: 220,
-                                          height: 220,
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (
-                                                _,
-                                                error,
-                                                stackTrace,
-                                              ) => const SizedBox(
-                                                width: 220,
-                                                height: 120,
-                                                child: Center(
-                                                  child: Icon(
-                                                    Icons.broken_image_outlined,
-                                                    color: Colors.white54,
-                                                    size: 30,
+                                        )
+                                      else
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          child: Image.network(
+                                            ApiConstants.getFullUrl(
+                                              msg.mediaUrl,
+                                            ),
+                                            width: double.infinity,
+                                            height: 200,
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (
+                                                  _,
+                                                  error,
+                                                  stackTrace,
+                                                ) => const SizedBox(
+                                                  width: double.infinity,
+                                                  height: 120,
+                                                  child: Center(
+                                                    child: Icon(
+                                                      Icons
+                                                          .broken_image_outlined,
+                                                      color: Colors.white54,
+                                                      size: 30,
+                                                    ),
                                                   ),
                                                 ),
-                                              ),
+                                          ),
                                         ),
-                                      ),
-                                    if (text.isNotEmpty) ...[
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        text,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14.5,
-                                          height: 1.25,
+                                      if (text.isNotEmpty) ...[
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          text,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14.5,
+                                            height: 1.25,
+                                          ),
                                         ),
-                                      ),
+                                      ],
                                     ],
-                                  ],
+                                  ),
                                 )
                               : Text(
                                   text,

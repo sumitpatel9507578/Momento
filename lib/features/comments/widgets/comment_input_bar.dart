@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 import '../../../utils/app_colors.dart';
 import '../../../widgets/user_avatar.dart';
+import '../../../controllers/mira_ai_controller.dart';
 
 class CommentInputBar extends StatefulWidget {
   final TextEditingController controller;
@@ -11,6 +13,8 @@ class CommentInputBar extends StatefulWidget {
   final VoidCallback? onCancelReply;
   final String currentUsername;
   final String? currentProfileImage;
+  final String? postCaption; // For context
+  final String? parentCommentText; // For context
 
   const CommentInputBar({
     super.key,
@@ -21,6 +25,8 @@ class CommentInputBar extends StatefulWidget {
     this.onCancelReply,
     required this.currentUsername,
     this.currentProfileImage,
+    this.postCaption,
+    this.parentCommentText,
   });
 
   @override
@@ -28,6 +34,45 @@ class CommentInputBar extends StatefulWidget {
 }
 
 class _CommentInputBarState extends State<CommentInputBar> {
+  final MiraAiController _miraController = Get.put(MiraAiController());
+  final RxList<String> _miraSuggestions = <String>[].obs;
+  final RxBool _isGenerating = false.obs;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchMiraSuggestions();
+  }
+  
+  @override
+  void didUpdateWidget(CommentInputBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.replyingToUsername != widget.replyingToUsername || 
+        oldWidget.parentCommentText != widget.parentCommentText) {
+      _fetchMiraSuggestions();
+    }
+  }
+
+  Future<void> _fetchMiraSuggestions() async {
+    // Only fetch if we have context
+    if (widget.postCaption == null && widget.parentCommentText == null) return;
+    
+    _isGenerating.value = true;
+    _miraSuggestions.clear();
+    
+    try {
+      final suggestions = await _miraController.generateCommentReplies(
+        postCaption: widget.postCaption ?? '',
+        parentComment: widget.parentCommentText ?? '',
+      );
+      _miraSuggestions.assignAll(suggestions);
+    } catch (_) {
+      // Fail silently
+    } finally {
+      _isGenerating.value = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(

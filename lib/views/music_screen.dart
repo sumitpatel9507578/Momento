@@ -3,415 +3,595 @@ import 'package:get/get.dart';
 
 import '../controllers/music_controller.dart';
 import '../models/song_model.dart';
-import '../utils/app_colors.dart';
-import '../widgets/glass_container.dart';
 
 class MusicScreen extends StatelessWidget {
-  const MusicScreen({super.key});
+  final bool isSelectionMode;
+  final Function(SongModel)? onSongSelected;
+  final MusicController _musicController = Get.put(MusicController());
+
+  MusicScreen({super.key, this.isSelectionMode = false, this.onSongSelected});
 
   @override
   Widget build(BuildContext context) {
-    final MusicController controller = Get.find<MusicController>();
+    final theme = Theme.of(context);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text(
-          'Add Music',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+    // Custom gradient background inspired by Spotify/Apple Music
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            theme.colorScheme.surface,
+            theme.colorScheme.surface.withAlpha(240),
+            theme.colorScheme.surface.withAlpha(220),
+          ],
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
-          onPressed: () => Get.back(),
-        ),
-        actions: [
-          Obx(() {
-            final hasSelected = controller.selectedSong.value != null;
-            return TextButton(
-              onPressed: hasSelected
-                  ? () => Get.back(result: controller.selectedSong.value)
-                  : null,
-              child: Text(
-                'Done',
-                style: TextStyle(
-                  color: hasSelected ? AppColors.cyan : Colors.white24,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-            );
-          }),
-        ],
       ),
-      body: Column(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(context),
+              _buildSearchBar(context),
+              _buildFilterChips(context),
+              Expanded(
+                child: Obx(() {
+                  if (_musicController.isLoading.value) {
+                    return _buildLoadingState(context);
+                  }
+
+                  if (_musicController.errorMessage.value.isNotEmpty) {
+                    return _buildErrorState(context);
+                  }
+
+                  if (_musicController.isSearching.value) {
+                    return _buildSearchResults(context);
+                  }
+
+                  return _buildTrendingSection(context);
+                }),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Search Bar
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: GlassContainer(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              borderRadius: BorderRadius.circular(16),
-              child: TextField(
-                onChanged: (val) => controller.searchQuery.value = val,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'Search songs, artists...',
-                  hintStyle: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.4),
-                  ),
-                  prefixIcon: const Icon(
-                    Icons.search_rounded,
-                    color: Colors.white54,
-                  ),
-                  border: InputBorder.none,
+          Row(
+            children: [
+              if (isSelectionMode)
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Get.back(),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  splashRadius: 24,
+                ),
+              if (isSelectionMode) const SizedBox(width: 16),
+              Text(
+                isSelectionMode ? 'Add Music' : 'Music',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.5,
                 ),
               ),
+            ],
+          ),
+          if (!isSelectionMode)
+            IconButton(
+              icon: const Icon(Icons.person_outline),
+              onPressed: () {}, // Profile/Settings
+              tooltip: 'Your Library',
             ),
-          ),
-
-          // Selected Song Banner if any
-          Obx(() {
-            final selected = controller.selectedSong.value;
-            if (selected == null) return const SizedBox.shrink();
-            return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.purple.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: AppColors.purple.withValues(alpha: 0.5),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.check_circle,
-                    color: AppColors.cyan,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Selected Song:',
-                          style: TextStyle(color: Colors.white54, fontSize: 10),
-                        ),
-                        Text(
-                          '${selected.title} • ${selected.artist}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.close,
-                      color: Colors.white54,
-                      size: 18,
-                    ),
-                    onPressed: () => controller.clearSelection(),
-                  ),
-                ],
-              ),
-            );
-          }),
-
-          // Song List / Results
-          Expanded(
-            child: Obx(() {
-              if (controller.isLoading.value && controller.songs.isEmpty) {
-                return const Center(
-                  child: CircularProgressIndicator(color: AppColors.purple),
-                );
-              }
-
-              if (controller.errorMessage.value.isNotEmpty &&
-                  controller.songs.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.error_outline,
-                        color: Colors.white54,
-                        size: 48,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        controller.errorMessage.value,
-                        style: const TextStyle(color: Colors.white70),
-                      ),
-                      const SizedBox(height: 12),
-                      ElevatedButton(
-                        onPressed: controller.loadPopularSongs,
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              if (controller.songs.isEmpty) {
-                return const Center(
-                  child: Text(
-                    'No songs found\nTry another search.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white38),
-                  ),
-                );
-              }
-
-              return ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                children: [
-                  if (controller.searchQuery.value.isEmpty &&
-                      controller.popularSongs.isNotEmpty) ...[
-                    const Text(
-                      'Popular Songs',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 150,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: controller.popularSongs.length,
-                        itemBuilder: (context, index) {
-                          final song = controller.popularSongs[index];
-                          return _buildPopularSongCard(controller, song);
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'All Tracks',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                  ...controller.songs.map((song) {
-                    return _buildSongTile(controller, song);
-                  }),
-                ],
-              );
-            }),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildPopularSongCard(MusicController controller, SongModel song) {
-    return Obx(() {
-      final isPlaying =
-          controller.playingSongId.value == song.id &&
-          controller.isPlaying.value;
-      final isSelected = controller.selectedSong.value?.id == song.id;
-
-      return GestureDetector(
-        onTap: () => controller.selectSong(song),
-        child: Container(
-          width: 110,
-          margin: const EdgeInsets.only(right: 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      song.imageUrl,
-                      width: 110,
-                      height: 90,
-                      fit: BoxFit.cover,
-                      errorBuilder: (c, e, s) => Container(
-                        width: 110,
-                        height: 90,
-                        color: AppColors.surface,
-                        child: const Icon(
-                          Icons.music_note,
-                          color: Colors.white24,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 6,
-                    right: 6,
-                    child: GestureDetector(
-                      onTap: () => controller.playSong(song),
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: const BoxDecoration(
-                          color: Colors.black54,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          isPlaying ? Icons.pause : Icons.play_arrow,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (isSelected)
-                    Positioned(
-                      top: 6,
-                      left: 6,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: AppColors.purple,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.check,
-                          color: Colors.white,
-                          size: 12,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                song.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                song.artist,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white54, fontSize: 10),
-              ),
-            ],
+  Widget _buildSearchBar(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(
+            context,
+          ).colorScheme.surfaceContainerHighest.withAlpha(150),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(10),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: TextField(
+          onChanged: (value) => _musicController.searchQuery.value = value,
+          style: const TextStyle(fontSize: 16),
+          decoration: InputDecoration(
+            hintText: 'Search songs, artists, albums...',
+            hintStyle: TextStyle(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurfaceVariant.withAlpha(150),
+            ),
+            prefixIcon: Icon(
+              Icons.search,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 16),
+            suffixIcon: Obx(
+              () => _musicController.searchQuery.value.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 20),
+                      onPressed: () {
+                        _musicController.searchQuery.value = '';
+                        FocusScope.of(context).unfocus();
+                      },
+                    )
+                  : const SizedBox.shrink(),
+            ),
           ),
         ),
-      );
-    });
+      ),
+    );
   }
 
-  Widget _buildSongTile(MusicController controller, SongModel song) {
-    return Obx(() {
-      final isPlaying =
-          controller.playingSongId.value == song.id &&
-          controller.isPlaying.value;
-      final isSelected = controller.selectedSong.value?.id == song.id;
+  Widget _buildFilterChips(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: SizedBox(
+        height: 38,
+        child: Obx(() {
+          final currentLang = _musicController.selectedLanguage.value;
+          return ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            itemCount: MusicController.availableLanguages.length,
+            itemBuilder: (context, index) {
+              final lang = MusicController.availableLanguages[index];
+              final isSelected =
+                  currentLang.toLowerCase() == lang.toLowerCase();
 
-      return Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.purple.withValues(alpha: 0.15)
-              : AppColors.surface.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected
-                ? AppColors.purple
-                : Colors.white.withValues(alpha: 0.05),
-          ),
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 4,
-            ),
-            leading: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Image.network(
-                    song.imageUrl,
-                    width: 48,
-                    height: 48,
-                    fit: BoxFit.cover,
-                    errorBuilder: (c, e, s) => Container(
-                      width: 48,
-                      height: 48,
-                      color: AppColors.surface,
-                      child: const Icon(
-                        Icons.music_note,
-                        color: Colors.white24,
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: GestureDetector(
+                  onTap: () {
+                    debugPrint('Language filter tapped: $lang');
+                    _musicController.changeLanguage(lang);
+                  },
+                  behavior: HitTestBehavior.opaque,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.primary
+                          : Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected
+                            ? Colors.transparent
+                            : Theme.of(context).dividerColor.withAlpha(50),
+                      ),
+                    ),
+                    child: Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isSelected) ...[
+                            const Icon(
+                              Icons.check_rounded,
+                              size: 14,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 4),
+                          ],
+                          Text(
+                            lang,
+                            style: TextStyle(
+                              fontWeight: isSelected
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              fontSize: 13,
+                              color: isSelected ? Colors.white : Colors.white70,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () => controller.playSong(song),
-                    child: Container(
-                      width: 48,
-                      height: 48,
-                      color: Colors.black38,
-                      child: Center(
-                        child: Icon(
-                          isPlaying
-                              ? Icons.pause_circle_filled
-                              : Icons.play_circle_fill,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                      ),
-                    ),
+                ),
+              );
+            },
+          );
+        }),
+      ),
+    );
+  }
+
+  Widget _buildLoadingState(BuildContext context) {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 16),
+          Text('Discovering music...'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            const SizedBox(height: 16),
+            Text('Oops!', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(
+              _musicController.errorMessage.value,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => _musicController.loadTrendingSongs(),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Try Again'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTrendingSection(BuildContext context) {
+    final trending = _musicController.trendingSongs;
+    final carouselSongs = trending.take(5).toList();
+    final listSongs = trending.length > 5 ? trending.skip(5).toList() : <SongModel>[];
+
+    return CustomScrollView(
+      slivers: [
+        if (carouselSongs.isNotEmpty) ...[
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+              child: Text(
+                'Trending Now',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 200,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: carouselSongs.length,
+                itemBuilder: (context, index) {
+                  return _buildCarouselCard(context, carouselSongs[index]);
+                },
+              ),
+            ),
+          ),
+        ],
+
+        if (listSongs.isNotEmpty) ...[
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+              child: Text(
+                'Top Tracks',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (context, index) =>
+                  _buildSongTile(context, listSongs[index], index + 6),
+              childCount: listSongs.length,
+            ),
+          ),
+        ],
+
+        if (trending.isEmpty)
+          const SliverFillRemaining(
+            child: Center(
+              child: Text(
+                'No trending songs available',
+                style: TextStyle(color: Colors.white54),
+              ),
+            ),
+          ),
+
+        // Bottom padding for mini player in MainScreen
+        const SliverToBoxAdapter(child: SizedBox(height: 80)),
+      ],
+    );
+  }
+
+  Widget _buildSearchResults(BuildContext context) {
+    final searchResults = _musicController.songs;
+
+    if (searchResults.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.search_off,
+              size: 64,
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurfaceVariant.withAlpha(100),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No results found',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Try different keywords or language',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 80), // Space for mini player
+      itemCount: searchResults.length,
+      itemBuilder: (context, index) {
+        return _buildSongTile(
+          context,
+          searchResults[index],
+          index + 1,
+        );
+      },
+    );
+  }
+
+  Widget _buildCarouselCard(BuildContext context, SongModel song) {
+    return GestureDetector(
+      onTap: () => _handleSongTap(
+        song,
+        context,
+        true,
+        _musicController.trendingSongs.indexOf(song),
+      ),
+      child: Container(
+        width: 140,
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: 140,
+              width: 140,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(20),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Image.network(
+                      song.imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
+                        child: const Icon(Icons.music_note, size: 40),
+                      ),
+                    ),
+                    Obx(() {
+                      final isPlaying =
+                          _musicController.playingSongIdVal == song.id &&
+                          _musicController.isPlaying.value;
+                      if (!isPlaying) return const SizedBox.shrink();
+                      return Container(
+                        color: Colors.black.withAlpha(100),
+                        child: const Center(
+                          child: Icon(
+                            Icons.pause,
+                            color: Colors.white,
+                            size: 36,
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                ),
+              ),
             ),
-            title: Text(
+            const SizedBox(height: 8),
+            Text(
               song.title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
-            subtitle: Text(
-              '${song.artist} • ${controller.formatDuration(song.duration)}',
-              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            const SizedBox(height: 2),
+            Text(
+              song.artist,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-            ),
-            trailing: IconButton(
-              icon: Icon(
-                isSelected
-                    ? Icons.check_circle_rounded
-                    : Icons.add_circle_outline_rounded,
-                color: isSelected ? AppColors.cyan : Colors.white70,
-                size: 28,
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
-              onPressed: () => controller.selectSong(song),
             ),
-            onTap: () => controller.selectSong(song),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSongTile(BuildContext context, SongModel song, int index) {
+    return Obx(() {
+      final playingId = _musicController.playingSongIdVal;
+      final playing = _musicController.isPlaying.value;
+      final isPlaying = playingId == song.id && playing;
+      final isCurrent = playingId == song.id;
+
+      return InkWell(
+        onTap: () => _handleSongTap(song, context, false, index - 1),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 24,
+                child: Center(
+                  child: isPlaying
+                      ? Icon(
+                          Icons.bar_chart,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 20,
+                        )
+                      : Text(
+                          index.toString(),
+                          style: TextStyle(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant
+                                .withAlpha(150),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: song.imageUrl.isNotEmpty
+                      ? Image.network(
+                          song.imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
+                            child: const Icon(Icons.music_note),
+                          ),
+                        )
+                      : Container(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                          child: const Icon(Icons.music_note),
+                        ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      song.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontWeight:
+                            isCurrent ? FontWeight.bold : FontWeight.normal,
+                        color:
+                            isCurrent ? Theme.of(context).colorScheme.primary : null,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      song.artist.isNotEmpty ? song.artist : 'Unknown Artist',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isSelectionMode)
+                ElevatedButton(
+                  onPressed: () =>
+                      _handleSongTap(song, context, false, index - 1),
+                  style: ElevatedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                  ),
+                  child: const Text('Select'),
+                )
+              else
+                IconButton(
+                  icon: const Icon(Icons.more_vert),
+                  onPressed: () {},
+                ),
+            ],
           ),
         ),
       );

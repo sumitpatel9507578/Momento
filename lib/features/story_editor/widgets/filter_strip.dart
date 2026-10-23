@@ -16,7 +16,7 @@ class FilterStrip extends StatelessWidget {
     final filters = ImageFilterUtils.availableFilters;
 
     return SizedBox(
-      height: 95,
+      height: 102,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -35,6 +35,7 @@ class FilterStrip extends StatelessWidget {
             child: Container(
               margin: const EdgeInsets.only(right: 14),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
                     width: 60,
@@ -42,8 +43,9 @@ class FilterStrip extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color:
-                            isSelected ? Colors.purpleAccent : Colors.white24,
+                        color: isSelected
+                            ? Colors.purpleAccent
+                            : Colors.white24,
                         width: isSelected ? 3 : 1.5,
                       ),
                     ),
@@ -85,11 +87,14 @@ class FilterStrip extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(
                     filterName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: isSelected ? Colors.purpleAccent : Colors.white70,
                       fontSize: 11,
-                      fontWeight:
-                          isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                     ),
                   ),
                 ],

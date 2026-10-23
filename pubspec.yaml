@@ -12,6 +12,7 @@ dependencies:
     sdk: flutter
 
   cupertino_icons: ^1.0.8
+  google_fonts: ^6.2.1
   camera: ^0.12.1
   hand_landmarker: ^3.1.0
   get: ^4.7.3
@@ -22,7 +23,7 @@ dependencies:
   video_player: ^2.14.0
   connectivity_plus: ^6.1.4
   flutter_secure_storage: ^9.2.2
-  permission_handler: ^10.4.5
+  permission_handler: ^11.3.1
   crypto: ^3.0.3
   audioplayers: ^6.8.1
   google_sign_in: ^6.2.2
@@ -31,11 +32,9 @@ dependencies:
   flutter_gpu_video_filters: ^0.0.20
   flutter_gpu_filters_interface: ^0.0.18
   path_provider: ^2.1.4
-  deepar_flutter: any
+  deepar_flutter:
+    path: third_party/deepar_flutter
   gal: ^2.3.0
-
-dependency_overrides:
-  permission_handler: ^10.4.5
 
 dev_dependencies:
   flutter_test:
@@ -73,4 +72,4 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/momento_logo.png"
+  image_path: "assets/images/logo.png"
