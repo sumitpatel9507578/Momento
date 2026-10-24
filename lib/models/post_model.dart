@@ -5,6 +5,8 @@ class PostModel {
   final String profileImage;
   final String mediaUrl;
   final String mediaType;
+  final List<String> mediaUrls;
+  final List<String> mediaTypes;
   final String caption;
   final int likesCount;
   final int commentsCount;
@@ -27,6 +29,8 @@ class PostModel {
     required this.profileImage,
     required this.mediaUrl,
     required this.mediaType,
+    this.mediaUrls = const [],
+    this.mediaTypes = const [],
     required this.caption,
     required this.likesCount,
     required this.commentsCount,
@@ -42,6 +46,8 @@ class PostModel {
     required this.timestamp,
     this.location,
   });
+
+  bool get isCarousel => mediaUrls.length > 1;
 
   factory PostModel.fromJson(Map<String, dynamic> json) {
     final rawUser =
@@ -117,6 +123,37 @@ class PostModel {
     }
     if (extractedUsername.isEmpty) extractedUsername = 'Anonymous';
 
+    final singleUrl = (json['mediaUrl'] ??
+            json['media_url'] ??
+            json['url'] ??
+            json['media'] ??
+            '')
+        .toString();
+    final singleType = (json['mediaType'] ?? json['media_type'] ?? 'image').toString();
+
+    List<String> parsedUrls = [];
+    final rawUrls = json['mediaUrls'] ?? json['media_urls'] ?? json['images'] ?? json['carousel'];
+    if (rawUrls is List && rawUrls.isNotEmpty) {
+      parsedUrls = rawUrls.map((u) {
+        if (u is Map) {
+          return (u['url'] ?? u['mediaUrl'] ?? u['media_url'] ?? '').toString();
+        }
+        return u.toString();
+      }).where((u) => u.isNotEmpty).toList();
+    }
+
+    if (parsedUrls.isEmpty && singleUrl.isNotEmpty) {
+      parsedUrls = [singleUrl];
+    }
+
+    List<String> parsedTypes = [];
+    final rawTypes = json['mediaTypes'] ?? json['media_types'];
+    if (rawTypes is List && rawTypes.isNotEmpty) {
+      parsedTypes = rawTypes.map((t) => t.toString()).toList();
+    } else {
+      parsedTypes = List.filled(parsedUrls.length, singleType);
+    }
+
     return PostModel(
       postId:
           (json['postId'] ??
@@ -129,13 +166,10 @@ class PostModel {
       userId: extractedUserId,
       username: extractedUsername,
       profileImage: extractedProfileImage,
-      mediaUrl:
-          json['mediaUrl'] ??
-          json['media_url'] ??
-          json['url'] ??
-          json['media'] ??
-          '',
-      mediaType: json['mediaType'] ?? json['media_type'] ?? 'image',
+      mediaUrl: singleUrl.isNotEmpty ? singleUrl : (parsedUrls.isNotEmpty ? parsedUrls.first : ''),
+      mediaType: singleType,
+      mediaUrls: parsedUrls,
+      mediaTypes: parsedTypes,
       caption: json['caption'] ?? '',
       likesCount: _toInt(
         json['likesCount'] ?? json['likes_count'] ?? json['likes'],
@@ -212,6 +246,8 @@ class PostModel {
     String? profileImage,
     String? mediaUrl,
     String? mediaType,
+    List<String>? mediaUrls,
+    List<String>? mediaTypes,
     String? caption,
     int? likesCount,
     int? commentsCount,
@@ -234,6 +270,8 @@ class PostModel {
       profileImage: profileImage ?? this.profileImage,
       mediaUrl: mediaUrl ?? this.mediaUrl,
       mediaType: mediaType ?? this.mediaType,
+      mediaUrls: mediaUrls ?? this.mediaUrls,
+      mediaTypes: mediaTypes ?? this.mediaTypes,
       caption: caption ?? this.caption,
       likesCount: likesCount ?? this.likesCount,
       commentsCount: commentsCount ?? this.commentsCount,

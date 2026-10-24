@@ -67,6 +67,30 @@ class PostService {
         .toString();
     final username = (user?['username'] ?? user?['name'] ?? 'User').toString();
 
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      try {
+        final jsonBody = <String, dynamic>{
+          'mediaUrl': filePath,
+          'media_url': filePath,
+          'url': filePath,
+          'media': filePath,
+          'image': filePath,
+          'mediaType': mediaType,
+          'media_type': mediaType,
+          'caption': caption.isEmpty ? 'Momento' : caption,
+          if (userId.isNotEmpty) 'userId': userId,
+          if (username.isNotEmpty) 'username': username,
+        };
+        final response = await _apiService.post(ApiConstants.posts, jsonBody);
+        if (response.statusCode == 201 || response.statusCode == 200) {
+          _logMediaUrl(response.body);
+          return true;
+        }
+      } catch (e) {
+        print("PostService Network URL Post error: $e");
+      }
+    }
+
     final bodyFields = <String, String>{
       'caption': caption.isEmpty ? 'Momento' : caption,
       'mediaType': mediaType,
@@ -113,7 +137,74 @@ class PostService {
       return true;
     }
 
-    // Base64 logic removed per backend update instruction
+    return false;
+  }
+
+  Future<bool> createCarouselPost(
+    String caption,
+    List<String> filePaths, {
+    String? location,
+  }) async {
+    if (filePaths.isEmpty) return false;
+    if (filePaths.length == 1) {
+      final isVid = filePaths.first.toLowerCase().contains('.mp4') ||
+          filePaths.first.toLowerCase().contains('.mov');
+      return createPost(caption, filePaths.first, isVid ? 'video' : 'image');
+    }
+
+    final user = await _apiService.getUser();
+    final userId = (user?['id'] ?? user?['uid'] ?? user?['userId'] ?? '')
+        .toString();
+    final username = (user?['username'] ?? user?['name'] ?? 'User').toString();
+
+    final allNetwork = filePaths.every(
+      (p) => p.startsWith('http://') || p.startsWith('https://'),
+    );
+    if (allNetwork) {
+      try {
+        final jsonBody = <String, dynamic>{
+          'mediaUrls': filePaths,
+          'media_urls': filePaths,
+          'mediaUrl': filePaths.first,
+          'mediaType': 'carousel',
+          'caption': caption.isEmpty ? 'Momento' : caption,
+          if (location != null && location.isNotEmpty) 'location': location,
+          if (userId.isNotEmpty) 'userId': userId,
+          if (username.isNotEmpty) 'username': username,
+        };
+        final response = await _apiService.post(ApiConstants.posts, jsonBody);
+        if (response.statusCode == 201 || response.statusCode == 200) {
+          _logMediaUrl(response.body);
+          return true;
+        }
+      } catch (e) {
+        print("PostService Carousel Network error: $e");
+      }
+    }
+
+    final firstPath = filePaths.first;
+    final isVideo = firstPath.toLowerCase().contains('.mp4') ||
+        firstPath.toLowerCase().contains('.mov');
+
+    final bodyFields = <String, String>{
+      'caption': caption.isEmpty ? 'Momento' : caption,
+      'mediaType': isVideo ? 'video' : 'image',
+      if (location != null && location.isNotEmpty) 'location': location,
+      if (userId.isNotEmpty) 'userId': userId,
+      if (username.isNotEmpty) 'username': username,
+    };
+
+    var response = await _apiService.postMultipart(
+      ApiConstants.posts,
+      bodyFields,
+      'media',
+      firstPath,
+    );
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      _logMediaUrl(response.body);
+      return true;
+    }
+
     return false;
   }
 

@@ -302,6 +302,37 @@ class ChatSocketService extends GetxService {
     _socket?.emit('presence:ping');
   }
 
+  IO.Socket? get socket => _socket;
+
+  void initiateCall(Map<String, dynamic> payload) {
+    debugPrint('[SOCKET] Emitting call:initiate: $payload');
+    _socket?.emit('call:initiate', payload);
+  }
+
+  void acceptCall(String callerId, Map<String, dynamic> answer) {
+    final payload = {'callerId': callerId, 'answer': answer};
+    debugPrint('[SOCKET] Emitting call:accept: $payload');
+    _socket?.emit('call:accept', payload);
+  }
+
+  void rejectCall(String callerId) {
+    final payload = {'callerId': callerId};
+    debugPrint('[SOCKET] Emitting call:reject: $payload');
+    _socket?.emit('call:reject', payload);
+  }
+
+  void sendIceCandidate(String targetUserId, Map<String, dynamic> candidate) {
+    final payload = {'targetUserId': targetUserId, 'candidate': candidate};
+    debugPrint('[SOCKET] Emitting call:ice_candidate: $payload');
+    _socket?.emit('call:ice_candidate', payload);
+  }
+
+  void endCall(String targetUserId) {
+    final payload = {'targetUserId': targetUserId};
+    debugPrint('[SOCKET] Emitting call:end: $payload');
+    _socket?.emit('call:end', payload);
+  }
+
   void disconnect() {
     debugPrint('[SOCKET] Disconnecting socket...');
     _socket?.dispose();

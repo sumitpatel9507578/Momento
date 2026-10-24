@@ -6,6 +6,7 @@ class MessageModel {
   final String message;
   final String messageType;
   final String? mediaUrl;
+  final int? audioDuration;
   final String? reelId;
   final String? reelVideoUrl;
   final String? reelCaption;
@@ -33,6 +34,7 @@ class MessageModel {
     required this.message,
     this.messageType = 'text',
     this.mediaUrl,
+    this.audioDuration,
     this.reelId,
     this.reelVideoUrl,
     this.reelCaption,
@@ -55,6 +57,9 @@ class MessageModel {
 
   bool get isPostShare =>
       messageType == 'post' && (postId != null && postId!.isNotEmpty);
+
+  bool get isAudio =>
+      messageType == 'audio' || messageType == 'voice' || (mediaUrl != null && (mediaUrl!.contains('.mp3') || mediaUrl!.contains('.m4a') || mediaUrl!.contains('.aac')));
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
     final sender = json['sender'] is Map
@@ -88,7 +93,8 @@ class MessageModel {
           .toString(),
       messageType: (json['messageType'] ?? json['message_type'] ?? 'text')
           .toString(),
-      mediaUrl: (json['mediaUrl'] ?? json['media_url'])?.toString(),
+      mediaUrl: (json['mediaUrl'] ?? json['media_url'] ?? json['audioUrl'] ?? json['audio_url'])?.toString(),
+      audioDuration: json['audioDuration'] ?? json['audio_duration'] ?? json['duration'],
       reelId: (json['reelId'] ?? json['reel_id']) == null
           ? null
           : (json['reelId'] ?? json['reel_id']).toString(),
@@ -160,6 +166,7 @@ class MessageModel {
       'message': message,
       'message_type': messageType,
       'media_url': mediaUrl,
+      'audio_duration': audioDuration,
       'reel_id': reelId,
       'reel_video_url': reelVideoUrl,
       'reel_caption': reelCaption,
@@ -184,6 +191,7 @@ class MessageModel {
     String? message,
     String? messageType,
     String? mediaUrl,
+    int? audioDuration,
     String? reelId,
     String? reelVideoUrl,
     String? reelCaption,
@@ -211,6 +219,7 @@ class MessageModel {
       message: message ?? this.message,
       messageType: messageType ?? this.messageType,
       mediaUrl: mediaUrl ?? this.mediaUrl,
+      audioDuration: audioDuration ?? this.audioDuration,
       reelId: reelId ?? this.reelId,
       reelVideoUrl: reelVideoUrl ?? this.reelVideoUrl,
       reelCaption: reelCaption ?? this.reelCaption,

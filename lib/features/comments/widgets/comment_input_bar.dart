@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../controllers/mira_ai_controller.dart';
 import '../../../utils/app_colors.dart';
 import '../../../widgets/user_avatar.dart';
-import '../../../controllers/mira_ai_controller.dart';
 
 class CommentInputBar extends StatefulWidget {
   final TextEditingController controller;
@@ -43,29 +43,28 @@ class _CommentInputBarState extends State<CommentInputBar> {
     super.initState();
     _fetchMiraSuggestions();
   }
-  
+
   @override
   void didUpdateWidget(CommentInputBar oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.replyingToUsername != widget.replyingToUsername || 
+    if (oldWidget.replyingToUsername != widget.replyingToUsername ||
         oldWidget.parentCommentText != widget.parentCommentText) {
       _fetchMiraSuggestions();
     }
   }
 
   Future<void> _fetchMiraSuggestions() async {
-    // Only fetch if we have context
-    if (widget.postCaption == null && widget.parentCommentText == null) return;
-    
     _isGenerating.value = true;
     _miraSuggestions.clear();
-    
+
     try {
       final suggestions = await _miraController.generateCommentReplies(
-        postCaption: widget.postCaption ?? '',
+        postCaption: widget.postCaption ?? 'Momento post',
         parentComment: widget.parentCommentText ?? '',
       );
-      _miraSuggestions.assignAll(suggestions);
+      if (suggestions.isNotEmpty) {
+        _miraSuggestions.assignAll(suggestions);
+      }
     } catch (_) {
       // Fail silently
     } finally {
@@ -103,13 +102,16 @@ class _CommentInputBarState extends State<CommentInputBar> {
                     children: [
                       Icon(Icons.auto_awesome, color: Colors.purple, size: 14),
                       SizedBox(width: 8),
-                      Text('Mira is thinking...', style: TextStyle(color: Colors.purple, fontSize: 12)),
+                      Text(
+                        'Mira is thinking...',
+                        style: TextStyle(color: Colors.purple, fontSize: 12),
+                      ),
                     ],
                   ),
                 ),
               );
             }
-            
+
             if (_miraSuggestions.isEmpty) return const SizedBox.shrink();
 
             return Padding(
@@ -119,12 +121,20 @@ class _CommentInputBarState extends State<CommentInputBar> {
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: _miraSuggestions.length,
-                  separatorBuilder: (context, index) => const SizedBox(width: 8),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(width: 8),
                   itemBuilder: (context, index) {
                     final suggestion = _miraSuggestions[index];
                     return ActionChip(
-                      label: Text(suggestion, style: const TextStyle(fontSize: 12)),
-                      avatar: const Icon(Icons.auto_awesome, color: Colors.purple, size: 14),
+                      label: Text(
+                        suggestion,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      avatar: const Icon(
+                        Icons.auto_awesome,
+                        color: Colors.purple,
+                        size: 14,
+                      ),
                       backgroundColor: Colors.purple.withValues(alpha: 0.1),
                       side: BorderSide(
                         color: Colors.purple.withValues(alpha: 0.3),

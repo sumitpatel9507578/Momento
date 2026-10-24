@@ -107,7 +107,8 @@ class ApiService {
       attempts++;
       try {
         final response = await requestFn();
-        final isServerError = response.statusCode == 500 ||
+        final isServerError =
+            response.statusCode == 500 ||
             response.statusCode == 502 ||
             response.statusCode == 503 ||
             response.statusCode == 504;

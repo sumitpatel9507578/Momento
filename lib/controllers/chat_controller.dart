@@ -880,6 +880,43 @@ class ChatController extends GetxController with WidgetsBindingObserver {
     }
   }
 
+  Future<bool> sendVoiceMessage(
+    String receiverId,
+    String filePath,
+    int durationSeconds,
+  ) async {
+    try {
+      final response = await _apiService.postMultipart(
+        '${ApiConstants.messages}/upload',
+        {'messageType': 'voice', 'duration': durationSeconds.toString()},
+        'media',
+        filePath,
+      );
+      final decoded = _decodeResponse(response.body);
+      String mediaUrl = filePath;
+      if (response.statusCode == 201 &&
+          decoded?['success'] == true &&
+          decoded?['data'] is Map) {
+        mediaUrl = decoded['data']['mediaUrl']?.toString() ?? filePath;
+      }
+
+      return await sendMessage(
+        receiverId,
+        '🎤 Voice Note (${durationSeconds}s)',
+        mediaUrl: mediaUrl,
+        messageTypeOverride: 'voice',
+      );
+    } catch (error) {
+      debugPrint('Error uploading voice note: $error');
+      return await sendMessage(
+        receiverId,
+        '🎤 Voice Note (${durationSeconds}s)',
+        mediaUrl: filePath,
+        messageTypeOverride: 'voice',
+      );
+    }
+  }
+
   Future<void> _flushPendingMessages() async {
     for (final item in List<Map<String, dynamic>>.from(_pendingOutbox)) {
       if (!_chatSocket.isConnected) return;

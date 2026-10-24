@@ -13,6 +13,7 @@ import 'package:momento/views/admin/admin_report_list_screen.dart';
 import 'package:momento/views/admin/admin_verification_dashboard_screen.dart';
 import 'package:momento/views/admin/admin_verification_detail_screen.dart';
 import 'package:momento/views/admin/admin_verification_list_screen.dart';
+import '../views/call_screen.dart';
 import 'package:momento/views/chat_list_screen.dart';
 import 'package:momento/views/chat_screen.dart';
 import 'package:momento/views/complete_profile_screen.dart';
@@ -33,8 +34,8 @@ import 'package:momento/views/post_details_screen.dart';
 import 'package:momento/views/profile_screen.dart';
 import 'package:momento/views/reels_screen.dart';
 import 'package:momento/views/register_screen.dart';
-import 'package:momento/views/saved_posts_screen.dart';
 import 'package:momento/views/save_post_reel_screen.dart';
+import 'package:momento/views/saved_posts_screen.dart';
 import 'package:momento/views/search_screen.dart';
 import 'package:momento/views/settings_screen.dart';
 import 'package:momento/views/splash_screen.dart';
@@ -240,5 +241,6 @@ class AppPages {
       name: AppRoutes.adminReportList,
       page: () => const AdminReportListScreen(),
     ),
+    GetPage(name: AppRoutes.call, page: () => const CallScreen()),
   ];
 }

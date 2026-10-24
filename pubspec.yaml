@@ -35,6 +35,7 @@ dependencies:
   deepar_flutter:
     path: third_party/deepar_flutter
   gal: ^2.3.0
+  flutter_webrtc: ^0.12.5
 
 dev_dependencies:
   flutter_test:

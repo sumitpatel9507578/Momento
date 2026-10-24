@@ -109,7 +109,20 @@ class ArCameraController extends GetxController {
   Future<void> applyFilter(ArFilterModel filter) async {
     try {
       if (deepArController.isInitialized) {
-        await deepArController.switchEffect(filter.assetPath);
+        debugPrint(
+          'Applying AR Filter: ${filter.name} (${filter.category.name}) -> ${filter.assetPath}',
+        );
+        try {
+          await deepArController.switchEffect(filter.assetPath);
+        } catch (_) {
+          try {
+            await deepArController.switchFaceMask(filter.assetPath);
+          } catch (_) {
+            await deepArController.switchFilter(filter.assetPath);
+          }
+        }
+      } else {
+        debugPrint('DeepAR controller not initialized yet for ${filter.name}');
       }
     } catch (e) {
       debugPrint('Error applying filter ${filter.name}: $e');

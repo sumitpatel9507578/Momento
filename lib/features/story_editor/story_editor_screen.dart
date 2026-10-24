@@ -69,8 +69,15 @@ class StoryEditorScreen extends GetView<StoryEditorController> {
                     snackPosition: SnackPosition.TOP,
                     backgroundColor: Colors.purple.withValues(alpha: 0.8),
                     borderRadius: 20,
-                    margin: const EdgeInsets.only(top: 60, left: 100, right: 100),
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                    margin: const EdgeInsets.only(
+                      top: 60,
+                      left: 100,
+                      right: 100,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 8,
+                      horizontal: 16,
+                    ),
                   );
                 }
               },
@@ -92,7 +99,9 @@ class StoryEditorScreen extends GetView<StoryEditorController> {
 
                 Widget mediaWidget;
                 if (isFile && File(cleanPath).existsSync() && isVideo) {
-                  mediaWidget = _EditorVideoPreviewWidget(file: File(cleanPath));
+                  mediaWidget = _EditorVideoPreviewWidget(
+                    file: File(cleanPath),
+                  );
                 } else if (isFile && File(cleanPath).existsSync()) {
                   mediaWidget = Image.file(File(cleanPath), fit: BoxFit.cover);
                 } else {
@@ -116,6 +125,7 @@ class StoryEditorScreen extends GetView<StoryEditorController> {
                 final matrix = ImageFilterUtils.getMatrixByName(filter);
                 if (matrix != null) {
                   mediaWidget = ColorFiltered(
+                    key: ValueKey('filter_${filter}_${path}'),
                     colorFilter: ColorFilter.matrix(matrix),
                     child: mediaWidget,
                   );

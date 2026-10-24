@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:momento/controllers/reel_controller.dart';
@@ -475,7 +476,7 @@ class _ReelPageItemState extends State<_ReelPageItem>
                   _openRepostNoteSheet,
                   color: reel.isReposted ? Colors.greenAccent : Colors.white,
                 ),
-                _buildActionItem(Icons.send, '', _openShare),
+                _buildActionItem(CupertinoIcons.paperplane, '', _openShare),
                 // Mute button shown ONLY when video is paused
                 if (!isPlaying)
                   Obx(
@@ -610,7 +611,7 @@ Future<void> showRepostSheet({
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: quickEmojis.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
                 final emoji = quickEmojis[index];
                 return GestureDetector(

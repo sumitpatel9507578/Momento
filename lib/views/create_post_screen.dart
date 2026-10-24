@@ -235,7 +235,8 @@ class CreatePostScreen extends GetView<CreatePostController> {
                                   isScrollControlled: true,
                                   backgroundColor: Colors.transparent,
                                   builder: (context) => MiraCaptionSheet(
-                                    imagePath: controller.selectedFile.value?.path,
+                                    imagePath:
+                                        controller.selectedFile.value?.path,
                                     onApply: (caption, hashtags) {
                                       final currentText =
                                           controller.captionController.text;
@@ -451,8 +452,12 @@ class _VideoPreviewWidgetState extends State<_VideoPreviewWidget> {
       await _controller!.initialize();
       await _controller!.setLooping(true);
       await _controller!.play();
-      isPlaying.value = true;
-      isInitialized.value = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          isPlaying.value = true;
+          isInitialized.value = true;
+        }
+      });
     } catch (e) {
       debugPrint('Error initializing preview video: $e');
     }

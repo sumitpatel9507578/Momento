@@ -12,6 +12,7 @@ import 'package:momento/utils/api_constants.dart';
 import 'package:momento/utils/app_colors.dart';
 import 'package:momento/widgets/user_avatar.dart';
 
+import '../widgets/audio_waveform_player.dart';
 import '../widgets/mira_chat_replies_widget.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -58,8 +59,49 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  bool _isRecordingVoice = false;
+  int _voiceRecordingSeconds = 0;
+  bool _cancelVoiceRecording = false;
+  Timer? _voiceTimer;
+
+  void _startVoiceRecord() {
+    setState(() {
+      _isRecordingVoice = true;
+      _voiceRecordingSeconds = 0;
+      _cancelVoiceRecording = false;
+    });
+    _voiceTimer?.cancel();
+    _voiceTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {
+          _voiceRecordingSeconds++;
+        });
+      }
+    });
+  }
+
+  void _stopVoiceRecord() async {
+    _voiceTimer?.cancel();
+    final seconds = _voiceRecordingSeconds;
+    final isCancelled = _cancelVoiceRecording;
+
+    setState(() {
+      _isRecordingVoice = false;
+      _voiceRecordingSeconds = 0;
+      _cancelVoiceRecording = false;
+    });
+
+    if (!isCancelled && seconds >= 1) {
+      final targetId = _targetUserId;
+      final tempAudioPath =
+          'assets/audio/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      await controller.sendVoiceMessage(targetId, tempAudioPath, seconds);
+    }
+  }
+
   @override
   void dispose() {
+    _voiceTimer?.cancel();
     controller.stopLiveMessages();
     messageController.dispose();
     super.dispose();
@@ -285,95 +327,134 @@ class _ChatScreenState extends State<ChatScreen> {
                     borderRadius: BorderRadius.circular(26),
                     border: Border.all(color: Colors.white12, width: 0.8),
                   ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      IconButton(
-                        padding: const EdgeInsets.all(6),
-                        constraints: const BoxConstraints(),
-                        onPressed: () => _pickAndSendImage(ImageSource.camera),
-                        icon: const Icon(
-                          Icons.camera_alt_outlined,
-                          color: Colors.white54,
-                          size: 22,
-                        ),
-                      ),
-                      IconButton(
-                        padding: const EdgeInsets.all(6),
-                        constraints: const BoxConstraints(),
-                        onPressed: () => _pickAndSendImage(ImageSource.gallery),
-                        icon: const Icon(
-                          Icons.image_outlined,
-                          color: Colors.white54,
-                          size: 22,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: TextField(
-                          controller: messageController,
-                          onChanged: (text) => controller.onMessageInput(
-                            _targetUserId,
-                            text.trim().isNotEmpty,
-                          ),
-                          minLines: 1,
-                          maxLines: 5,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                          ),
-                          decoration: const InputDecoration(
-                            hintText: 'Message...',
-                            hintStyle: TextStyle(
-                              color: Colors.white38,
-                              fontSize: 15,
+                  child: _isRecordingVoice
+                      ? Row(
+                          children: [
+                            const SizedBox(width: 12),
+                            Container(
+                              width: 10,
+                              height: 10,
+                              decoration: const BoxDecoration(
+                                color: Colors.redAccent,
+                                shape: BoxShape.circle,
+                              ),
                             ),
-                            border: InputBorder.none,
-                            isDense: true,
-                            contentPadding: EdgeInsets.symmetric(vertical: 10),
-                          ),
-                        ),
-                      ),
-                      Obx(
-                        () => _hasText.value
-                            ? IconButton(
-                                padding: const EdgeInsets.all(8),
-                                constraints: const BoxConstraints(),
-                                onPressed: () async {
-                                  final text = messageController.text.trim();
-                                  if (text.isNotEmpty) {
-                                    messageController.clear();
-                                    final targetId = _targetUserId;
-                                    controller.onMessageInput(targetId, false);
-                                    await controller.sendMessage(
-                                      targetId,
-                                      text,
-                                    );
-                                  }
-                                },
-                                icon: const Icon(
-                                  Icons.send_rounded,
-                                  color: AppColors.purple,
-                                  size: 22,
+                            const SizedBox(width: 8),
+                            Text(
+                              '00:${_voiceRecordingSeconds.toString().padLeft(2, '0')}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const Spacer(),
+                            const Text(
+                              'Release to send',
+                              style: TextStyle(
+                                color: Colors.white54,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                          ],
+                        )
+                      : Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            IconButton(
+                              padding: const EdgeInsets.all(6),
+                              constraints: const BoxConstraints(),
+                              onPressed: () =>
+                                  _pickAndSendImage(ImageSource.camera),
+                              icon: const Icon(
+                                Icons.camera_alt_outlined,
+                                color: Colors.white54,
+                                size: 22,
+                              ),
+                            ),
+                            IconButton(
+                              padding: const EdgeInsets.all(6),
+                              constraints: const BoxConstraints(),
+                              onPressed: () =>
+                                  _pickAndSendImage(ImageSource.gallery),
+                              icon: const Icon(
+                                Icons.image_outlined,
+                                color: Colors.white54,
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: TextField(
+                                controller: messageController,
+                                onChanged: (text) => controller.onMessageInput(
+                                  _targetUserId,
+                                  text.trim().isNotEmpty,
                                 ),
-                              )
-                            : IconButton(
-                                padding: const EdgeInsets.all(8),
-                                constraints: const BoxConstraints(),
-                                onPressed: () async {
-                                  final targetId = _targetUserId;
-                                  controller.onMessageInput(targetId, false);
-                                  await controller.sendMessage(targetId, '❤️');
-                                },
-                                icon: const Icon(
-                                  Icons.favorite_rounded,
-                                  color: Colors.redAccent,
-                                  size: 22,
+                                minLines: 1,
+                                maxLines: 5,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                ),
+                                decoration: const InputDecoration(
+                                  hintText: 'Message...',
+                                  hintStyle: TextStyle(
+                                    color: Colors.white38,
+                                    fontSize: 15,
+                                  ),
+                                  border: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    vertical: 10,
+                                  ),
                                 ),
                               ),
-                      ),
-                    ],
-                  ),
+                            ),
+                            Obx(
+                              () => _hasText.value
+                                  ? IconButton(
+                                      padding: const EdgeInsets.all(8),
+                                      constraints: const BoxConstraints(),
+                                      onPressed: () async {
+                                        final text = messageController.text
+                                            .trim();
+                                        if (text.isNotEmpty) {
+                                          messageController.clear();
+                                          final targetId = _targetUserId;
+                                          controller.onMessageInput(
+                                            targetId,
+                                            false,
+                                          );
+                                          await controller.sendMessage(
+                                            targetId,
+                                            text,
+                                          );
+                                        }
+                                      },
+                                      icon: const Icon(
+                                        Icons.send_rounded,
+                                        color: AppColors.purple,
+                                        size: 22,
+                                      ),
+                                    )
+                                  : GestureDetector(
+                                      onLongPressStart: (_) =>
+                                          _startVoiceRecord(),
+                                      onLongPressEnd: (_) => _stopVoiceRecord(),
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(8),
+                                        child: Icon(
+                                          Icons.mic_rounded,
+                                          color: AppColors.purple,
+                                          size: 24,
+                                        ),
+                                      ),
+                                    ),
+                            ),
+                          ],
+                        ),
                 ),
               ],
             ),
@@ -897,6 +978,12 @@ class _ChatScreenState extends State<ChatScreen> {
                                       ],
                                     ],
                                   ),
+                                )
+                              : msg.isAudio
+                              ? AudioWaveformPlayer(
+                                  audioUrl: msg.mediaUrl ?? msg.message,
+                                  durationSeconds: msg.audioDuration,
+                                  isMe: isMe,
                                 )
                               : Text(
                                   text,

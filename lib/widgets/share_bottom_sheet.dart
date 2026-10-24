@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../controllers/chat_controller.dart';
+import '../routes/app_routes.dart';
 import '../services/api_service.dart';
 import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
@@ -140,6 +141,33 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
   }
 
   void _handlePlatformShare(String platformName) async {
+    final lowerName = platformName.toLowerCase();
+
+    // Share to Momento Story / Status -> Open Story Editor Panel First
+    if (lowerName.contains('story') || lowerName.contains('status')) {
+      Get.back(); // Dismiss share bottom sheet
+
+      String mediaUrl = widget.contentUrl ?? '';
+      if (mediaUrl.isEmpty && widget.postId != null) {
+        mediaUrl = widget.contentUrl ?? '';
+      }
+
+      final isVideo =
+          mediaUrl.toLowerCase().contains('.mp4') ||
+          mediaUrl.toLowerCase().contains('.mov');
+
+      Get.toNamed(
+        AppRoutes.storyEditor,
+        arguments: {
+          'mediaPath': mediaUrl,
+          'mediaType': isVideo ? 'video' : 'image',
+          'contentType': 'story',
+          'caption': widget.postCaption ?? '',
+        },
+      );
+      return;
+    }
+
     String shareUrl = '';
     if (widget.contentUrl != null && widget.contentUrl!.isNotEmpty) {
       shareUrl = ApiConstants.getFullUrl(widget.contentUrl!);
@@ -151,7 +179,7 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
       shareUrl = 'https://momento.app';
     }
 
-    if (platformName == 'Copy Link') {
+    if (platformName == 'Copy Link' || platformName == 'Copy link') {
       await Clipboard.setData(ClipboardData(text: shareUrl));
       Get.snackbar(
         'Share',

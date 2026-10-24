@@ -4,13 +4,12 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:momento/models/song_model.dart';
+import 'package:momento/models/story_model.dart';
+import 'package:momento/repositories/user_repository.dart';
+import 'package:momento/services/api_service.dart';
+import 'package:momento/services/story_service.dart';
 import 'package:momento/utils/image_filter_utils.dart';
-
-import '../models/song_model.dart';
-import '../models/story_model.dart';
-import '../repositories/user_repository.dart';
-import '../services/api_service.dart';
-import '../services/story_service.dart';
 
 class StoryController extends GetxController {
   final StoryService _service = Get.find<StoryService>();
@@ -100,14 +99,6 @@ class StoryController extends GetxController {
       // Check 24 hours
       if (story.timestamp.isBefore(cutoff)) continue;
 
-      // Check visibility: must be own story or in followingIds
-      if (story.userId != currentUserId &&
-          !followingIds.contains(story.userId)) {
-        if (followingIds.isNotEmpty && !followingIds.contains(story.userId)) {
-          continue;
-        }
-      }
-
       validStories.add(story);
     }
 
@@ -175,6 +166,81 @@ class StoryController extends GetxController {
         break;
       }
     }
+  }
+
+  Future<void> toggleLikeStory(String storyId) async {
+    for (int i = 0; i < userStories.length; i++) {
+      final us = userStories[i];
+      final sIdx = us.stories.indexWhere((s) => s.storyId == storyId);
+      if (sIdx != -1) {
+        final current = us.stories[sIdx];
+        final newLiked = !current.isLiked;
+        final newCount = newLiked
+            ? current.likesCount + 1
+            : (current.likesCount - 1).clamp(0, 99999);
+        final updatedStories = List<StoryModel>.from(us.stories);
+        updatedStories[sIdx] = current.copyWith(
+          isLiked: newLiked,
+          likesCount: newCount,
+        );
+        userStories[i] = UserStories(
+          userId: us.userId,
+          username: us.username,
+          profileImage: us.profileImage,
+          stories: updatedStories,
+        );
+        await _service.toggleLikeStory(storyId);
+        break;
+      }
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchStoryViewers(String storyId) async {
+    return await _service.fetchStoryViewers(storyId);
+  }
+
+  Future<bool> deleteStory(String storyId) async {
+    for (int i = 0; i < userStories.length; i++) {
+      final us = userStories[i];
+      final sIdx = us.stories.indexWhere((s) => s.storyId == storyId);
+      if (sIdx != -1) {
+        final updatedStories = List<StoryModel>.from(us.stories)
+          ..removeAt(sIdx);
+        if (updatedStories.isEmpty) {
+          userStories.removeAt(i);
+          if (currentUserStoriesIndex.value >= userStories.length) {
+            currentUserStoriesIndex.value = (userStories.length - 1).clamp(
+              0,
+              999,
+            );
+          }
+          if (userStories.isEmpty) {
+            Get.back();
+          }
+        } else {
+          userStories[i] = UserStories(
+            userId: us.userId,
+            username: us.username,
+            profileImage: us.profileImage,
+            stories: updatedStories,
+          );
+          if (currentStoryIndex.value >= updatedStories.length) {
+            currentStoryIndex.value = updatedStories.length - 1;
+          }
+        }
+        break;
+      }
+    }
+
+    final success = await _service.deleteStory(storyId);
+    if (success) {
+      Get.snackbar(
+        'Deleted',
+        'Story deleted successfully',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+    return success;
   }
 
   void startTimer() {

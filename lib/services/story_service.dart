@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
-import '../models/story_model.dart';
-import '../utils/api_constants.dart';
-import 'api_service.dart';
+import 'package:momento/models/story_model.dart';
+import 'package:momento/services/api_service.dart';
+import 'package:momento/utils/api_constants.dart';
 
 class StoryService {
   final ApiService _apiService;
@@ -23,14 +23,15 @@ class StoryService {
           storyJson =
               decoded['data'] ?? decoded['stories'] ?? decoded['results'] ?? [];
         }
-        
+
         final List<StoryModel> parsedStories = [];
         final Set<String> seenStoryIds = {};
 
         for (final json in storyJson) {
           if (json is Map<String, dynamic>) {
             final story = StoryModel.fromJson(json);
-            if (story.storyId.isNotEmpty && !seenStoryIds.contains(story.storyId)) {
+            if (story.storyId.isNotEmpty &&
+                !seenStoryIds.contains(story.storyId)) {
               seenStoryIds.add(story.storyId);
               parsedStories.add(story);
             }
@@ -55,7 +56,45 @@ class StoryService {
         .toString();
     final username = (user?['username'] ?? user?['name'] ?? 'User').toString();
 
-    // 1. Try Base64 JSON FIRST (Since multipart seems misconfigured/crashing on Render backend)
+    // 0. If filePath is ALREADY a Network URL (e.g. Cloudinary link from post/reel)
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      try {
+        final jsonBody = <String, dynamic>{
+          'mediaUrl': filePath,
+          'media_url': filePath,
+          'url': filePath,
+          'media': filePath,
+          'image': filePath,
+          'story': filePath,
+          'mediaType': mediaType,
+          'media_type': mediaType,
+          'type': mediaType,
+          'caption': (caption == null || caption.isEmpty)
+              ? 'New Story'
+              : caption,
+          if (userId.isNotEmpty) 'userId': userId,
+          if (userId.isNotEmpty) 'user_id': userId,
+          if (userId.isNotEmpty) 'user': userId,
+          if (username.isNotEmpty) 'username': username,
+        };
+
+        print(
+          "StoryService: Creating story directly from Network URL -> $filePath",
+        );
+        final response = await _apiService.post(ApiConstants.stories, jsonBody);
+        print(
+          "StoryService: Direct Network Story response status: ${response.statusCode}",
+        );
+
+        if (response.statusCode == 201 || response.statusCode == 200) {
+          return true;
+        }
+      } catch (e) {
+        print("StoryService: Direct Network Story error: $e");
+      }
+    }
+
+    // 1. Try Base64 JSON (For local files)
     try {
       final file = File(filePath);
       if (await file.exists()) {
@@ -137,5 +176,62 @@ class StoryService {
       {},
     );
     return response.statusCode == 200;
+  }
+
+  Future<bool> toggleLikeStory(String storyId) async {
+    try {
+      final response = await _apiService.post(
+        "${ApiConstants.stories}/$storyId/like",
+        {},
+      );
+      return response.statusCode == 200 || response.statusCode == 201;
+    } catch (e) {
+      print("Error toggling story like: $e");
+      return false;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchStoryViewers(String storyId) async {
+    try {
+      final response = await _apiService.get(
+        "${ApiConstants.stories}/$storyId/viewers",
+      );
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final List list =
+            decoded['data'] ?? decoded['viewers'] ?? decoded['views'] ?? [];
+        return list.map((v) {
+          final u = v['user'] is Map ? v['user'] : v;
+          return {
+            'id': (u['id'] ?? u['uid'] ?? u['_id'] ?? '').toString(),
+            'name':
+                (u['name'] ?? u['full_name'] ?? u['username'] ?? 'User')
+                    .toString(),
+            'username': (u['username'] ?? '').toString(),
+            'profileImage':
+                (u['profileImage'] ?? u['profile_image'] ?? '').toString(),
+            'viewedAt':
+                (v['createdAt'] ?? v['viewedAt'] ?? DateTime.now().toIso8601String())
+                    .toString(),
+            'liked': v['liked'] == true || v['isLiked'] == true,
+          };
+        }).toList();
+      }
+    } catch (e) {
+      print("Error fetching story viewers: $e");
+    }
+    return [];
+  }
+
+  Future<bool> deleteStory(String storyId) async {
+    try {
+      final response = await _apiService.delete(
+        "${ApiConstants.stories}/$storyId",
+      );
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (e) {
+      print("Error deleting story: $e");
+      return false;
+    }
   }
 }

@@ -29,6 +29,7 @@ class AppRoutes {
   static const String arMediaPreview = '/ar-media-preview';
   static const String gesture = '/gesture';
   static const String motionSettings = '/motion-settings';
+  static const String call = '/call';
 
   // Verification Routes
   static const String verificationInfo = '/verification-info';

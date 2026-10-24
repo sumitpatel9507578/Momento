@@ -21,6 +21,7 @@ class _ArMediaPreviewScreenState extends State<ArMediaPreviewScreen> {
 
   VideoPlayerController? _videoController;
   final RxBool isSaving = false.obs;
+  final RxBool isVideoInitialized = false.obs;
 
   @override
   void initState() {
@@ -40,7 +41,11 @@ class _ArMediaPreviewScreenState extends State<ArMediaPreviewScreen> {
       await _videoController!.initialize();
       await _videoController!.setLooping(true);
       await _videoController!.play();
-      setState(() {});
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          isVideoInitialized.value = true;
+        }
+      });
     } catch (e) {
       debugPrint('Error playing preview video: $e');
     }
@@ -100,8 +105,7 @@ class _ArMediaPreviewScreenState extends State<ArMediaPreviewScreen> {
           children: [
             // Preview Content (Image or Video)
             if (isVideo)
-              _videoController != null &&
-                      _videoController!.value.isInitialized
+              _videoController != null && _videoController!.value.isInitialized
                   ? FittedBox(
                       fit: BoxFit.cover,
                       child: SizedBox(

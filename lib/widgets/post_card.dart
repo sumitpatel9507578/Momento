@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -443,7 +444,12 @@ class _PostCardState extends State<PostCard> {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                if (widget.post.mediaUrl.toLowerCase().endsWith('.mp4') ||
+                if (widget.post.isCarousel)
+                  _PostCarouselWidget(
+                    mediaUrls: widget.post.mediaUrls,
+                    mediaTypes: widget.post.mediaTypes,
+                  )
+                else if (widget.post.mediaUrl.toLowerCase().endsWith('.mp4') ||
                     widget.post.mediaType == 'video')
                   _PostVideoPlayer(videoUrl: widget.post.mediaUrl)
                 else
@@ -579,7 +585,7 @@ class _PostCardState extends State<PostCard> {
                     ),
                   ),
                   icon: const Icon(
-                    Icons.send_outlined,
+                    CupertinoIcons.paperplane,
                     color: Colors.white,
                     size: 24,
                   ),
@@ -729,7 +735,11 @@ class _PostVideoPlayerState extends State<_PostVideoPlayer>
     try {
       await _controller!.initialize();
       await _controller!.setLooping(true);
-      isInitialized.value = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          isInitialized.value = true;
+        }
+      });
     } catch (e) {
       debugPrint("PostVideoPlayer init error: $e");
     }
@@ -849,5 +859,118 @@ class _PostVideoPlayerState extends State<_PostVideoPlayer>
         ),
       );
     });
+  }
+}
+
+class _PostCarouselWidget extends StatefulWidget {
+  final List<String> mediaUrls;
+  final List<String> mediaTypes;
+
+  const _PostCarouselWidget({
+    required this.mediaUrls,
+    required this.mediaTypes,
+  });
+
+  @override
+  State<_PostCarouselWidget> createState() => _PostCarouselWidgetState();
+}
+
+class _PostCarouselWidgetState extends State<_PostCarouselWidget> {
+  final PageController _pageController = PageController();
+  int _currentPage = 0;
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AspectRatio(
+      aspectRatio: 1.0,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          PageView.builder(
+            controller: _pageController,
+            itemCount: widget.mediaUrls.length,
+            onPageChanged: (index) {
+              setState(() {
+                _currentPage = index;
+              });
+            },
+            itemBuilder: (context, index) {
+              final url = widget.mediaUrls[index];
+              final type = (index < widget.mediaTypes.length)
+                  ? widget.mediaTypes[index]
+                  : (url.toLowerCase().endsWith('.mp4') ? 'video' : 'image');
+
+              if (type == 'video' || url.toLowerCase().endsWith('.mp4')) {
+                return _PostVideoPlayer(videoUrl: url);
+              }
+
+              return Image.network(
+                ApiConstants.getFullUrl(url),
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  color: AppColors.surface,
+                  child: const Center(
+                    child: Icon(
+                      Icons.image_not_supported_outlined,
+                      color: Colors.white24,
+                      size: 40,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+
+          // Top Right Page Badge (e.g. "1/3")
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                '${_currentPage + 1}/${widget.mediaUrls.length}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+
+          // Bottom Center Active Page Dots
+          Positioned(
+            bottom: 10,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(widget.mediaUrls.length, (index) {
+                final isCurrent = _currentPage == index;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  width: isCurrent ? 7 : 5,
+                  height: isCurrent ? 7 : 5,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isCurrent ? AppColors.purple : Colors.white54,
+                  ),
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

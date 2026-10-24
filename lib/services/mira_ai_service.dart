@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../utils/api_constants.dart';
@@ -15,28 +16,41 @@ class MiraAiService {
     required String language,
     required String length,
   }) async {
-    final url = "${ApiConstants.baseUrl}/ai/captions";
-    try {
-      final response = await _apiService.post(url, {
-        'prompt': prompt,
-        'tone': tone,
-        'language': language,
-        'length': length,
-      });
+    final endpoints = [
+      "${ApiConstants.baseUrl}/ai/captions",
+      "${ApiConstants.baseUrl}/mira/captions",
+      "${ApiConstants.baseUrl}/captions",
+    ];
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return {
-          'success': true,
-          'captions': List<String>.from(data['captions'] ?? []),
-          'hashtags': List<String>.from(data['hashtags'] ?? []),
-        };
+    for (final url in endpoints) {
+      try {
+        final response = await _apiService.post(url, {
+          'prompt': prompt,
+          'tone': tone,
+          'language': language,
+          'length': length,
+        });
+
+        debugPrint(
+          "MiraAiService generateCaptions [$url] status: ${response.statusCode}",
+        );
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final parsed = _parseCaptionResponse(data);
+          if (parsed['captions']!.isNotEmpty) {
+            return {
+              'success': true,
+              'captions': parsed['captions'],
+              'hashtags': parsed['hashtags'],
+            };
+          }
+        }
+      } catch (e) {
+        debugPrint("MiraAiService generateCaptions error [$url]: $e");
       }
-    } catch (e) {
-      print("MiraAiService generateCaptions error: $e");
     }
 
-    // Fallback AI output generation if network/backend is unavailable
     return {
       'success': true,
       'captions': [
@@ -59,36 +73,49 @@ class MiraAiService {
     required String tone,
     required String language,
   }) async {
-    final url = "${ApiConstants.baseUrl}/ai/vision";
-    try {
-      final request = http.MultipartRequest('POST', Uri.parse(url));
-      request.fields['tone'] = tone;
-      request.fields['language'] = language;
-      if (imagePath.isNotEmpty && File(imagePath).existsSync()) {
-        request.files.add(
-          await http.MultipartFile.fromPath('image', imagePath),
+    final endpoints = [
+      "${ApiConstants.baseUrl}/ai/vision",
+      "${ApiConstants.baseUrl}/mira/vision",
+      "${ApiConstants.baseUrl}/vision",
+    ];
+
+    for (final url in endpoints) {
+      try {
+        final request = http.MultipartRequest('POST', Uri.parse(url));
+        request.fields['tone'] = tone;
+        request.fields['language'] = language;
+        if (imagePath.isNotEmpty && File(imagePath).existsSync()) {
+          request.files.add(
+            await http.MultipartFile.fromPath('image', imagePath),
+          );
+        }
+
+        final streamedResponse = await request.send().timeout(
+          const Duration(seconds: 30),
         );
-      }
+        final response = await http.Response.fromStream(streamedResponse);
 
-      final streamedResponse = await request.send().timeout(
-        const Duration(seconds: 30),
-      );
-      final response = await http.Response.fromStream(streamedResponse);
+        debugPrint(
+          "MiraAiService generateVisionCaption [$url] status: ${response.statusCode}",
+        );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return {
-          'success': true,
-          'captions': List<String>.from(data['captions'] ?? []),
-          'hashtags': List<String>.from(data['hashtags'] ?? []),
-          'description': data['description'] ?? '',
-        };
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final parsed = _parseCaptionResponse(data);
+          if (parsed['captions']!.isNotEmpty) {
+            return {
+              'success': true,
+              'captions': parsed['captions'],
+              'hashtags': parsed['hashtags'],
+              'description': data['description'] ?? (parsed['captions']!.first),
+            };
+          }
+        }
+      } catch (e) {
+        debugPrint("MiraAiService generateVisionCaption error [$url]: $e");
       }
-    } catch (e) {
-      print("MiraAiService generateVisionCaption error: $e");
     }
 
-    // Smart fallback
     return {
       'success': true,
       'captions': [
@@ -104,21 +131,34 @@ class MiraAiService {
   Future<List<String>> generateChatReplies({
     required List<String> recentMessages,
   }) async {
-    final url = "${ApiConstants.baseUrl}/ai/chat-replies";
-    try {
-      final response = await _apiService.post(url, {
-        'recentMessages': recentMessages,
-      });
+    final endpoints = [
+      "${ApiConstants.baseUrl}/ai/chat-replies",
+      "${ApiConstants.baseUrl}/mira/chat-replies",
+      "${ApiConstants.baseUrl}/chat-replies",
+    ];
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return List<String>.from(data['replies'] ?? []);
+    for (final url in endpoints) {
+      try {
+        final response = await _apiService.post(url, {
+          'recentMessages': recentMessages,
+        });
+
+        debugPrint(
+          "MiraAiService generateChatReplies [$url] status: ${response.statusCode}",
+        );
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          if (data['replies'] is List) {
+            final replies = List<String>.from(data['replies']);
+            if (replies.isNotEmpty) return replies;
+          }
+        }
+      } catch (e) {
+        debugPrint("MiraAiService generateChatReplies error [$url]: $e");
       }
-    } catch (e) {
-      print("MiraAiService generateChatReplies error: $e");
     }
 
-    // Contextual quick reply fallbacks
     return [
       "Sounds great! 👍",
       "Tell me more about it ✨",
@@ -130,19 +170,33 @@ class MiraAiService {
     required String postCaption,
     String? parentComment,
   }) async {
-    final url = "${ApiConstants.baseUrl}/ai/comment-replies";
-    try {
-      final response = await _apiService.post(url, {
-        'postCaption': postCaption,
-        'parentComment': ?parentComment,
-      });
+    final endpoints = [
+      "${ApiConstants.baseUrl}/ai/comment-replies",
+      "${ApiConstants.baseUrl}/mira/comment-replies",
+      "${ApiConstants.baseUrl}/comment-replies",
+    ];
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return List<String>.from(data['replies'] ?? []);
+    for (final url in endpoints) {
+      try {
+        final response = await _apiService.post(url, {
+          'postCaption': postCaption,
+          'parentComment': parentComment ?? '',
+        });
+
+        debugPrint(
+          "MiraAiService generateCommentReplies [$url] status: ${response.statusCode}",
+        );
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          if (data['replies'] is List) {
+            final replies = List<String>.from(data['replies']);
+            if (replies.isNotEmpty) return replies;
+          }
+        }
+      } catch (e) {
+        debugPrint("MiraAiService generateCommentReplies error [$url]: $e");
       }
-    } catch (e) {
-      print("MiraAiService generateCommentReplies error: $e");
     }
 
     return [
@@ -155,29 +209,39 @@ class MiraAiService {
   Future<Map<String, dynamic>> generateSubtitles({
     required String mediaPath,
   }) async {
-    final url = "${ApiConstants.baseUrl}/ai/subtitles";
-    try {
-      final request = http.MultipartRequest('POST', Uri.parse(url));
-      if (mediaPath.isNotEmpty && File(mediaPath).existsSync()) {
-        request.files.add(
-          await http.MultipartFile.fromPath('media', mediaPath),
+    final endpoints = [
+      "${ApiConstants.baseUrl}/ai/subtitles",
+      "${ApiConstants.baseUrl}/mira/subtitles",
+      "${ApiConstants.baseUrl}/subtitles",
+    ];
+
+    for (final url in endpoints) {
+      try {
+        final request = http.MultipartRequest('POST', Uri.parse(url));
+        if (mediaPath.isNotEmpty && File(mediaPath).existsSync()) {
+          request.files.add(
+            await http.MultipartFile.fromPath('media', mediaPath),
+          );
+        }
+
+        final streamedResponse = await request.send().timeout(
+          const Duration(seconds: 45),
         );
-      }
+        final response = await http.Response.fromStream(streamedResponse);
 
-      final streamedResponse = await request.send().timeout(
-        const Duration(seconds: 45),
-      );
-      final response = await http.Response.fromStream(streamedResponse);
+        debugPrint(
+          "MiraAiService generateSubtitles [$url] status: ${response.statusCode}",
+        );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return {'success': true, 'subtitles': data['subtitles'] ?? []};
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          return {'success': true, 'subtitles': data['subtitles'] ?? []};
+        }
+      } catch (e) {
+        debugPrint("MiraAiService generateSubtitles error [$url]: $e");
       }
-    } catch (e) {
-      print("MiraAiService generateSubtitles error: $e");
     }
 
-    // Smart auto-subtitle generation fallback
     return {
       'success': true,
       'subtitles': [
@@ -186,5 +250,49 @@ class MiraAiService {
         {"text": "Create & Share Your World! 🌍", "start": 4.5, "end": 7.0},
       ],
     };
+  }
+
+  Map<String, List<String>> _parseCaptionResponse(Map<String, dynamic> data) {
+    List<String> captions = [];
+    List<String> hashtags = [];
+
+    if (data['captions'] is List) {
+      captions = List<String>.from(
+        data['captions'],
+      ).map((c) => c.toString().trim()).where((c) => c.isNotEmpty).toList();
+    } else if (data['caption'] != null) {
+      if (data['caption'] is List) {
+        captions = List<String>.from(
+          data['caption'],
+        ).map((c) => c.toString().trim()).where((c) => c.isNotEmpty).toList();
+      } else {
+        final raw = data['caption'].toString().trim();
+        if (raw.contains('#')) {
+          final parts = raw.split('#');
+          final mainText = parts[0].trim();
+          if (mainText.isNotEmpty) captions.add(mainText);
+          final foundTags = parts
+              .skip(1)
+              .map((t) => '#${t.trim().split(' ').first}')
+              .where((t) => t.length > 1)
+              .toList();
+          hashtags.addAll(foundTags);
+        } else if (raw.isNotEmpty) {
+          captions.add(raw);
+        }
+      }
+    }
+
+    if (data['hashtags'] is List) {
+      final tags = List<String>.from(
+        data['hashtags'],
+      ).map((t) => t.toString().trim()).where((t) => t.isNotEmpty).toList();
+      for (final t in tags) {
+        final formattedTag = t.startsWith('#') ? t : '#$t';
+        if (!hashtags.contains(formattedTag)) hashtags.add(formattedTag);
+      }
+    }
+
+    return {'captions': captions, 'hashtags': hashtags};
   }
 }
