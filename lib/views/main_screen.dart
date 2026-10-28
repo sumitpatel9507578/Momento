@@ -8,6 +8,7 @@ import '../controllers/home_controller.dart';
 import '../controllers/network_controller.dart';
 import '../controllers/profile_controller.dart';
 import '../utils/api_constants.dart';
+import 'chat_list_screen.dart';
 import 'home_screen.dart';
 import 'profile_screen.dart';
 import 'reels_screen.dart';
@@ -23,6 +24,7 @@ class MainScreen extends StatelessWidget {
     final List<Widget> screens = [
       const HomeScreen(),
       const ReelsScreen(),
+      const ChatListScreen(),
       const SearchScreen(),
       const ProfileScreen(),
     ];
@@ -102,17 +104,12 @@ class MainScreen extends StatelessWidget {
                         Icons.play_circle_outline,
                         controller,
                       ),
-                      // 3. Messages (with red count badge, opens '/chat-list')
-                      _buildMessagesNavItem(),
+                      // 3. Messages / Direct Chat List Tab
+                      _buildMessagesNavItem(controller),
                       // 4. Search
-                      _buildNavItem(
-                        2,
-                        Icons.search,
-                        Icons.search,
-                        controller,
-                      ),
+                      _buildNavItem(3, Icons.search, Icons.search, controller),
                       // 5. Profile
-                      _buildProfileNavItem(3, controller),
+                      _buildProfileNavItem(4, controller),
                     ],
                   ),
                 ),
@@ -140,23 +137,24 @@ class MainScreen extends StatelessWidget {
       icon: Icon(
         isSelected ? activeIcon : inactiveIcon,
         size: 26,
-        color: Colors.white,
+        color: isSelected ? AppColors.purple : Colors.white,
       ),
     );
   }
 
-  Widget _buildMessagesNavItem() {
+  Widget _buildMessagesNavItem(HomeController controller) {
+    final isSelected = controller.currentIndex.value == 2;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => Get.toNamed('/chat-list'),
+      onTap: () => controller.changeTab(2),
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.center,
         children: [
-          const Icon(
-            Icons.chat_bubble_outline_rounded,
-            size: 26,
-            color: Colors.white,
+          Icon(
+            Icons.send_rounded,
+            size: 24,
+            color: isSelected ? AppColors.purple : Colors.white,
           ),
           Obx(() {
             final chatController = Get.isRegistered<ChatController>()
@@ -202,8 +200,8 @@ class MainScreen extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(
-            color: isSelected ? Colors.white : Colors.transparent,
-            width: 1,
+            color: isSelected ? AppColors.purple : Colors.transparent,
+            width: 1.5,
           ),
         ),
         child: Obx(() {

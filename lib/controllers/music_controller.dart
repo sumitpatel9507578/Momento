@@ -67,7 +67,7 @@ class MusicController extends GetxController {
         songs.assignAll(trendingSongs);
         isSearching.value = false;
       }
-    }, time: const Duration(milliseconds: 500));
+    }, time: const Duration(milliseconds: 200));
   }
 
   void _listenToAudioEvents() {

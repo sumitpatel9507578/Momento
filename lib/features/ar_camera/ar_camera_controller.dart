@@ -123,7 +123,6 @@ class ArCameraController extends GetxController {
             await deepArController.switchFilter(filter.assetPath);
             break;
           case ArFilterType.effect:
-          default:
             await deepArController.switchEffect(filter.assetPath);
             break;
         }

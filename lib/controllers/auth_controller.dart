@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -35,7 +36,9 @@ class AuthController extends GetxController {
   Future<bool> login({required String email, required String password}) async {
     try {
       isLoading.value = true;
-      print("[AUTH] Login started for $email");
+      if (kDebugMode) {
+        print("[AUTH] Login started for $email");
+      }
 
       final response = await _apiService.post(ApiConstants.login, {
         'email': email,
@@ -43,29 +46,39 @@ class AuthController extends GetxController {
       });
 
       final body = jsonDecode(response.body);
-      print("[AUTH] Login response status: ${response.statusCode}");
+      if (kDebugMode) {
+        print("[AUTH] Login response status: ${response.statusCode}");
+      }
 
       if (body['success'] == true && body['data'] != null) {
         final token = body['data']['token'];
         final userData = body['data']['user'];
 
         if (token != null) {
-          print("[AUTH] Token received, length: ${token.length}");
+          if (kDebugMode) {
+            print("[AUTH] Token received, length: ${token.length}");
+          }
           await _apiService.saveToken(token.toString());
           if (userData != null) {
             await _apiService.saveUser(userData);
             currentUser.value = UserModel.fromMap(userData);
           }
-          print("[AUTH] Token saved successfully in FlutterSecureStorage");
+          if (kDebugMode) {
+            print("[AUTH] Token saved successfully in FlutterSecureStorage");
+          }
           Get.snackbar('Success', 'Welcome back to Momento!');
           return true;
         } else {
-          print("[AUTH] Error: Success is true but token is null");
+          if (kDebugMode) {
+            print("[AUTH] Error: Success is true but token is null");
+          }
           Get.snackbar('Error', 'Invalid server response: Missing token');
           return false;
         }
       } else {
-        print("[AUTH] Login failed: ${body['message']}");
+        if (kDebugMode) {
+          print("[AUTH] Login failed: ${body['message']}");
+        }
         String msg = body['message'] ?? '';
 
         if (body['error_detail'] == 'ETIMEDOUT' ||
@@ -107,7 +120,9 @@ class AuthController extends GetxController {
   }) async {
     try {
       isLoading.value = true;
-      print("[AUTH] Registration started for $email");
+      if (kDebugMode) {
+        print("[AUTH] Registration started for $email");
+      }
 
       final gravatarUrl = getEmailAvatarUrl(email);
 
@@ -218,7 +233,11 @@ class AuthController extends GetxController {
       if (loginSuccess) return true;
 
       // Step 2: If user does not exist on backend yet, auto-register them
-      print("[AUTH] User not registered yet. Auto-registering Google user...");
+      if (kDebugMode) {
+        print(
+          "[AUTH] User not registered yet. Auto-registering Google user...",
+        );
+      }
       final regSuccess = await _tryGoogleRegister(
         name: displayName,
         username: username,
@@ -229,7 +248,9 @@ class AuthController extends GetxController {
 
       return regSuccess;
     } catch (e) {
-      print("[AUTH] Google Sign In Exception: $e");
+      if (kDebugMode) {
+        print("[AUTH] Google Sign In Exception: $e");
+      }
       Get.snackbar(
         'Google Sign In',
         'Could not complete Google Sign In. Try again or login manually.',

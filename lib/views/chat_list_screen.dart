@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:momento/models/note_model.dart';
 
 import '../controllers/chat_controller.dart';
+import '../controllers/home_controller.dart';
 import '../controllers/note_controller.dart';
 import '../controllers/profile_controller.dart';
-import 'package:momento/models/note_model.dart';
 import '../utils/app_colors.dart';
 import '../widgets/note_bubble_widget.dart';
 import '../widgets/note_create_sheet.dart';
@@ -26,8 +27,16 @@ class ChatListScreen extends GetView<ChatController> {
         elevation: 0,
         titleSpacing: 0,
         centerTitle: false,
-        leadingWidth: 0,
-        leading: const SizedBox.shrink(),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+          onPressed: () {
+            if (Get.isRegistered<HomeController>()) {
+              Get.find<HomeController>().changeTab(0);
+            } else {
+              Get.back();
+            }
+          },
+        ),
         title: Row(
           children: [
             const SizedBox(width: 4),

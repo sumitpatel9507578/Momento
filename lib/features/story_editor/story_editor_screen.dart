@@ -405,43 +405,131 @@ class StoryEditorScreen extends GetView<StoryEditorController> {
 
   void _showAddTextDialog(BuildContext context) {
     final textController = TextEditingController();
+    Color selectedTextColor = Colors.white;
     bool hasBg = false;
 
+    final colorPalette = [
+      Colors.white,
+      Colors.redAccent,
+      Colors.yellowAccent,
+      Colors.cyanAccent,
+      Colors.purpleAccent,
+      Colors.greenAccent,
+      Colors.pinkAccent,
+      Colors.orangeAccent,
+      Colors.black,
+    ];
+
     Get.dialog(
-      AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: const Text('Add Text', style: TextStyle(color: Colors.white)),
-        content: TextField(
-          controller: textController,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            hintText: 'Type something...',
-            hintStyle: TextStyle(color: Colors.white38),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Get.back(),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: Colors.white54),
+      StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            backgroundColor: AppColors.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (textController.text.trim().isNotEmpty) {
-                controller.addTextLayer(
-                  text: textController.text.trim(),
-                  hasBackground: hasBg,
-                );
-              }
-              Get.back();
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.purple),
-            child: const Text('Done', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+            title: const Text('Add Text', style: TextStyle(color: Colors.white)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: textController,
+                  autofocus: true,
+                  style: TextStyle(
+                    color: selectedTextColor,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  decoration: const InputDecoration(
+                    hintText: 'Type something...',
+                    hintStyle: TextStyle(color: Colors.white38),
+                    border: InputBorder.none,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Color Picker Palette
+                SizedBox(
+                  height: 38,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: colorPalette.length,
+                    itemBuilder: (context, index) {
+                      final c = colorPalette[index];
+                      final isSelected = selectedTextColor == c;
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            selectedTextColor = c;
+                          });
+                        },
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          margin: const EdgeInsets.symmetric(horizontal: 4),
+                          decoration: BoxDecoration(
+                            color: c,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isSelected ? Colors.white : Colors.white24,
+                              width: isSelected ? 3 : 1,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Background Tile',
+                      style: TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                    Switch(
+                      value: hasBg,
+                      activeThumbColor: AppColors.purple,
+                      onChanged: (val) {
+                        setState(() {
+                          hasBg = val;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Get.back(),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.white54),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (textController.text.trim().isNotEmpty) {
+                    controller.addTextLayer(
+                      text: textController.text.trim(),
+                      color: selectedTextColor,
+                      hasBackground: hasBg,
+                    );
+                  }
+                  Get.back();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.purple,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+                child: const Text('Done', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

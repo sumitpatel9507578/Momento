@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:momento/controllers/home_controller.dart';
+import 'package:momento/controllers/reel_controller.dart';
 import 'package:momento/features/comments/models/comment_model.dart';
 import 'package:momento/features/comments/widgets/comment_input_bar.dart';
 import 'package:momento/features/comments/widgets/comment_tile.dart';
@@ -15,6 +17,19 @@ class CommentsSheet extends StatefulWidget {
   final String id;
   final bool isReel;
   const CommentsSheet({super.key, required this.id, this.isReel = false});
+
+  static Future<void> show(
+    BuildContext context,
+    String id, {
+    bool isReel = false,
+  }) async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => CommentsSheet(id: id, isReel: isReel),
+    );
+  }
 
   @override
   State<CommentsSheet> createState() => _CommentsSheetState();
@@ -97,6 +112,14 @@ class _CommentsSheetState extends State<CommentsSheet> {
         widget.id,
         isReel: widget.isReel,
       );
+
+      // SQL ER_BAD_FIELD_ERROR / 500 error ke baad result empty aayega
+      if (result.isEmpty && !silent) {
+        // App crash hone se bachane ke liye silently skip kar do
+        isLoading.value = false;
+        return;
+      }
+
       final parsedComments = result
           .map((json) => CommentModel.fromJson(json))
           .toList();
@@ -107,6 +130,58 @@ class _CommentsSheetState extends State<CommentsSheet> {
       if (!silent) hasError.value = true;
     } finally {
       if (!silent) isLoading.value = false;
+    }
+  }
+
+  void _incrementCommentCount() {
+    if (widget.isReel) {
+      if (Get.isRegistered<ReelController>()) {
+        final reelCtrl = Get.find<ReelController>();
+        final idx = reelCtrl.reels.indexWhere((r) => r.id == widget.id);
+        if (idx != -1) {
+          final r = reelCtrl.reels[idx];
+          reelCtrl.reels[idx] = r.copyWith(commentsCount: r.commentsCount + 1);
+          reelCtrl.reels.refresh();
+        }
+      }
+    } else {
+      if (Get.isRegistered<HomeController>()) {
+        final homeCtrl = Get.find<HomeController>();
+        final idx = homeCtrl.posts.indexWhere((p) => p.postId == widget.id);
+        if (idx != -1) {
+          final p = homeCtrl.posts[idx];
+          homeCtrl.posts[idx] = p.copyWith(commentsCount: p.commentsCount + 1);
+          homeCtrl.posts.refresh();
+        }
+      }
+    }
+  }
+
+  void _decrementCommentCount() {
+    if (widget.isReel) {
+      if (Get.isRegistered<ReelController>()) {
+        final reelCtrl = Get.find<ReelController>();
+        final idx = reelCtrl.reels.indexWhere((r) => r.id == widget.id);
+        if (idx != -1) {
+          final r = reelCtrl.reels[idx];
+          reelCtrl.reels[idx] = r.copyWith(
+            commentsCount: (r.commentsCount - 1).clamp(0, 999999),
+          );
+          reelCtrl.reels.refresh();
+        }
+      }
+    } else {
+      if (Get.isRegistered<HomeController>()) {
+        final homeCtrl = Get.find<HomeController>();
+        final idx = homeCtrl.posts.indexWhere((p) => p.postId == widget.id);
+        if (idx != -1) {
+          final p = homeCtrl.posts[idx];
+          homeCtrl.posts[idx] = p.copyWith(
+            commentsCount: (p.copyWith().commentsCount - 1).clamp(0, 999999),
+          );
+          homeCtrl.posts.refresh();
+        }
+      }
     }
   }
 
@@ -132,6 +207,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
     final parentIdCopy = replyingToCommentId.value;
     replyingToCommentId.value = null;
     replyingToUsername.value = null;
+    _incrementCommentCount();
 
     try {
       final success = await _commentService.addComment(
@@ -144,10 +220,12 @@ class _CommentsSheetState extends State<CommentsSheet> {
       if (success) {
         await _fetchComments();
       } else {
+        _decrementCommentCount();
         Get.snackbar('Error', 'Couldn\'t post comment');
       }
     } catch (_) {
       comments.removeWhere((c) => c.id == tempComment.id);
+      _decrementCommentCount();
       Get.snackbar('Error', 'Couldn\'t post comment');
     }
   }
@@ -210,6 +288,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
                 );
                 if (success) {
                   comments.removeWhere((c) => c.id == commentId);
+                  _decrementCommentCount();
                   Get.snackbar('Success', 'Comment deleted');
                 } else {
                   Get.snackbar('Error', 'Failed to delete comment');

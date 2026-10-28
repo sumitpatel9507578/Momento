@@ -14,29 +14,32 @@ class CommentService extends GetxService {
     String id, {
     bool isReel = false,
   }) async {
-    try {
-      final endpoint = isReel ? ApiConstants.reels : ApiConstants.posts;
-      var response = await _apiService.get("$endpoint/$id/comments");
+    final endpointsToTry = isReel
+        ? [
+            "${ApiConstants.reels}/$id/comments",
+            "${ApiConstants.baseUrl}/comments/reel/$id",
+            "${ApiConstants.baseUrl}/comments?reelId=$id",
+            "${ApiConstants.baseUrl}/comments?reel_id=$id",
+            "${ApiConstants.reels}/comments/$id",
+          ]
+        : [
+            "${ApiConstants.posts}/$id/comments",
+            "${ApiConstants.baseUrl}/comments/post/$id",
+            "${ApiConstants.baseUrl}/comments?postId=$id",
+            "${ApiConstants.posts}/comments/$id",
+          ];
 
-      if (response.statusCode == 404 && isReel) {
-        response = await _apiService.get(
-          "${ApiConstants.baseUrl}/comments/reel/$id",
-        );
-      }
-      if (response.statusCode == 404 && isReel) {
-        response = await _apiService.get("${ApiConstants.reels}/comments/$id");
-      }
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final List commentsJson = data['data'] ?? data['comments'] ?? [];
-        return List<Map<String, dynamic>>.from(commentsJson);
-      }
-      return [];
-    } catch (e) {
-      print("CommentService Error: $e");
-      return [];
+    for (final endpoint in endpointsToTry) {
+      try {
+        final response = await _apiService.get(endpoint);
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final List commentsJson = data['data'] ?? data['comments'] ?? [];
+          return List<Map<String, dynamic>>.from(commentsJson);
+        }
+      } catch (_) {}
     }
+    return [];
   }
 
   Future<bool> addComment(
@@ -50,7 +53,7 @@ class CommentService extends GetxService {
       final body = <String, dynamic>{
         'comment': comment,
         'text': comment,
-        'parentId': ?parentId,
+        'parentId': parentId,
       };
       var response = await _apiService.post("$endpoint/$id/comments", body);
 
@@ -66,7 +69,7 @@ class CommentService extends GetxService {
           'reelId': id,
           'comment': comment,
           'text': comment,
-          'parentId': ?parentId,
+          'parentId': parentId,
         });
       }
 

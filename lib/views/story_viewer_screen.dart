@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
@@ -6,9 +8,10 @@ import 'package:get/get.dart';
 import 'package:momento/controllers/chat_controller.dart';
 import 'package:momento/controllers/story_controller.dart';
 import 'package:momento/models/story_model.dart';
+import 'package:momento/services/jamendo_service.dart';
+import 'package:momento/services/story_audio_cache.dart';
 
 import '../services/api_service.dart';
-import 'package:momento/services/jamendo_service.dart';
 import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
 import '../widgets/user_avatar.dart';
@@ -25,6 +28,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
   final TextEditingController _replyController = TextEditingController();
   final AudioPlayer _storyAudioPlayer = AudioPlayer();
   final currentUserId = ''.obs;
+  final isAudioLoading = false.obs;
   Worker? _storyIndexWorker;
   Worker? _userIndexWorker;
 
@@ -33,7 +37,6 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
     super.initState();
     _loadCurrentUserId();
     controller.progress.value = 0.0;
-    controller.startTimer();
 
     _storyIndexWorker = ever(controller.currentStoryIndex, (_) {
       _playStoryAudio();
@@ -55,6 +58,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
   Future<void> _playStoryAudio() async {
     try {
       await _storyAudioPlayer.stop();
+
       if (controller.userStories.isEmpty) return;
       final groupIdx = controller.currentUserStoriesIndex.value;
       if (groupIdx < 0 || groupIdx >= controller.userStories.length) return;
@@ -63,13 +67,25 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
       if (storyIdx < 0 || storyIdx >= group.stories.length) return;
 
       final story = group.stories[storyIdx];
-      debugPrint(
-        'STORY VIEWER AUDIO -> url: "${story.audioUrl}" | title: "${story.songTitle}"',
-      );
+
+      // Preload adjacent stories audio in background
+      _preloadAdjacentStoriesAudio(groupIdx, storyIdx);
+
+      // If no audio attached, resume timer immediately
+      if (story.audioUrl.isEmpty && story.songTitle.isEmpty) {
+        isAudioLoading.value = false;
+        controller.startTimer();
+        controller.resumeStory();
+        return;
+      }
+
+      // Pause story timer while buffering
+      controller.pauseStory();
+      isAudioLoading.value = true;
 
       String audioToPlay = story.audioUrl;
 
-      // Fallback: If audioUrl is empty, search Jamendo for story.songTitle
+      // Fallback: If audioUrl is empty, search Jamendo
       if (audioToPlay.isEmpty && story.songTitle.isNotEmpty) {
         try {
           final query = story.songTitle
@@ -83,11 +99,64 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
       }
 
       if (audioToPlay.isNotEmpty) {
-        await _storyAudioPlayer.play(UrlSource(audioToPlay));
+        // Retrieve or download local MP3 path (0ms instant playback if cached)
+        final localCachedPath = await StoryAudioCache.getCachedAudioPath(
+          audioToPlay,
+        );
+
+        // Fallback timer: max 1.2s wait if network buffering is slow
+        Timer(const Duration(milliseconds: 1200), () {
+          if (mounted && isAudioLoading.value) {
+            isAudioLoading.value = false;
+            controller.startTimer();
+            controller.resumeStory();
+          }
+        });
+
+        if (localCachedPath != null && File(localCachedPath).existsSync()) {
+          await _storyAudioPlayer.play(
+            DeviceFileSource(localCachedPath),
+            mode: PlayerMode.mediaPlayer,
+          );
+        } else {
+          await _storyAudioPlayer.play(
+            UrlSource(audioToPlay),
+            mode: PlayerMode.mediaPlayer,
+          );
+        }
+
+        isAudioLoading.value = false;
+        controller.startTimer();
+        controller.resumeStory();
+      } else {
+        isAudioLoading.value = false;
+        controller.startTimer();
+        controller.resumeStory();
       }
     } catch (e) {
       debugPrint('Story AudioPlayer Error: $e');
+      isAudioLoading.value = false;
+      controller.startTimer();
+      controller.resumeStory();
     }
+  }
+
+  void _preloadAdjacentStoriesAudio(int groupIdx, int storyIdx) {
+    try {
+      final group = controller.userStories[groupIdx];
+      if (storyIdx + 1 < group.stories.length) {
+        final nextStory = group.stories[storyIdx + 1];
+        if (nextStory.audioUrl.isNotEmpty) {
+          StoryAudioCache.preloadAudio(nextStory.audioUrl);
+        }
+      } else if (groupIdx + 1 < controller.userStories.length) {
+        final nextGroup = controller.userStories[groupIdx + 1];
+        if (nextGroup.stories.isNotEmpty &&
+            nextGroup.stories.first.audioUrl.isNotEmpty) {
+          StoryAudioCache.preloadAudio(nextGroup.stories.first.audioUrl);
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -279,10 +348,23 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
                                   const SizedBox(height: 2),
                                   Row(
                                     children: [
-                                      const Icon(
-                                        Icons.music_note,
-                                        color: Colors.white,
-                                        size: 12,
+                                      Obx(
+                                        () => isAudioLoading.value
+                                            ? const SizedBox(
+                                                width: 12,
+                                                height: 12,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 1.5,
+                                                      color:
+                                                          Colors.purpleAccent,
+                                                    ),
+                                              )
+                                            : const Icon(
+                                                Icons.music_note,
+                                                color: Colors.white,
+                                                size: 12,
+                                              ),
                                       ),
                                       const SizedBox(width: 4),
                                       Expanded(
@@ -497,18 +579,33 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
     );
   }
 
-  void _showViewersSheet(BuildContext context, StoryModel story) async {
-    final viewersList = await controller.fetchStoryViewers(story.storyId);
-    final rawViewers = viewersList.isNotEmpty ? viewersList : story.viewers;
-
-    final displayViewers = rawViewers.where((v) {
+  void _showViewersSheet(BuildContext context, StoryModel story) {
+    final initialViewers = story.viewers.where((v) {
       final vId = (v['id'] ?? v['userId'] ?? v['user_id'] ?? '').toString();
       return vId.isNotEmpty && vId != currentUserId.value;
     }).toList();
 
-    if (!mounted) return;
+    final rxViewers = <Map<String, dynamic>>[...initialViewers].obs;
+    final isLoadingViewers = true.obs;
 
-    await showModalBottomSheet(
+    // Asynchronously fetch latest viewers in background without blocking sheet opening
+    controller
+        .fetchStoryViewers(story.storyId)
+        .then((latestList) {
+          final raw = latestList.isNotEmpty ? latestList : story.viewers;
+          final filtered = raw.where((v) {
+            final vId = (v['id'] ?? v['userId'] ?? v['user_id'] ?? '')
+                .toString();
+            return vId.isNotEmpty && vId != currentUserId.value;
+          }).toList();
+          rxViewers.assignAll(filtered);
+          isLoadingViewers.value = false;
+        })
+        .catchError((_) {
+          isLoadingViewers.value = false;
+        });
+
+    showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
@@ -542,82 +639,99 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
                     size: 20,
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    'Story Viewers (${displayViewers.length})',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                  Obx(
+                    () => Text(
+                      'Story Viewers (${rxViewers.length})',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
+                  ),
+                  const Spacer(),
+                  Obx(
+                    () => isLoadingViewers.value
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.purple,
+                            ),
+                          )
+                        : const SizedBox.shrink(),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
               const Divider(color: Colors.white12, height: 1),
               Expanded(
-                child: displayViewers.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'No viewers yet',
-                          style: TextStyle(
-                            color: Colors.white38,
-                            fontSize: 13.5,
+                child: Obx(() {
+                  final displayList = rxViewers;
+                  if (displayList.isEmpty && !isLoadingViewers.value) {
+                    return const Center(
+                      child: Text(
+                        'No viewers yet',
+                        style: TextStyle(color: Colors.white38, fontSize: 13.5),
+                      ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    itemCount: displayList.length,
+                    itemBuilder: (context, index) {
+                      final v = displayList[index];
+                      final name = v['name'] ?? v['username'] ?? 'User';
+                      final handle = v['username'] ?? '';
+                      final img = v['profileImage'] ?? '';
+                      final liked = v['liked'] == true;
+
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: UserAvatar(
+                          userId: v['id'] ?? '',
+                          imageUrl: img,
+                          radius: 20,
+                          backgroundColor: AppColors.darkGrey,
+                        ),
+                        title: Text(
+                          name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
                           ),
                         ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        itemCount: displayViewers.length,
-                        itemBuilder: (context, index) {
-                          final v = displayViewers[index];
-                          final name = v['name'] ?? v['username'] ?? 'User';
-                          final handle = v['username'] ?? '';
-                          final img = v['profileImage'] ?? '';
-                          final liked = v['liked'] == true;
-
-                          return ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: UserAvatar(
-                              userId: v['id'] ?? '',
-                              imageUrl: img,
-                              radius: 20,
-                              backgroundColor: AppColors.darkGrey,
-                            ),
-                            title: Text(
-                              name,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                              ),
-                            ),
-                            subtitle: handle.isNotEmpty
-                                ? Text(
-                                    '@$handle',
-                                    style: const TextStyle(
-                                      color: Colors.white54,
-                                      fontSize: 12,
-                                    ),
-                                  )
-                                : null,
-                            trailing: liked
-                                ? const Icon(
-                                    Icons.favorite,
-                                    color: Colors.redAccent,
-                                    size: 18,
-                                  )
-                                : null,
-                          );
-                        },
-                      ),
+                        subtitle: handle.isNotEmpty
+                            ? Text(
+                                '@$handle',
+                                style: const TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 12,
+                                ),
+                              )
+                            : null,
+                        trailing: liked
+                            ? const Icon(
+                                Icons.favorite,
+                                color: Colors.redAccent,
+                                size: 18,
+                              )
+                            : null,
+                      );
+                    },
+                  );
+                }),
               ),
             ],
           ),
         );
       },
-    );
-
-    controller.resumeStory();
+    ).then((_) {
+      controller.resumeStory();
+    });
   }
 
   void _sendStoryReply(String text, StoryModel story, UserStories group) async {
@@ -686,5 +800,91 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
     if (diff.inHours > 0) return '${diff.inHours}h';
     if (diff.inMinutes > 0) return '${diff.inMinutes}m';
     return 'now';
+  }
+
+  Widget _buildStoryMedia(StoryModel story) {
+    final mediaUrl = story.mediaUrl.trim();
+
+    // 1. Base64 Data Image
+    if (mediaUrl.startsWith('data:image/')) {
+      try {
+        final base64Str = mediaUrl.contains(',')
+            ? mediaUrl.split(',').last
+            : mediaUrl;
+        final bytes = base64Decode(base64Str);
+        return Image.memory(
+          bytes,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          errorBuilder: (_, __, ___) => _buildFallbackImage(),
+        );
+      } catch (e) {
+        debugPrint('Base64 decode error in StoryViewerScreen: $e');
+      }
+    }
+
+    // 2. Local File Path
+    if (mediaUrl.startsWith('/') || mediaUrl.startsWith('file://')) {
+      String cleanPath = mediaUrl.replaceFirst(RegExp(r'^file://+'), '');
+      if (!Platform.isWindows && !cleanPath.startsWith('/')) {
+        cleanPath = '/$cleanPath';
+      }
+      final file = File(cleanPath);
+      if (file.existsSync()) {
+        return Image.file(
+          file,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+        );
+      }
+    }
+
+    // 3. Network URL
+    final fullUrl = ApiConstants.getFullUrl(mediaUrl);
+    return Image.network(
+      fullUrl,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return const Center(
+          child: CircularProgressIndicator(color: AppColors.purple),
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        debugPrint('Story image load error for $fullUrl: $error');
+        if (File(mediaUrl).existsSync()) {
+          return Image.file(
+            File(mediaUrl),
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+          );
+        }
+        return _buildFallbackImage();
+      },
+    );
+  }
+
+  Widget _buildFallbackImage() {
+    return Container(
+      color: Colors.grey[900],
+      child: const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.photo, color: Colors.white38, size: 48),
+            SizedBox(height: 8),
+            Text(
+              'Story Media Unavailable',
+              style: TextStyle(color: Colors.white54, fontSize: 13),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

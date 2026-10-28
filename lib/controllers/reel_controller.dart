@@ -349,28 +349,18 @@ class ReelController extends GetxController {
     if (index < 0 || index >= reels.length) return;
 
     final reel = reels[index];
-    final originalState = reel.isLiked;
-    final originalLikes = reel.likesCount;
+    final newIsLiked = !reel.isLiked;
+    final newLikesCount = newIsLiked
+        ? reel.likesCount + 1
+        : (reel.likesCount - 1).clamp(0, 999999);
 
     reels[index] = reel.copyWith(
-      isLiked: !reel.isLiked,
-      likesCount: reel.isLiked ? reel.likesCount - 1 : reel.likesCount + 1,
+      isLiked: newIsLiked,
+      likesCount: newLikesCount,
     );
+    reels.refresh();
 
-    try {
-      final success = await _service.toggleLike(reel.id);
-      if (!success) {
-        reels[index] = reel.copyWith(
-          isLiked: originalState,
-          likesCount: originalLikes,
-        );
-      }
-    } catch (_) {
-      reels[index] = reel.copyWith(
-        isLiked: originalState,
-        likesCount: originalLikes,
-      );
-    }
+    await _service.toggleLike(reel.id, isNowLiked: newIsLiked);
   }
 
   Future<void> deleteReel(String reelId) async {

@@ -15,6 +15,7 @@ class StoryModel {
   final List<Map<String, dynamic>> viewers;
   final String audioUrl;
   final String songTitle;
+  final double clipStart;
 
   StoryModel({
     required this.storyId,
@@ -31,6 +32,7 @@ class StoryModel {
     this.viewers = const [],
     this.audioUrl = '',
     this.songTitle = '',
+    this.clipStart = 0.0,
   });
 
   factory StoryModel.fromJson(Map<String, dynamic> json) {
@@ -67,6 +69,19 @@ class StoryModel {
           .where((v) => v.isNotEmpty)
           .toList();
     }
+
+    final double parsedClipStart =
+        double.tryParse(
+          (json['clipStart'] ??
+                  json['clip_start'] ??
+                  json['startTime'] ??
+                  json['start_time'] ??
+                  json['songStartTime'] ??
+                  json['song_start_time'] ??
+                  '0')
+              .toString(),
+        ) ??
+        0.0;
 
     return StoryModel(
       storyId: (json['id'] ?? json['storyId'] ?? json['story_id'] ?? '')
@@ -126,6 +141,7 @@ class StoryModel {
                       ? json['caption'].toString()
                       : ''))
               .toString(),
+      clipStart: parsedClipStart,
     );
   }
 
@@ -144,6 +160,7 @@ class StoryModel {
     List<Map<String, dynamic>>? viewers,
     String? audioUrl,
     String? songTitle,
+    double? clipStart,
   }) {
     return StoryModel(
       storyId: storyId ?? this.storyId,
@@ -160,6 +177,7 @@ class StoryModel {
       viewers: viewers ?? this.viewers,
       audioUrl: audioUrl ?? this.audioUrl,
       songTitle: songTitle ?? this.songTitle,
+      clipStart: clipStart ?? this.clipStart,
     );
   }
 }

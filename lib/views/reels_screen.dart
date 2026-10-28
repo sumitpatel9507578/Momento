@@ -176,10 +176,7 @@ class _ReelPageItemState extends State<_ReelPageItem>
 
   void _openComments() async {
     widget.controller.pauseAllVideos();
-    await Get.bottomSheet(
-      CommentBottomSheet(id: widget.reel.id, isReel: true),
-      isScrollControlled: true,
-    );
+    await CommentBottomSheet.show(context, widget.reel.id, isReel: true);
     widget.controller.resumeCurrentVideo();
   }
 
@@ -453,40 +450,61 @@ class _ReelPageItemState extends State<_ReelPageItem>
           Positioned(
             right: 12,
             bottom: 36,
-            child: Column(
-              children: [
-                _buildActionItem(
-                  reel.isLiked ? Icons.favorite : Icons.favorite_border,
-                  '${reel.likesCount}',
-                  () => controller.toggleLike(index),
-                  color: reel.isLiked ? Colors.redAccent : Colors.white,
-                ),
-                _buildActionItem(
-                  Icons.chat_bubble_outline_rounded,
-                  '${reel.commentsCount}',
-                  _openComments,
-                ),
-                _buildActionItem(
-                  Icons.repeat_rounded,
-                  reel.repostsCount > 0 ? '${reel.repostsCount}' : '',
-                  _openRepostNoteSheet,
-                  color: reel.isReposted ? Colors.greenAccent : Colors.white,
-                ),
-                _buildActionItem(CupertinoIcons.paperplane, '', _openShare),
-                // Mute button shown ONLY when video is paused
-                if (!isPlaying)
-                  Obx(
-                    () => _buildActionItem(
+            child: Obx(() {
+              final currentReel =
+                  (index >= 0 && index < controller.reels.length)
+                  ? controller.reels[index]
+                  : reel;
+
+              return Column(
+                children: [
+                  _buildActionItem(
+                    currentReel.isLiked
+                        ? Icons.favorite
+                        : Icons.favorite_border,
+                    '${currentReel.likesCount}',
+                    () => controller.toggleLike(index),
+                    color: currentReel.isLiked
+                        ? Colors.redAccent
+                        : Colors.white,
+                  ),
+                  _buildActionItem(
+                    Icons.chat_bubble_outline_rounded,
+                    '${currentReel.commentsCount}',
+                    _openComments,
+                  ),
+                  _buildActionItem(
+                    Icons.repeat_rounded,
+                    '${currentReel.repostsCount}',
+                    _openRepostNoteSheet,
+                    color: currentReel.isReposted
+                        ? Colors.greenAccent
+                        : Colors.white,
+                  ),
+                  _buildActionItem(
+                    CupertinoIcons.paperplane,
+                    '${currentReel.repostsCount}',
+                    _openShare,
+                  ),
+                  // Mute button shown ONLY when video is paused
+                  if (!isPlaying)
+                    _buildActionItem(
                       controller.isMuted.value
                           ? Icons.volume_off
                           : Icons.volume_up,
                       '',
                       () => controller.toggleMute(index),
+                      showLabel: false,
                     ),
+                  _buildActionItem(
+                    Icons.more_vert,
+                    '',
+                    _openOptions,
+                    showLabel: false,
                   ),
-                _buildActionItem(Icons.more_vert, '', _openOptions),
-              ],
-            ),
+                ],
+              );
+            }),
           ),
         ],
       ),
@@ -498,6 +516,7 @@ class _ReelPageItemState extends State<_ReelPageItem>
     String label,
     VoidCallback onTap, {
     Color color = Colors.white,
+    bool showLabel = true,
   }) {
     return Column(
       children: [
@@ -505,10 +524,14 @@ class _ReelPageItemState extends State<_ReelPageItem>
           onPressed: onTap,
           icon: Icon(icon, color: color, size: 28),
         ),
-        if (label.isNotEmpty)
+        if (showLabel)
           Text(
-            label,
-            style: const TextStyle(color: Colors.white, fontSize: 11),
+            label.isEmpty ? '0' : label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         const SizedBox(height: 12),
       ],

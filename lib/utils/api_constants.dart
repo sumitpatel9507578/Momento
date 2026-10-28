@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 class ApiConstants {
@@ -7,7 +8,7 @@ class ApiConstants {
   static const bool isProduction = true;
 
   // Official Momento Backend (Production)
-  static const String prodServerUrl = "https://momento-api-3-pf62.onrender.com";
+  static const String prodServerUrl = "https://momento-api-4-vzs7.onrender.com";
 
   // Local Machine IP (Development) - Using the IP from your logs
   static const String devServerUrl = "http://192.168.31.240:5000";
@@ -84,7 +85,11 @@ class ApiConstants {
         path.toLowerCase().endsWith('.mov') ||
         path.toLowerCase().endsWith('.avi');
 
-    print("ApiService: Requesting ${isVideo ? 'Video' : 'Image'} -> $fullUrl");
+    if (kDebugMode) {
+      print(
+        "ApiService: Requesting ${isVideo ? 'Video' : 'Image'} -> $fullUrl",
+      );
+    }
 
     return fullUrl;
   }

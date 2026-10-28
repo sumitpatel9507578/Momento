@@ -178,17 +178,24 @@ class ProfileScreen extends StatelessWidget {
                       // Avatar and Stats Row
                       Row(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: AppColors.primaryGradient,
+                          GestureDetector(
+                            onTap: () => _showFullProfileImageDialog(
+                              context,
+                              user.profileImage,
+                              user.username,
                             ),
-                            child: OnlineAvatar(
-                              userId: user.uid,
-                              imageUrl: user.profileImage,
-                              radius: 38,
-                              backgroundColor: AppColors.surface,
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: AppColors.primaryGradient,
+                              ),
+                              child: OnlineAvatar(
+                                userId: user.uid,
+                                imageUrl: user.profileImage,
+                                radius: 38,
+                                backgroundColor: AppColors.surface,
+                              ),
                             ),
                           ),
                           Expanded(
@@ -709,6 +716,64 @@ class ProfileScreen extends StatelessWidget {
           ),
         );
       }, childCount: reels.length),
+    );
+  }
+
+  void _showFullProfileImageDialog(
+    BuildContext context,
+    String imageUrl,
+    String username,
+  ) {
+    if (imageUrl.isEmpty) return;
+
+    Get.dialog(
+      Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(24),
+        child: GestureDetector(
+          onTap: () => Get.back(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: AppColors.primaryGradient,
+                ),
+                child: ClipOval(
+                  child: SizedBox(
+                    width: 260,
+                    height: 260,
+                    child: Image.network(
+                      ApiConstants.getFullUrl(imageUrl),
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: AppColors.surface,
+                        child: const Icon(
+                          Icons.person,
+                          color: Colors.white54,
+                          size: 100,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (username.isNotEmpty)
+                Text(
+                  '@$username',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

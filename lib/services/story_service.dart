@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:momento/models/story_model.dart';
 import 'package:momento/services/api_service.dart';
 import 'package:momento/utils/api_constants.dart';
@@ -53,6 +54,7 @@ class StoryService {
     String? songId,
     String? audioUrl,
     String? songTitle,
+    double? clipStart,
   }) async {
     final user = await _apiService.getUser();
     final userId = (user?['id'] ?? user?['uid'] ?? user?['userId'] ?? '')
@@ -66,6 +68,9 @@ class StoryService {
       if (audioUrl != null && audioUrl.isNotEmpty) 'audio_url': audioUrl,
       if (songTitle != null && songTitle.isNotEmpty) 'songTitle': songTitle,
       if (songTitle != null && songTitle.isNotEmpty) 'song_title': songTitle,
+      if (clipStart != null) 'clipStart': clipStart.toString(),
+      if (clipStart != null) 'clip_start': clipStart.toString(),
+      if (clipStart != null) 'start_time': clipStart.toString(),
     };
 
     // 0. If filePath is ALREADY a Network URL (e.g. Cloudinary link from post/reel)
@@ -143,13 +148,17 @@ class StoryService {
         if (response.statusCode == 201 || response.statusCode == 200) {
           return true;
         } else {
-          print(
-            "Base64 Story failed: ${response.statusCode} - ${response.body}",
-          );
+          if (kDebugMode) {
+            print(
+              "Base64 Story failed: ${response.statusCode} - ${response.body}",
+            );
+          }
         }
       }
     } catch (e) {
-      print("Base64 Story error: $e");
+      if (kDebugMode) {
+        print("Base64 Story error: $e");
+      }
     }
 
     // 2. Fallback to Multipart
@@ -201,7 +210,9 @@ class StoryService {
       );
       return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
-      print("Error toggling story like: $e");
+      if (kDebugMode) {
+        print("Error toggling story like: $e");
+      }
       return false;
     }
   }
@@ -234,7 +245,9 @@ class StoryService {
         }).toList();
       }
     } catch (e) {
-      print("Error fetching story viewers: $e");
+      if (kDebugMode) {
+        print("Error fetching story viewers: $e");
+      }
     }
     return [];
   }
@@ -246,7 +259,9 @@ class StoryService {
       );
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
-      print("Error deleting story: $e");
+      if (kDebugMode) {
+        print("Error deleting story: $e");
+      }
       return false;
     }
   }
