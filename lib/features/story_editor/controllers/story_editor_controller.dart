@@ -252,6 +252,7 @@ class StoryEditorController extends GetxController {
         String? songId;
         String? audioUrl;
         String? songTitle;
+        double? clipStart;
         if (selectedMusic.value != null) {
           songId =
               selectedMusic.value!['id']?.toString() ??
@@ -264,6 +265,14 @@ class StoryEditorController extends GetxController {
           songTitle = titleStr.isNotEmpty
               ? '$titleStr${artistStr.isNotEmpty ? " • $artistStr" : ""}'
               : null;
+          clipStart = double.tryParse(
+            (selectedMusic.value!['clipStart'] ??
+                    selectedMusic.value!['clip_start'] ??
+                    selectedMusic.value!['startTime'] ??
+                    selectedMusic.value!['start_time'] ??
+                    '0')
+                .toString(),
+          );
         }
         success = await _storyService.createStory(
           uploadPath,
@@ -272,6 +281,7 @@ class StoryEditorController extends GetxController {
           songId: songId,
           audioUrl: audioUrl,
           songTitle: songTitle,
+          clipStart: clipStart,
         );
       }
 
