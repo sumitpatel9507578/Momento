@@ -153,31 +153,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
               }
 
               final story = userStoryGroup.stories[storyIndex];
-              final isLocal = story.mediaUrl.startsWith('/');
-
-              return Center(
-                child: isLocal
-                    ? Image.file(
-                        File(story.mediaUrl),
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                      )
-                    : Image.network(
-                        ApiConstants.getFullUrl(story.mediaUrl),
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return const Center(
-                            child: CircularProgressIndicator(
-                              color: AppColors.purple,
-                            ),
-                          );
-                        },
-                      ),
-              );
+              return _buildStoryMedia(story);
             }),
 
             // Top Progress Bars & User Info

@@ -74,6 +74,9 @@ class StoryController extends GetxController {
         flat.addAll(us.stories);
       }
       stories.assignAll(flat);
+
+      // Preload audio files in background for instant playback when opening stories
+      StoryAudioCache.preloadStoriesAudio(flat);
     } catch (e) {
       errorMessage.value = 'No stories yet.';
     } finally {
