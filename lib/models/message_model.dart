@@ -59,7 +59,12 @@ class MessageModel {
       messageType == 'post' && (postId != null && postId!.isNotEmpty);
 
   bool get isAudio =>
-      messageType == 'audio' || messageType == 'voice' || (mediaUrl != null && (mediaUrl!.contains('.mp3') || mediaUrl!.contains('.m4a') || mediaUrl!.contains('.aac')));
+      messageType == 'audio' ||
+      messageType == 'voice' ||
+      (mediaUrl != null &&
+          (mediaUrl!.contains('.mp3') ||
+              mediaUrl!.contains('.m4a') ||
+              mediaUrl!.contains('.aac')));
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
     final sender = json['sender'] is Map
@@ -93,20 +98,22 @@ class MessageModel {
           .toString(),
       messageType: (json['messageType'] ?? json['message_type'] ?? 'text')
           .toString(),
-      mediaUrl: (json['mediaUrl'] ?? json['media_url'] ?? json['audioUrl'] ?? json['audio_url'])?.toString(),
-      audioDuration: json['audioDuration'] ?? json['audio_duration'] ?? json['duration'],
-      reelId: (json['reelId'] ?? json['reel_id']) == null
-          ? null
-          : (json['reelId'] ?? json['reel_id']).toString(),
+      mediaUrl:
+          (json['mediaUrl'] ??
+                  json['media_url'] ??
+                  json['audioUrl'] ??
+                  json['audio_url'])
+              ?.toString(),
+      audioDuration:
+          json['audioDuration'] ?? json['audio_duration'] ?? json['duration'],
+      reelId: (json['reelId'] ?? json['reel_id'])?.toString(),
       reelVideoUrl: (json['reelVideoUrl'] ?? json['reel_video_url'])
           ?.toString(),
       reelCaption: (json['reelCaption'] ?? json['reel_caption'])?.toString(),
       reelOwnerUsername:
           (json['reelOwnerUsername'] ?? json['reel_owner_username'])
               ?.toString(),
-      postId: (json['postId'] ?? json['post_id'] ?? json['itemId']) == null
-          ? null
-          : (json['postId'] ?? json['post_id'] ?? json['itemId']).toString(),
+      postId: (json['postId'] ?? json['post_id'] ?? json['itemId'])?.toString(),
       postImageUrl:
           (json['postImageUrl'] ?? json['post_image_url'] ?? json['mediaUrl'])
               ?.toString(),

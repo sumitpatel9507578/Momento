@@ -213,17 +213,27 @@ class MusicController extends GetxController {
       totalDuration.value = Duration(seconds: song.duration);
 
       await _audioPlayer.stop();
-      await _audioPlayer.play(UrlSource(song.audioUrl));
-      isPlaying.value = true;
+      if (song.audioUrl.isNotEmpty) {
+        await _audioPlayer.play(UrlSource(song.audioUrl));
+        isPlaying.value = true;
+      } else {
+        Get.snackbar(
+          'Error',
+          'Audio stream URL is empty.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+      }
       isBuffering.value = false;
     } catch (e) {
-      debugPrint("Audio Play Error: $e");
+      debugPrint("Audio Play Error for ${song.title} (${song.audioUrl}): $e");
       isBuffering.value = false;
       isPlaying.value = false;
       Get.snackbar(
-        'Error',
-        'Could not play track',
+        'Playback Error',
+        'Could not play track. It might be restricted or broken.',
         snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.redAccent.withValues(alpha: 0.8),
+        colorText: Colors.white,
       );
     }
   }

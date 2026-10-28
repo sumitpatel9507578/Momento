@@ -34,8 +34,9 @@ class EditProfileController extends GetxController {
     ever(profileController.currentUser, (newUser) {
       if (newUser != null) {
         if (nameController.text.isEmpty) nameController.text = newUser.name;
-        if (usernameController.text.isEmpty)
+        if (usernameController.text.isEmpty) {
           usernameController.text = newUser.username;
+        }
         if (bioController.text.isEmpty) bioController.text = newUser.bio;
       }
     });
@@ -68,13 +69,23 @@ class EditProfileController extends GetxController {
 
     final nameError = AppValidators.validateName(nameController.text);
     if (nameError != null) {
-      Get.snackbar('Invalid Name', nameError, snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Invalid Name',
+        nameError,
+        snackPosition: SnackPosition.BOTTOM,
+      );
       return;
     }
 
-    final usernameError = AppValidators.validateUsername(usernameController.text);
+    final usernameError = AppValidators.validateUsername(
+      usernameController.text,
+    );
     if (usernameError != null) {
-      Get.snackbar('Invalid Username', usernameError, snackPosition: SnackPosition.BOTTOM);
+      Get.snackbar(
+        'Invalid Username',
+        usernameError,
+        snackPosition: SnackPosition.BOTTOM,
+      );
       return;
     }
 

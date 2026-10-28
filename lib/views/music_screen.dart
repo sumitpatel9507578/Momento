@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../controllers/music_controller.dart';
 import '../models/song_model.dart';
+import '../routes/app_routes.dart';
 
 class MusicScreen extends StatelessWidget {
   final bool isSelectionMode;
@@ -181,9 +182,9 @@ class MusicScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: isSelected
                           ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest,
+                          : Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: isSelected
@@ -283,7 +284,9 @@ class MusicScreen extends StatelessWidget {
   Widget _buildTrendingSection(BuildContext context) {
     final trending = _musicController.trendingSongs;
     final carouselSongs = trending.take(5).toList();
-    final listSongs = trending.length > 5 ? trending.skip(5).toList() : <SongModel>[];
+    final listSongs = trending.length > 5
+        ? trending.skip(5).toList()
+        : <SongModel>[];
 
     return CustomScrollView(
       slivers: [
@@ -387,11 +390,7 @@ class MusicScreen extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 80), // Space for mini player
       itemCount: searchResults.length,
       itemBuilder: (context, index) {
-        return _buildSongTile(
-          context,
-          searchResults[index],
-          index + 1,
-        );
+        return _buildSongTile(context, searchResults[index], index + 1);
       },
     );
   }
@@ -431,7 +430,7 @@ class MusicScreen extends StatelessWidget {
                     Image.network(
                       song.imageUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                      errorBuilder: (_, _, _) => Container(
                         color: Theme.of(
                           context,
                         ).colorScheme.surfaceContainerHighest,
@@ -481,6 +480,19 @@ class MusicScreen extends StatelessWidget {
     );
   }
 
+  bool get _effectiveSelectionMode {
+    if (isSelectionMode) return true;
+    final args = Get.arguments;
+    if (args is Map && args['isSelectionMode'] == true) return true;
+    if (args == true ||
+        Get.currentRoute == AppRoutes.musicPicker ||
+        Get.currentRoute == '/music' ||
+        Get.currentRoute == '/music-picker') {
+      return true;
+    }
+    return true; // Default to selection mode enabled when opened
+  }
+
   Widget _buildSongTile(BuildContext context, SongModel song, int index) {
     return Obx(() {
       final playingId = _musicController.playingSongIdVal;
@@ -506,10 +518,9 @@ class MusicScreen extends StatelessWidget {
                       : Text(
                           index.toString(),
                           style: TextStyle(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant
-                                .withAlpha(150),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant.withAlpha(150),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -525,17 +536,17 @@ class MusicScreen extends StatelessWidget {
                       ? Image.network(
                           song.imageUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest,
+                          errorBuilder: (_, _, _) => Container(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHighest,
                             child: const Icon(Icons.music_note),
                           ),
                         )
                       : Container(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
                           child: const Icon(Icons.music_note),
                         ),
                 ),
@@ -551,10 +562,12 @@ class MusicScreen extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontWeight:
-                            isCurrent ? FontWeight.bold : FontWeight.normal,
-                        color:
-                            isCurrent ? Theme.of(context).colorScheme.primary : null,
+                        fontWeight: isCurrent
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        color: isCurrent
+                            ? Theme.of(context).colorScheme.primary
+                            : null,
                         fontSize: 15,
                       ),
                     ),
@@ -571,7 +584,7 @@ class MusicScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              if (isSelectionMode)
+              if (_effectiveSelectionMode)
                 ElevatedButton(
                   onPressed: () =>
                       _handleSongTap(song, context, false, index - 1),
@@ -587,10 +600,7 @@ class MusicScreen extends StatelessWidget {
                   child: const Text('Select'),
                 )
               else
-                IconButton(
-                  icon: const Icon(Icons.more_vert),
-                  onPressed: () {},
-                ),
+                IconButton(icon: const Icon(Icons.more_vert), onPressed: () {}),
             ],
           ),
         ),
@@ -604,11 +614,12 @@ class MusicScreen extends StatelessWidget {
     bool isTrending,
     int index,
   ) {
-    if (isSelectionMode) {
+    if (_effectiveSelectionMode) {
+      _musicController.selectSongForMedia(song);
       if (onSongSelected != null) {
         onSongSelected!(song);
       }
-      Get.back();
+      Get.back(result: song);
     } else {
       final queueList = isTrending
           ? _musicController.trendingSongs

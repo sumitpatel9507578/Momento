@@ -9,6 +9,11 @@ class LoginController extends GetxController {
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  final obscurePassword = true.obs;
+
+  void togglePasswordVisibility() {
+    obscurePassword.toggle();
+  }
 
   Future<void> login() async {
     final email = emailController.text.trim();

@@ -13,11 +13,11 @@ import 'package:momento/views/admin/admin_report_list_screen.dart';
 import 'package:momento/views/admin/admin_verification_dashboard_screen.dart';
 import 'package:momento/views/admin/admin_verification_detail_screen.dart';
 import 'package:momento/views/admin/admin_verification_list_screen.dart';
-import '../views/call_screen.dart';
+import 'package:momento/views/call_screen.dart';
 import 'package:momento/views/chat_list_screen.dart';
 import 'package:momento/views/chat_screen.dart';
 import 'package:momento/views/complete_profile_screen.dart';
-import 'package:momento/views/create_post_screen.dart';
+import 'package:momento/views/create_screen.dart';
 import 'package:momento/views/edit_profile_screen.dart';
 import 'package:momento/views/find_people_screen.dart';
 import 'package:momento/views/followers_screen.dart';
@@ -40,6 +40,7 @@ import 'package:momento/views/search_screen.dart';
 import 'package:momento/views/settings_screen.dart';
 import 'package:momento/views/splash_screen.dart';
 import 'package:momento/views/story_viewer_screen.dart';
+import 'package:momento/views/upload_screen.dart';
 import 'package:momento/views/verification/verification_document_screen.dart';
 import 'package:momento/views/verification/verification_eligibility_screen.dart';
 import 'package:momento/views/verification/verification_form_screen.dart';
@@ -127,7 +128,13 @@ class AppPages {
     ),
     GetPage(
       name: AppRoutes.create,
-      page: () => const CreatePostScreen(),
+      page: () => const CreateScreen(),
+      transition: Transition.downToUp,
+      binding: HomeBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.upload,
+      page: () => const UploadScreen(),
       binding: HomeBinding(),
     ),
     GetPage(

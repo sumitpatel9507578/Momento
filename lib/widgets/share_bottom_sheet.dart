@@ -254,11 +254,7 @@ class _ShareBottomSheetState extends State<ShareBottomSheet> {
         'color': Colors.white,
       },
       {'name': 'Copy link', 'icon': Icons.link_rounded, 'color': Colors.white},
-      {
-        'name': 'WhatsApp',
-        'icon': Icons.chat_bubble_rounded,
-        'color': Colors.green,
-      },
+      {'name': 'WhatsApp', 'icon': Icons.share_rounded, 'color': Colors.green},
       {'name': 'Share', 'icon': Icons.share_rounded, 'color': Colors.white},
       {
         'name': 'Status',

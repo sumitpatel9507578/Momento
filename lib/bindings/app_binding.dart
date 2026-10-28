@@ -1,5 +1,4 @@
 import 'package:get/get.dart';
-
 import 'package:momento/controllers/auth_controller.dart';
 import 'package:momento/controllers/call_controller.dart';
 import 'package:momento/controllers/chat_controller.dart';
@@ -59,10 +58,7 @@ class AppBinding extends Bindings {
       () => NoteService(Get.find<ApiService>()),
       fenix: true,
     );
-    Get.lazyPut<WebRtcService>(
-      () => WebRtcService(),
-      fenix: true,
-    );
+    Get.lazyPut<WebRtcService>(() => WebRtcService(), fenix: true);
 
     Get.lazyPut<AuthController>(
       () => AuthController(apiService: Get.find<ApiService>()),

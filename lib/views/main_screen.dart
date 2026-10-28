@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:momento/utils/app_colors.dart';
-import 'package:momento/views/create_post_screen.dart';
 import 'package:momento/widgets/mini_player_widget.dart';
 
+import '../controllers/chat_controller.dart';
 import '../controllers/home_controller.dart';
 import '../controllers/network_controller.dart';
 import '../controllers/profile_controller.dart';
 import '../utils/api_constants.dart';
 import 'home_screen.dart';
-import 'music_screen.dart';
 import 'profile_screen.dart';
 import 'reels_screen.dart';
 import 'search_screen.dart';
@@ -23,11 +22,9 @@ class MainScreen extends StatelessWidget {
 
     final List<Widget> screens = [
       const HomeScreen(),
-      const SearchScreen(),
-      const CreatePostScreen(),
       const ReelsScreen(),
+      const SearchScreen(),
       const ProfileScreen(),
-      MusicScreen(), // Index 5
     ];
 
     return Scaffold(
@@ -87,31 +84,35 @@ class MainScreen extends StatelessWidget {
               ),
               child: SafeArea(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
+                      // 1. Home
                       _buildNavItem(
                         0,
                         Icons.home_filled,
                         Icons.home_outlined,
                         controller,
                       ),
-                      _buildNavItem(1, Icons.search, Icons.search, controller),
-                      _buildCreatePostNavItem(2, controller),
+                      // 2. Reels
                       _buildNavItem(
-                        3,
+                        1,
                         Icons.play_circle_fill,
                         Icons.play_circle_outline,
                         controller,
                       ),
+                      // 3. Messages (with red count badge, opens '/chat-list')
+                      _buildMessagesNavItem(),
+                      // 4. Search
                       _buildNavItem(
-                        5,
-                        Icons.music_note,
-                        Icons.music_note_outlined,
+                        2,
+                        Icons.search,
+                        Icons.search,
                         controller,
                       ),
-                      _buildProfileNavItem(4, controller),
+                      // 5. Profile
+                      _buildProfileNavItem(3, controller),
                     ],
                   ),
                 ),
@@ -144,24 +145,50 @@ class MainScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCreatePostNavItem(int index, HomeController controller) {
+  Widget _buildMessagesNavItem() {
     return GestureDetector(
-      onTap: () => controller.changeTab(index),
-      child: Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          gradient: AppColors.primaryGradient,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.purple.withValues(alpha: 0.5),
-              blurRadius: 10,
-              spreadRadius: 1,
-            ),
-          ],
-        ),
-        child: const Icon(Icons.add_rounded, color: Colors.white, size: 26),
+      behavior: HitTestBehavior.opaque,
+      onTap: () => Get.toNamed('/chat-list'),
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          const Icon(
+            Icons.chat_bubble_outline_rounded,
+            size: 26,
+            color: Colors.white,
+          ),
+          Obx(() {
+            final chatController = Get.isRegistered<ChatController>()
+                ? Get.find<ChatController>()
+                : null;
+            final count = chatController?.totalUnreadCount ?? 0;
+            if (count <= 0) return const SizedBox.shrink();
+
+            final badgeText = count > 99 ? '99+' : '$count';
+            return Positioned(
+              right: -6,
+              top: -4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                constraints: const BoxConstraints(minWidth: 16, minHeight: 14),
+                child: Text(
+                  badgeText,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
       ),
     );
   }

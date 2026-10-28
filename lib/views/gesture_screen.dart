@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../controllers/GestureController.dart';
-import '../models/gesture_settings.dart';
 import '../models/gesture_state.dart';
 import '../models/hand_gesture_type.dart';
 import '../routes/app_routes.dart';

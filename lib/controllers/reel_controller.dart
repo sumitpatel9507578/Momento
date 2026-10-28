@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:momento/controllers/home_controller.dart';
 import 'package:momento/models/reel_model.dart';
 import 'package:momento/services/api_service.dart';
 import 'package:momento/services/reel_service.dart';
@@ -29,9 +30,16 @@ class ReelController extends GetxController {
 
   int _currentPage = 1;
   bool _hasMore = true;
-  bool _active = true; // false = screen se bahar, kuch bhi auto-play na ho
+  bool _active = false; // false = screen se bahar, kuch bhi auto-play na ho
   Future<void>? _initialLoad;
   final Map<String, Future<void>> _initializing = {};
+
+  bool _isReelsTabActive() {
+    if (Get.isRegistered<HomeController>()) {
+      return Get.find<HomeController>().currentIndex.value == 1;
+    }
+    return true;
+  }
 
   @override
   void onInit() {
@@ -211,7 +219,11 @@ class ReelController extends GetxController {
       videoControllers[reel.id] = c;
       failedInitializations.remove(reel.id);
 
-      if (_active && idx == currentIndex.value) c.play();
+      if (_active && idx == currentIndex.value && _isReelsTabActive()) {
+        c.play();
+      } else {
+        c.pause();
+      }
       videoVersion.value++;
     } catch (e) {
       debugPrint('Video init error for ${reel.id} ($videoUrl): $e');
@@ -235,7 +247,8 @@ class ReelController extends GetxController {
     if (index < 0 || index >= reels.length) return;
 
     currentIndex.value = index;
-    _active = true;
+    final isReelsActive = _isReelsTabActive();
+    _active = isReelsActive;
     final reel = reels[index];
 
     // Baaki sab pause (aur purani reel shuru se).
@@ -249,7 +262,11 @@ class ReelController extends GetxController {
     final current = videoControllers[reel.id];
     if (current != null) {
       current.setVolume(isMuted.value ? 0.0 : 1.0);
-      current.play();
+      if (isReelsActive) {
+        current.play();
+      } else {
+        current.pause();
+      }
     } else {
       // _initVideo khud play kar dega jab ready ho (agar ab bhi current hai).
       await initializeVideo(index);

@@ -3,9 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:momento/controllers/create_post_controller.dart';
 import 'package:video_player/video_player.dart';
-
-import '../controllers/create_post_controller.dart';
 import '../features/ai/mira_caption_sheet.dart';
 import '../routes/app_routes.dart';
 import '../widgets/mira_ai_button.dart';
@@ -126,40 +125,42 @@ class CreatePostScreen extends GetView<CreatePostController> {
                                   right: 10,
                                   child: Row(
                                     children: [
-                                      if (_isVideoFile(
-                                        controller.selectedFile.value!,
-                                      )) ...[
-                                        CircleAvatar(
-                                          backgroundColor: Colors.black54,
-                                          child: IconButton(
-                                            tooltip:
-                                                'Apply GPU Video Filters (250 Presets)',
-                                            icon: const Icon(
-                                              Icons.movie_filter,
-                                              color: Colors.amber,
-                                              size: 20,
-                                            ),
-                                            onPressed: () async {
+                                      // Filters Button
+                                      CircleAvatar(
+                                        backgroundColor: Colors.black54,
+                                        child: IconButton(
+                                          tooltip: 'Apply Filters',
+                                          icon: const Icon(
+                                            Icons.color_lens,
+                                            color: Colors.amber,
+                                            size: 20,
+                                          ),
+                                          onPressed: () async {
+                                            final file = controller.selectedFile.value!;
+                                            final isVideo = _isVideoFile(file);
+                                            if (isVideo) {
                                               final filtered = await Get.to(
                                                 () => VideoFilterPreviewScreen(
-                                                  videoFile: controller
-                                                      .selectedFile
-                                                      .value!,
+                                                  videoFile: file,
                                                 ),
                                               );
                                               if (filtered is File) {
-                                                controller.selectedFile.value =
-                                                    filtered;
-                                                Get.snackbar(
-                                                  'Success',
-                                                  'GPU video filter applied successfully!',
-                                                );
+                                                controller.selectedFile.value = filtered;
                                               }
-                                            },
-                                          ),
+                                            } else {
+                                              Get.toNamed(
+                                                AppRoutes.storyEditor,
+                                                arguments: {
+                                                  'mediaPath': file.path,
+                                                  'mediaType': 'image',
+                                                  'contentType': controller.selectedType.value == 3 ? 'reel' : 'story',
+                                                },
+                                              );
+                                            }
+                                          },
                                         ),
-                                        const SizedBox(width: 8),
-                                      ],
+                                      ),
+                                      const SizedBox(width: 8),
                                       // Open in Full Story Editor Panel
                                       CircleAvatar(
                                         backgroundColor: Colors.black54,

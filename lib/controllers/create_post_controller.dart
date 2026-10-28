@@ -21,13 +21,15 @@ class CreatePostController extends GetxController {
 
   final captionController = TextEditingController();
   final selectedType = 0.obs;
+  final Rxn<File> selectedFile = Rxn<File>();
   final selectedFiles = <File>[].obs;
   final selectedSong = Rxn<SongModel>();
   final isLoading = false.obs;
 
   final ImagePicker _picker = ImagePicker();
 
-  File? get primaryFile => selectedFiles.isNotEmpty ? selectedFiles.first : null;
+  File? get primaryFile =>
+      selectedFile.value ?? (selectedFiles.isNotEmpty ? selectedFiles.first : null);
 
   Future<void> pickImage(ImageSource source) async {
     try {
@@ -40,7 +42,9 @@ class CreatePostController extends GetxController {
 
       if (image != null) {
         selectedFiles.clear();
-        selectedFiles.add(File(image.path));
+        final file = File(image.path);
+        selectedFiles.add(file);
+        selectedFile.value = file;
         if (selectedType.value == 2) {
           Get.toNamed(
             AppRoutes.storyEditor,
@@ -66,6 +70,7 @@ class CreatePostController extends GetxController {
         for (final img in images.take(10)) {
           selectedFiles.add(File(img.path));
         }
+        selectedFile.value = selectedFiles.first;
       }
     } catch (e) {
       Get.snackbar('Error', 'Failed to pick multiple images');
@@ -86,6 +91,9 @@ class CreatePostController extends GetxController {
             selectedFiles.add(File(img.path));
           }
         }
+        if (selectedFile.value == null && selectedFiles.isNotEmpty) {
+          selectedFile.value = selectedFiles.first;
+        }
       }
     } catch (e) {
       Get.snackbar('Error', 'Failed to add images');
@@ -98,7 +106,9 @@ class CreatePostController extends GetxController {
 
       if (video != null) {
         selectedFiles.clear();
-        selectedFiles.add(File(video.path));
+        final file = File(video.path);
+        selectedFiles.add(file);
+        selectedFile.value = file;
         if (selectedType.value == 2) {
           Get.toNamed(
             AppRoutes.storyEditor,
@@ -114,15 +124,22 @@ class CreatePostController extends GetxController {
   void removeFileAt(int index) {
     if (index >= 0 && index < selectedFiles.length) {
       selectedFiles.removeAt(index);
+      selectedFile.value =
+          selectedFiles.isNotEmpty ? selectedFiles.first : null;
     }
   }
 
   void removeFile() {
     selectedFiles.clear();
+    selectedFile.value = null;
     selectedSong.value = null;
   }
 
   Future<void> uploadContent() async {
+    if (selectedFiles.isEmpty && selectedFile.value != null) {
+      selectedFiles.add(selectedFile.value!);
+    }
+
     if (selectedFiles.isEmpty) {
       Get.snackbar('Error', 'Please select at least one photo or video');
       return;
@@ -195,7 +212,9 @@ class CreatePostController extends GetxController {
 
         final typeName = selectedType.value == 2
             ? 'Story'
-            : (selectedType.value == 3 ? 'Reel' : (filePaths.length > 1 ? 'Carousel Post' : 'Post'));
+            : (selectedType.value == 3
+                  ? 'Reel'
+                  : (filePaths.length > 1 ? 'Carousel Post' : 'Post'));
         Get.snackbar('Success', '$typeName shared successfully!');
         removeFile();
         captionController.clear();

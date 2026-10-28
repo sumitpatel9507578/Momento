@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:get/get.dart';
+import 'package:momento/controllers/call_controller.dart';
 import 'package:momento/utils/api_constants.dart';
 import 'package:momento/utils/app_colors.dart';
-
-import 'package:momento/controllers/call_controller.dart';
 
 class CallScreen extends GetView<CallController> {
   const CallScreen({super.key});
@@ -40,51 +39,51 @@ class CallScreen extends GetView<CallController> {
                     ),
                   ),
                   child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircleAvatar(
-                          radius: 54,
-                          backgroundColor: AppColors.purple.withValues(
-                            alpha: 0.3,
-                          ),
-                          backgroundImage:
-                              controller.peerAvatar.value.isNotEmpty
-                              ? NetworkImage(
-                                  ApiConstants.getFullUrl(
-                                    controller.peerAvatar.value,
-                                  ),
-                                )
-                              : null,
-                          child: controller.peerAvatar.value.isEmpty
-                              ? const Icon(
-                                  Icons.person,
-                                  size: 54,
-                                  color: Colors.white,
-                                )
-                              : null,
-                        ),
-                        const SizedBox(height: 20),
-                        Text(
-                          controller.peerName.value,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          _getStatusText(
-                            state,
-                            controller.callDurationSeconds.value,
-                          ),
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
+                    child: Builder(
+                      builder: (context) {
+                        final avatarProvider = ApiConstants.getImageProvider(
+                          controller.peerAvatar.value,
+                        );
+                        return Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircleAvatar(
+                              radius: 54,
+                              backgroundColor: AppColors.purple.withValues(
+                                alpha: 0.3,
+                              ),
+                              backgroundImage: avatarProvider,
+                              child: avatarProvider == null
+                                  ? const Icon(
+                                      Icons.person,
+                                      size: 54,
+                                      color: Colors.white,
+                                    )
+                                  : null,
+                            ),
+                            const SizedBox(height: 20),
+                            Text(
+                              controller.peerName.value,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _getStatusText(
+                                state,
+                                controller.callDurationSeconds.value,
+                              ),
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ),

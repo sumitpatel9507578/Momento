@@ -9,6 +9,8 @@ class UserAvatar extends StatelessWidget {
   final String? userId;
   final String? imageUrl;
   final double radius;
+  final double? size;
+  final bool showGradientBorder;
   final VoidCallback? onTap;
   final Color? backgroundColor;
   final Color? borderColor;
@@ -18,6 +20,8 @@ class UserAvatar extends StatelessWidget {
     this.userId,
     this.imageUrl,
     this.radius = 20,
+    this.size,
+    this.showGradientBorder = false,
     this.onTap,
     this.backgroundColor,
     this.borderColor,
@@ -25,33 +29,51 @@ class UserAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final effectiveRadius = size != null ? size! / 2 : radius;
     final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
     final chatController = Get.isRegistered<ChatController>()
         ? Get.find<ChatController>()
         : null;
+
+    Widget avatar = CircleAvatar(
+      radius: effectiveRadius,
+      backgroundColor: backgroundColor ?? AppColors.surface,
+      backgroundImage: hasImage
+          ? NetworkImage(ApiConstants.getFullUrl(imageUrl!))
+          : null,
+      child: !hasImage
+          ? Icon(
+              Icons.person,
+              size: effectiveRadius * 0.9,
+              color: Colors.white54,
+            )
+          : null,
+    );
+
+    if (showGradientBorder) {
+      avatar = Container(
+        padding: const EdgeInsets.all(2),
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: AppColors.primaryGradient,
+        ),
+        child: avatar,
+      );
+    }
 
     return GestureDetector(
       onTap: onTap,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          CircleAvatar(
-            radius: radius,
-            backgroundColor: backgroundColor ?? AppColors.surface,
-            backgroundImage: hasImage
-                ? NetworkImage(ApiConstants.getFullUrl(imageUrl!))
-                : null,
-            child: !hasImage
-                ? Icon(Icons.person, size: radius * 0.9, color: Colors.white54)
-                : null,
-          ),
+          avatar,
           if (userId != null && userId!.isNotEmpty && chatController != null)
             Obx(() {
               final isOnline =
                   chatController.onlineUserIds.contains(userId) &&
                   chatController.showActivityStatus.value;
               if (!isOnline) return const SizedBox.shrink();
-              final dotSize = radius * 0.45;
+              final dotSize = effectiveRadius * 0.45;
               return Positioned(
                 right: -1,
                 bottom: -1,

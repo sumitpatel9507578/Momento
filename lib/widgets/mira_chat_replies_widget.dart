@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
 import 'package:momento/controllers/mira_ai_controller.dart';
 import 'package:momento/models/message_model.dart';
 
@@ -55,17 +54,21 @@ class _MiraChatRepliesWidgetState extends State<MiraChatRepliesWidget> {
 
     _isGenerating.value = true;
 
-    // Extract recent non-empty text messages (up to 5)
-    final recentMsgs = widget.messages
+    // Extract the LATEST 5 non-empty text messages (chronological order, taking from the end)
+    final nonEvents = widget.messages
         .where((m) => m.message.trim().isNotEmpty)
-        .take(5)
-        .map((m) => m.message)
         .toList();
 
-    if (recentMsgs.isEmpty) {
+    if (nonEvents.isEmpty) {
       _isGenerating.value = false;
       return;
     }
+
+    final recentMsgs = (nonEvents.length > 5
+            ? nonEvents.sublist(nonEvents.length - 5)
+            : nonEvents)
+        .map((m) => m.message)
+        .toList();
 
     try {
       final replies = await _miraController.generateChatReplies(

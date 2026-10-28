@@ -578,7 +578,7 @@ class ProfileScreen extends StatelessWidget {
                     Row(
                       children: [
                         const Icon(
-                          Icons.mode_comment,
+                          Icons.chat_bubble_outline_rounded,
                           color: Colors.white,
                           size: 13,
                         ),
@@ -687,7 +687,7 @@ class ProfileScreen extends StatelessWidget {
                     Row(
                       children: [
                         const Icon(
-                          Icons.mode_comment,
+                          Icons.chat_bubble_outline_rounded,
                           color: Colors.white,
                           size: 13,
                         ),

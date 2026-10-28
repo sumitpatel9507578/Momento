@@ -42,17 +42,23 @@ class MoreOptionsSheet extends GetView<StoryEditorController> {
               children: [
                 Obx(
                   () => SwitchListTile(
-                    title: const Text('Allow Replies', style: TextStyle(color: Colors.white)),
+                    title: const Text(
+                      'Allow Replies',
+                      style: TextStyle(color: Colors.white),
+                    ),
                     value: controller.allowReplies.value,
-                    activeColor: AppColors.purple,
+                    activeThumbColor: AppColors.purple,
                     onChanged: (val) => controller.allowReplies.value = val,
                   ),
                 ),
                 Obx(
                   () => SwitchListTile(
-                    title: const Text('Allow Sharing', style: TextStyle(color: Colors.white)),
+                    title: const Text(
+                      'Allow Sharing',
+                      style: TextStyle(color: Colors.white),
+                    ),
                     value: controller.allowSharing.value,
-                    activeColor: AppColors.purple,
+                    activeThumbColor: AppColors.purple,
                     onChanged: (val) => controller.allowSharing.value = val,
                   ),
                 ),
@@ -61,7 +67,10 @@ class MoreOptionsSheet extends GetView<StoryEditorController> {
                   padding: EdgeInsets.symmetric(vertical: 8),
                   child: Text(
                     'Alt Text',
-                    style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 TextField(

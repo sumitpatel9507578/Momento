@@ -338,10 +338,20 @@ class StoryController extends GetxController {
         );
       }
 
+      final song = selectedSong.value;
+      debugPrint('STORY SONG -> ${song?.title} | ${song?.audioUrl}');
+
+      final String? songTitleFormatted = (song != null && song.title.isNotEmpty)
+          ? '${song.title}${song.artist.isNotEmpty ? ' • ${song.artist}' : ''}'
+          : null;
+
       final success = await _service.createStory(
         uploadPath,
         'image',
         caption: text,
+        songId: song?.id,
+        audioUrl: song?.audioUrl,
+        songTitle: songTitleFormatted,
       );
 
       if (success) {

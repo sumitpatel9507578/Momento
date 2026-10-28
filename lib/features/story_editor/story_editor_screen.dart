@@ -125,7 +125,7 @@ class StoryEditorScreen extends GetView<StoryEditorController> {
                 final matrix = ImageFilterUtils.getMatrixByName(filter);
                 if (matrix != null) {
                   mediaWidget = ColorFiltered(
-                    key: ValueKey('filter_${filter}_${path}'),
+                    key: ValueKey('filter_${filter}_$path'),
                     colorFilter: ColorFilter.matrix(matrix),
                     child: mediaWidget,
                   );

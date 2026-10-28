@@ -5,6 +5,7 @@ class AppColors {
   static const Color surface = Color(0xFF11111A);
 
   static const Color purple = Color(0xFF8B5CF6);
+  static const Color primary = purple;
   static const Color violet = Color(0xFF7C3AED);
   static const Color cyan = Color(0xFF06B6D4);
   static const Color pink = Color(0xFFEC4899);

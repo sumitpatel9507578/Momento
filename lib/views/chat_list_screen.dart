@@ -4,8 +4,7 @@ import 'package:get/get.dart';
 import '../controllers/chat_controller.dart';
 import '../controllers/note_controller.dart';
 import '../controllers/profile_controller.dart';
-import '../models/note_model.dart';
-import '../routes/app_routes.dart';
+import 'package:momento/models/note_model.dart';
 import '../utils/app_colors.dart';
 import '../widgets/note_bubble_widget.dart';
 import '../widgets/note_create_sheet.dart';
@@ -132,101 +131,98 @@ class ChatListScreen extends GetView<ChatController> {
                 )
               else
                 SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final convo = controller.conversations[index];
-                      final profileImage =
-                          convo['profile_image'] ?? convo['profileImage'];
-                      final isUnread =
-                          convo['unread'] == true ||
-                          convo['unread'] == 1 ||
-                          (convo['isRead'] != true &&
-                              convo['receiverId']?.toString() ==
-                                  controller.currentUserId);
-                      final conversationUserId =
-                          (convo['conversationUserId'] ??
-                                  convo['conversation_user_id'] ??
-                                  convo['userId'] ??
-                                  convo['id'] ??
-                                  '')
-                              .toString();
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final convo = controller.conversations[index];
+                    final profileImage =
+                        convo['profile_image'] ?? convo['profileImage'];
+                    final isUnread =
+                        convo['unread'] == true ||
+                        convo['unread'] == 1 ||
+                        (convo['isRead'] != true &&
+                            convo['receiverId']?.toString() ==
+                                controller.currentUserId);
+                    final conversationUserId =
+                        (convo['conversationUserId'] ??
+                                convo['conversation_user_id'] ??
+                                convo['userId'] ??
+                                convo['id'] ??
+                                '')
+                            .toString();
 
-                      return InkWell(
-                        onTap: () => Get.toNamed('/chat', arguments: convo),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
-                          child: Row(
-                            children: [
-                              OnlineAvatar(
-                                userId: conversationUserId,
-                                imageUrl: profileImage,
-                                radius: 29,
-                                backgroundColor: AppColors.darkGrey,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      convo['full_name'] ??
-                                          convo['name'] ??
-                                          convo['username'] ??
-                                          'User',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: isUnread
-                                            ? FontWeight.w700
-                                            : FontWeight.w500,
-                                        fontSize: 15,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 3),
-                                    Text(
-                                      _subtitleText(convo),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: isUnread
-                                            ? Colors.white
-                                            : Colors.white38,
-                                        fontWeight: isUnread
-                                            ? FontWeight.w600
-                                            : FontWeight.w400,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              if (isUnread)
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  margin: const EdgeInsets.only(right: 10),
-                                  decoration: const BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: AppColors.purple,
-                                  ),
-                                ),
-                              const Icon(
-                                Icons.camera_alt_outlined,
-                                color: Colors.white54,
-                                size: 22,
-                              ),
-                            ],
-                          ),
+                    return InkWell(
+                      onTap: () => Get.toNamed('/chat', arguments: convo),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
                         ),
-                      );
-                    },
-                    childCount: controller.conversations.length,
-                  ),
+                        child: Row(
+                          children: [
+                            OnlineAvatar(
+                              userId: conversationUserId,
+                              imageUrl: profileImage,
+                              radius: 29,
+                              backgroundColor: AppColors.darkGrey,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    convo['full_name'] ??
+                                        convo['name'] ??
+                                        convo['username'] ??
+                                        'User',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: isUnread
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    _subtitleText(convo),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: isUnread
+                                          ? Colors.white
+                                          : Colors.white38,
+                                      fontWeight: isUnread
+                                          ? FontWeight.w600
+                                          : FontWeight.w400,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            if (isUnread)
+                              Container(
+                                width: 8,
+                                height: 8,
+                                margin: const EdgeInsets.only(right: 10),
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppColors.purple,
+                                ),
+                              ),
+                            const Icon(
+                              Icons.camera_alt_outlined,
+                              color: Colors.white54,
+                              size: 22,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }, childCount: controller.conversations.length),
                 ),
             ],
           ),
@@ -243,9 +239,7 @@ class ChatListScreen extends GetView<ChatController> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Colors.white10, width: 0.5),
-        ),
+        border: Border(bottom: BorderSide(color: Colors.white10, width: 0.5)),
       ),
       child: Obx(() {
         final myNote = noteController.myNote;
@@ -332,7 +326,9 @@ class ChatListScreen extends GetView<ChatController> {
                 decoration: BoxDecoration(
                   color: AppColors.background,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.purple.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: AppColors.purple.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Text(
                   '"${note.noteText}"',
@@ -350,12 +346,19 @@ class ChatListScreen extends GetView<ChatController> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.music_note_rounded, color: AppColors.purple, size: 16),
+                    const Icon(
+                      Icons.music_note_rounded,
+                      color: AppColors.purple,
+                      size: 16,
+                    ),
                     const SizedBox(width: 6),
                     Flexible(
                       child: Text(
                         '${note.musicTrack!['title'] ?? 'Song'} • ${note.musicTrack!['artist'] ?? ''}',
-                        style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -371,14 +374,20 @@ class ChatListScreen extends GetView<ChatController> {
                 style: const TextStyle(color: Colors.white, fontSize: 14),
                 decoration: InputDecoration(
                   hintText: 'Reply to ${note.username}...',
-                  hintStyle: const TextStyle(color: Colors.white38, fontSize: 13.5),
+                  hintStyle: const TextStyle(
+                    color: Colors.white38,
+                    fontSize: 13.5,
+                  ),
                   filled: true,
                   fillColor: AppColors.background,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(20),
                     borderSide: BorderSide.none,
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -388,7 +397,10 @@ class ChatListScreen extends GetView<ChatController> {
                 children: [
                   TextButton(
                     onPressed: () => Get.back(),
-                    child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(color: Colors.white54),
+                    ),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
@@ -413,7 +425,13 @@ class ChatListScreen extends GetView<ChatController> {
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    child: const Text('Send DM', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'Send DM',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ],
               ),

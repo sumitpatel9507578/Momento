@@ -141,11 +141,20 @@ class GestureController extends GetxController with WidgetsBindingObserver {
 
       // Initialize MediaPipe Hand Landmarker
       statusMessage.value = 'Initializing AI Landmarker...';
-      handLandmarker = HandLandmarkerPlugin.create(
-        numHands: 1,
-        minHandDetectionConfidence: settings.value.confidenceThreshold,
-        delegate: HandLandmarkerDelegate.gpu,
-      );
+      try {
+        handLandmarker = HandLandmarkerPlugin.create(
+          numHands: 1,
+          minHandDetectionConfidence: settings.value.confidenceThreshold,
+          delegate: HandLandmarkerDelegate.gpu,
+        );
+      } catch (e) {
+        debugPrint('GPU delegate failed, using CPU fallback: $e');
+        handLandmarker = HandLandmarkerPlugin.create(
+          numHands: 1,
+          minHandDetectionConfidence: settings.value.confidenceThreshold,
+          delegate: HandLandmarkerDelegate.cpu,
+        );
+      }
 
       landmarkSubscription = handLandmarker!.landmarkStream.listen(
         _onLandmarksReceived,
@@ -336,6 +345,10 @@ class GestureController extends GetxController with WidgetsBindingObserver {
       statusMessage.value = 'Capturing photo...';
       _playShutterSound();
 
+      if (cameraController!.value.isStreamingImages) {
+        await cameraController!.stopImageStream();
+      }
+
       final XFile photo = await cameraController!.takePicture();
       statusMessage.value = 'Photo captured!';
 
@@ -364,6 +377,10 @@ class GestureController extends GetxController with WidgetsBindingObserver {
     try {
       _resetPendingGesture();
       cancelCountdown();
+
+      if (cameraController!.value.isStreamingImages) {
+        await cameraController!.stopImageStream();
+      }
 
       await cameraController!.startVideoRecording();
       gestureState.value = GestureState.recordingVideo;

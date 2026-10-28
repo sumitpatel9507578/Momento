@@ -36,6 +36,7 @@ dependencies:
     path: third_party/deepar_flutter
   gal: ^2.3.0
   flutter_webrtc: ^0.12.5
+  just_audio: ^0.10.6
 
 dev_dependencies:
   flutter_test:

@@ -4,6 +4,7 @@ import 'package:crypto/crypto.dart';
 import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../models/user_model.dart';
 import '../repositories/user_repository.dart';
 import '../services/api_service.dart';
 import '../utils/api_constants.dart';
@@ -11,9 +12,25 @@ import '../utils/api_constants.dart';
 class AuthController extends GetxController {
   final ApiService _apiService;
 
-  AuthController({required ApiService apiService}) : _apiService = apiService;
+  AuthController({required this._apiService});
 
   final isLoading = false.obs;
+  final currentUser = Rxn<UserModel>();
+
+  @override
+  void onInit() {
+    super.onInit();
+    loadCurrentUser();
+  }
+
+  Future<void> loadCurrentUser() async {
+    try {
+      final userMap = await _apiService.getUser();
+      if (userMap != null) {
+        currentUser.value = UserModel.fromMap(userMap);
+      }
+    } catch (_) {}
+  }
 
   Future<bool> login({required String email, required String password}) async {
     try {
@@ -37,6 +54,7 @@ class AuthController extends GetxController {
           await _apiService.saveToken(token.toString());
           if (userData != null) {
             await _apiService.saveUser(userData);
+            currentUser.value = UserModel.fromMap(userData);
           }
           print("[AUTH] Token saved successfully in FlutterSecureStorage");
           Get.snackbar('Success', 'Welcome back to Momento!');
@@ -125,6 +143,7 @@ class AuthController extends GetxController {
           await _apiService.saveToken(token.toString());
           if (userData != null) {
             await _apiService.saveUser(userData);
+            currentUser.value = UserModel.fromMap(userData);
           }
 
           // If user picked a custom profile image, upload it via PUT /users/:id (which has Multer)
@@ -234,7 +253,10 @@ class AuthController extends GetxController {
         final userData = body['data']['user'];
         if (token != null) {
           await _apiService.saveToken(token.toString());
-          if (userData != null) await _apiService.saveUser(userData);
+          if (userData != null) {
+            await _apiService.saveUser(userData);
+            currentUser.value = UserModel.fromMap(userData);
+          }
           Get.snackbar('Success', 'Logged in with Google!');
           return true;
         }
@@ -272,7 +294,10 @@ class AuthController extends GetxController {
         final userData = body['data']['user'];
         if (token != null) {
           await _apiService.saveToken(token.toString());
-          if (userData != null) await _apiService.saveUser(userData);
+          if (userData != null) {
+            await _apiService.saveUser(userData);
+            currentUser.value = UserModel.fromMap(userData);
+          }
           Get.snackbar('Success', 'Account created via Google!');
           return true;
         }
@@ -300,6 +325,7 @@ class AuthController extends GetxController {
   }
 
   Future<void> logout() async {
+    currentUser.value = null;
     await _apiService.deleteToken();
     Get.offAllNamed('/login');
   }

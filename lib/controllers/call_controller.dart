@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:get/get.dart';
 import 'package:momento/routes/app_routes.dart';
 import 'package:momento/services/chat_socket_service.dart';
 import 'package:momento/services/webrtc_service.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 enum CallState { idle, outgoingRinging, incomingRinging, connected, ended }
 
@@ -31,25 +33,30 @@ class CallController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _initRenderers();
     _setupSocketListeners();
   }
 
-  Future<void> _initRenderers() async {
-    await localRenderer.initialize();
-    await remoteRenderer.initialize();
+  Future<void> ensureRenderersInitialized() async {
+    try {
+      await localRenderer.initialize();
+      await remoteRenderer.initialize();
 
-    _webrtcService.onLocalStream = (stream) {
-      localRenderer.srcObject = stream;
-    };
+      _webrtcService.onLocalStream = (stream) {
+        localRenderer.srcObject = stream;
+      };
 
-    _webrtcService.onRemoteStream = (stream) {
-      remoteRenderer.srcObject = stream;
-    };
+      _webrtcService.onRemoteStream = (stream) {
+        remoteRenderer.srcObject = stream;
+      };
 
-    _webrtcService.onIceCandidate = (candidate) {
-      _socketService.sendIceCandidate(peerUserId.value, candidate.toMap());
-    };
+      _webrtcService.onIceCandidate = (candidate) {
+        if (peerUserId.value.isNotEmpty) {
+          _socketService.sendIceCandidate(peerUserId.value, candidate.toMap());
+        }
+      };
+    } catch (e) {
+      debugPrint('Error initializing call renderers: $e');
+    }
   }
 
   void _setupSocketListeners() {
@@ -116,6 +123,24 @@ class CallController extends GetxController {
   }) async {
     if (callState.value != CallState.idle) return;
 
+    try {
+      final micStatus = await Permission.microphone.request();
+      if (!audioOnly) {
+        await Permission.camera.request();
+      }
+
+      if (!micStatus.isGranted) {
+        Get.snackbar(
+          'Permission Required',
+          'Microphone permission is needed to start a call.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
+    } catch (e) {
+      debugPrint('Error requesting call permissions: $e');
+    }
+
     peerUserId.value = targetUserId;
     peerName.value = targetName;
     peerAvatar.value = targetAvatar;
@@ -126,6 +151,7 @@ class CallController extends GetxController {
     callState.value = CallState.outgoingRinging;
     Get.toNamed(AppRoutes.call);
 
+    await ensureRenderersInitialized();
     await _webrtcService.initializeMediaStreams(isAudioOnly: audioOnly);
     await _webrtcService.createPeerConnectionInstance(isAudioOnly: audioOnly);
 
@@ -140,12 +166,33 @@ class CallController extends GetxController {
 
   Future<void> acceptCall() async {
     if (callState.value != CallState.incomingRinging ||
-        _incomingCallData == null)
+        _incomingCallData == null) {
       return;
+    }
+
+    try {
+      final micStatus = await Permission.microphone.request();
+      if (!isAudioOnly.value) {
+        await Permission.camera.request();
+      }
+
+      if (!micStatus.isGranted) {
+        Get.snackbar(
+          'Permission Required',
+          'Microphone permission is required to accept call.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        rejectCall();
+        return;
+      }
+    } catch (e) {
+      debugPrint('Error requesting call permissions: $e');
+    }
 
     callState.value = CallState.connected;
     _startDurationTimer();
 
+    await ensureRenderersInitialized();
     await _webrtcService.initializeMediaStreams(isAudioOnly: isAudioOnly.value);
     await _webrtcService.createPeerConnectionInstance(
       isAudioOnly: isAudioOnly.value,

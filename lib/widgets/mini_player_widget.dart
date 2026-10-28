@@ -25,7 +25,10 @@ class MiniPlayerWidget extends StatelessWidget {
       final currentPos = musicController.currentPosition.value;
       final totalDur = musicController.totalDuration.value;
       final double progress = (totalDur.inMilliseconds > 0)
-          ? (currentPos.inMilliseconds / totalDur.inMilliseconds).clamp(0.0, 1.0)
+          ? (currentPos.inMilliseconds / totalDur.inMilliseconds).clamp(
+              0.0,
+              1.0,
+            )
           : 0.0;
 
       return Container(
@@ -58,18 +61,24 @@ class MiniPlayerWidget extends StatelessWidget {
                               width: 42,
                               height: 42,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Container(
+                              errorBuilder: (_, _, _) => Container(
                                 width: 42,
                                 height: 42,
                                 color: AppColors.purple.withValues(alpha: 0.3),
-                                child: const Icon(Icons.music_note, color: Colors.white),
+                                child: const Icon(
+                                  Icons.music_note,
+                                  color: Colors.white,
+                                ),
                               ),
                             )
                           : Container(
                               width: 42,
                               height: 42,
                               color: AppColors.purple.withValues(alpha: 0.3),
-                              child: const Icon(Icons.music_note, color: Colors.white),
+                              child: const Icon(
+                                Icons.music_note,
+                                color: Colors.white,
+                              ),
                             ),
                     ),
                     const SizedBox(width: 12),
@@ -92,7 +101,9 @@ class MiniPlayerWidget extends StatelessWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            song.artist.isNotEmpty ? song.artist : 'Unknown Artist',
+                            song.artist.isNotEmpty
+                                ? song.artist
+                                : 'Unknown Artist',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -107,7 +118,9 @@ class MiniPlayerWidget extends StatelessWidget {
                     // Play/Pause Button
                     IconButton(
                       icon: Icon(
-                        isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                        isPlaying
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
                         color: Colors.white,
                         size: 26,
                       ),
@@ -136,12 +149,16 @@ class MiniPlayerWidget extends StatelessWidget {
 
             // Progress Bar
             ClipRRect(
-              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+              borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(12),
+              ),
               child: LinearProgressIndicator(
                 value: progress,
                 minHeight: 2,
                 backgroundColor: Colors.white10,
-                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.purple),
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  AppColors.purple,
+                ),
               ),
             ),
           ],

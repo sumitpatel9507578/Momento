@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../controllers/notification_controller.dart';
-import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
 import '../widgets/user_avatar.dart';
 

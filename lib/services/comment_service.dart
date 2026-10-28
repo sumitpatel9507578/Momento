@@ -50,7 +50,7 @@ class CommentService extends GetxService {
       final body = <String, dynamic>{
         'comment': comment,
         'text': comment,
-        if (parentId != null) 'parentId': parentId,
+        'parentId': ?parentId,
       };
       var response = await _apiService.post("$endpoint/$id/comments", body);
 
@@ -66,7 +66,7 @@ class CommentService extends GetxService {
           'reelId': id,
           'comment': comment,
           'text': comment,
-          if (parentId != null) 'parentId': parentId,
+          'parentId': ?parentId,
         });
       }
 

@@ -8,8 +8,7 @@ import '../services/api_service.dart';
 import '../utils/api_constants.dart';
 
 class ChatSocketService extends GetxService {
-  ChatSocketService({required ApiService apiService})
-    : _apiService = apiService;
+  ChatSocketService({required this._apiService});
 
   final ApiService _apiService;
   IO.Socket? _socket;

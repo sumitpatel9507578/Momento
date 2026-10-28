@@ -51,13 +51,14 @@ class SongModel {
     } else if (json['url'] is List && (json['url'] as List).isNotEmpty) {
       audioUrl = (json['url'] as List).last.toString();
     } else {
-      audioUrl = (json['audiodownload'] ??
-              json['audio'] ??
-              json['audioUrl'] ??
-              json['download_url'] ??
-              json['url'] ??
-              '')
-          .toString();
+      audioUrl =
+          (json['audiodownload'] ??
+                  json['audio'] ??
+                  json['audioUrl'] ??
+                  json['download_url'] ??
+                  json['url'] ??
+                  '')
+              .toString();
     }
 
     // 2. Image URL Parsing
@@ -76,12 +77,13 @@ class SongModel {
         imageUrl = highest.toString();
       }
     } else {
-      imageUrl = (json['image'] ??
-              json['album_image'] ??
-              json['thumbnailUrl'] ??
-              json['artwork'] ??
-              '')
-          .toString();
+      imageUrl =
+          (json['image'] ??
+                  json['album_image'] ??
+                  json['thumbnailUrl'] ??
+                  json['artwork'] ??
+                  '')
+              .toString();
     }
 
     // 3. Artist Parsing
@@ -94,22 +96,23 @@ class SongModel {
     } else if (json['primaryArtists'] != null) {
       artist = json['primaryArtists'].toString();
     } else if (json['artist'] is Map) {
-      artist =
-          (json['artist']['name'] ?? json['artist']['title'] ?? '').toString();
-    } else {
-      artist = (json['artist_name'] ??
-              json['artist'] ??
-              json['singers'] ??
-              json['primary_artists'] ??
-              'Unknown Artist')
+      artist = (json['artist']['name'] ?? json['artist']['title'] ?? '')
           .toString();
+    } else {
+      artist =
+          (json['artist_name'] ??
+                  json['artist'] ??
+                  json['singers'] ??
+                  json['primary_artists'] ??
+                  'Unknown Artist')
+              .toString();
     }
 
     // 4. Album Parsing
     String album = '';
     if (json['album'] is Map) {
-      album =
-          (json['album']['name'] ?? json['album']['title'] ?? '').toString();
+      album = (json['album']['name'] ?? json['album']['title'] ?? '')
+          .toString();
     } else {
       album = (json['album_name'] ?? json['album'] ?? '').toString();
     }

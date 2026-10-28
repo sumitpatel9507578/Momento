@@ -31,6 +31,11 @@ class ChatController extends GetxController with WidgetsBindingObserver {
   String? currentUserId;
   final currentUsername = ''.obs;
   String? activeChatUserId;
+
+  String get receiverId => activeChatUserId ?? '';
+  final receiverName = ''.obs;
+  final receiverAvatar = ''.obs;
+
   Timer? _typingStopTimer;
   Timer? _typingAutoClearTimer;
   Timer? _heartbeatTimer;
@@ -45,6 +50,19 @@ class ChatController extends GetxController with WidgetsBindingObserver {
   final savingMessageIds = <String>{}.obs;
   final savingPostIds = <String>{}.obs;
   final savingReelIds = <String>{}.obs;
+
+  int get totalUnreadCount {
+    int total = 0;
+    for (final conv in conversations) {
+      final count = conv['unreadCount'] ?? conv['unread_count'] ?? conv['unread'] ?? 0;
+      if (count is int) {
+        total += count;
+      } else if (count != null) {
+        total += int.tryParse(count.toString()) ?? 0;
+      }
+    }
+    return total;
+  }
 
   @override
   void onInit() {
@@ -557,8 +575,8 @@ class ChatController extends GetxController with WidgetsBindingObserver {
   }
 
   Future<bool> toggleSaveReel(String reelId, {required bool isSaved}) async {
-    if (int.tryParse(reelId) == null) {
-      Get.snackbar('Error', 'This reel does not have a valid saved ID');
+    if (reelId.trim().isEmpty) {
+      Get.snackbar('Error', 'Invalid reel ID');
       return false;
     }
     if (savingReelIds.contains(reelId)) return false;
@@ -569,12 +587,23 @@ class ChatController extends GetxController with WidgetsBindingObserver {
           ? await _apiService.delete(endpoint)
           : await _apiService.post(endpoint, const {});
       final decoded = _decodeResponse(response.body);
+
       if (response.statusCode != 200 || decoded?['success'] != true) {
-        Get.snackbar(
-          'Error',
-          decoded?['message']?.toString() ?? 'Failed to update saved reel',
-        );
-        return false;
+        // Fallback endpoint POST /api/reels/{id}/save
+        try {
+          final fallbackEndpoint = "${ApiConstants.reels}/$reelId/save";
+          final fallbackResp = isSaved
+              ? await _apiService.delete(fallbackEndpoint)
+              : await _apiService.post(fallbackEndpoint, const {});
+          if (fallbackResp.statusCode >= 200 && fallbackResp.statusCode < 300) {
+            await fetchSavedItems();
+            Get.snackbar(
+              'Success',
+              isSaved ? 'Reel removed from saved items' : 'Reel saved',
+            );
+            return true;
+          }
+        } catch (_) {}
       }
 
       await fetchSavedItems();
@@ -758,12 +787,12 @@ class ChatController extends GetxController with WidgetsBindingObserver {
       'messageType': messageType,
       'clientMessageId': clientMessageId,
       'createdAt': DateTime.now().toIso8601String(),
-      if (mediaUrl != null) 'mediaUrl': mediaUrl,
-      if (reelId != null) 'reelId': reelId,
-      if (postId != null) 'postId': postId,
-      if (postImageUrl != null) 'postImageUrl': postImageUrl,
-      if (postCaption != null) 'postCaption': postCaption,
-      if (postOwnerUsername != null) 'postOwnerUsername': postOwnerUsername,
+      'mediaUrl': ?mediaUrl,
+      'reelId': ?reelId,
+      'postId': ?postId,
+      'postImageUrl': ?postImageUrl,
+      'postCaption': ?postCaption,
+      'postOwnerUsername': ?postOwnerUsername,
     };
 
     final optimisticMsg = MessageModel(
@@ -897,7 +926,8 @@ class ChatController extends GetxController with WidgetsBindingObserver {
       if (response.statusCode == 201 &&
           decoded?['success'] == true &&
           decoded?['data'] is Map) {
-        mediaUrl = decoded['data']['mediaUrl']?.toString() ?? filePath;
+        final dataMap = decoded!['data'] as Map;
+        mediaUrl = dataMap['mediaUrl']?.toString() ?? filePath;
       }
 
       return await sendMessage(

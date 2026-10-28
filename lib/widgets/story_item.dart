@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../models/story_model.dart';
+import 'package:momento/models/story_model.dart';
 import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
 
@@ -10,6 +10,7 @@ class StoryItem extends StatelessWidget {
   final bool isCurrentUser;
   final String? profileImage;
   final VoidCallback onTap;
+  final VoidCallback? onAddTap;
 
   const StoryItem({
     super.key,
@@ -18,6 +19,7 @@ class StoryItem extends StatelessWidget {
     this.isCurrentUser = false,
     this.profileImage,
     required this.onTap,
+    this.onAddTap,
   });
 
   @override
@@ -39,6 +41,8 @@ class StoryItem extends StatelessWidget {
     final String displayName = isCurrentUser
         ? 'Your Story'
         : (userStories?.username ?? story?.username ?? 'User');
+
+    final imageProvider = ApiConstants.getImageProvider(imgUrl);
 
     return GestureDetector(
       onTap: onTap,
@@ -67,10 +71,8 @@ class StoryItem extends StatelessWidget {
                   child: CircleAvatar(
                     radius: size.width * 0.08,
                     backgroundColor: AppColors.surface,
-                    backgroundImage: imgUrl.isNotEmpty
-                        ? NetworkImage(ApiConstants.getFullUrl(imgUrl))
-                        : null,
-                    child: imgUrl.isEmpty
+                    backgroundImage: imageProvider,
+                    child: imageProvider == null
                         ? const Icon(
                             Icons.person,
                             color: Colors.white54,
@@ -83,16 +85,25 @@ class StoryItem extends StatelessWidget {
                   Positioned(
                     right: 0,
                     bottom: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: const BoxDecoration(
-                        color: AppColors.purple,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: 16,
+                    child: GestureDetector(
+                      onTap: () {
+                        if (onAddTap != null) {
+                          onAddTap!();
+                        } else {
+                          onTap();
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: const BoxDecoration(
+                          color: AppColors.purple,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          color: Colors.white,
+                          size: 16,
+                        ),
                       ),
                     ),
                   ),

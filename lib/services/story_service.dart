@@ -50,11 +50,23 @@ class StoryService {
     String filePath,
     String mediaType, {
     String? caption,
+    String? songId,
+    String? audioUrl,
+    String? songTitle,
   }) async {
     final user = await _apiService.getUser();
     final userId = (user?['id'] ?? user?['uid'] ?? user?['userId'] ?? '')
         .toString();
     final username = (user?['username'] ?? user?['name'] ?? 'User').toString();
+
+    final songData = <String, String>{
+      if (songId != null && songId.isNotEmpty) 'songId': songId,
+      if (songId != null && songId.isNotEmpty) 'song_id': songId,
+      if (audioUrl != null && audioUrl.isNotEmpty) 'audioUrl': audioUrl,
+      if (audioUrl != null && audioUrl.isNotEmpty) 'audio_url': audioUrl,
+      if (songTitle != null && songTitle.isNotEmpty) 'songTitle': songTitle,
+      if (songTitle != null && songTitle.isNotEmpty) 'song_title': songTitle,
+    };
 
     // 0. If filePath is ALREADY a Network URL (e.g. Cloudinary link from post/reel)
     if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
@@ -76,6 +88,7 @@ class StoryService {
           if (userId.isNotEmpty) 'user_id': userId,
           if (userId.isNotEmpty) 'user': userId,
           if (username.isNotEmpty) 'username': username,
+          ...songData,
         };
 
         print(
@@ -123,6 +136,7 @@ class StoryService {
           if (userId.isNotEmpty) 'user_id': userId,
           if (userId.isNotEmpty) 'user': userId,
           if (username.isNotEmpty) 'username': username,
+          ...songData,
         };
 
         final response = await _apiService.post(ApiConstants.stories, jsonBody);
@@ -149,6 +163,7 @@ class StoryService {
       if (userId.isNotEmpty) 'user': userId,
       if (userId.isNotEmpty) 'author': userId,
       if (username.isNotEmpty) 'username': username,
+      ...songData,
     };
 
     final fileKeysToTry = ['media', 'file', 'image', 'story'];
@@ -204,14 +219,15 @@ class StoryService {
           final u = v['user'] is Map ? v['user'] : v;
           return {
             'id': (u['id'] ?? u['uid'] ?? u['_id'] ?? '').toString(),
-            'name':
-                (u['name'] ?? u['full_name'] ?? u['username'] ?? 'User')
-                    .toString(),
+            'name': (u['name'] ?? u['full_name'] ?? u['username'] ?? 'User')
+                .toString(),
             'username': (u['username'] ?? '').toString(),
-            'profileImage':
-                (u['profileImage'] ?? u['profile_image'] ?? '').toString(),
+            'profileImage': (u['profileImage'] ?? u['profile_image'] ?? '')
+                .toString(),
             'viewedAt':
-                (v['createdAt'] ?? v['viewedAt'] ?? DateTime.now().toIso8601String())
+                (v['createdAt'] ??
+                        v['viewedAt'] ??
+                        DateTime.now().toIso8601String())
                     .toString(),
             'liked': v['liked'] == true || v['isLiked'] == true,
           };

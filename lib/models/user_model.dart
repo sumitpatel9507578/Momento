@@ -30,6 +30,7 @@ class UserModel {
   });
 
   bool get isAdmin => role.toLowerCase() == 'admin';
+  String get id => uid;
 
   static int _toInt(dynamic value) {
     if (value == null) return 0;

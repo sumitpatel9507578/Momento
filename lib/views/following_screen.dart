@@ -14,7 +14,7 @@ class FollowingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String? effectiveTag = Get.arguments?.toString() ?? 'me';
+    final String effectiveTag = Get.arguments?.toString() ?? 'me';
     final ProfileController controller = Get.find<ProfileController>(
       tag: effectiveTag,
     );

@@ -1,16 +1,19 @@
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+
 import '../models/song_model.dart';
 
 class JioSaavnService {
   static const List<String> _apiEndpoints = [
-    'https://saavn.dev/api',
     'https://jiosaavn-api-private-us.vercel.app',
+    'https://jiosaavn-api-v3.vercel.app',
+    'https://saavn-api.vercel.app',
   ];
 
-  static const Duration _timeout = Duration(seconds: 12);
+  static const Duration _timeout = Duration(seconds: 4);
 
   Future<List<SongModel>> searchSongs(String query, {int limit = 30}) async {
     if (query.trim().isEmpty) return [];
@@ -42,7 +45,9 @@ class JioSaavnService {
             for (final item in results) {
               if (item is Map) {
                 try {
-                  final song = SongModel.fromJson(Map<String, dynamic>.from(item));
+                  final song = SongModel.fromJson(
+                    Map<String, dynamic>.from(item),
+                  );
                   if (song.audioUrl.isNotEmpty) {
                     songs.add(song);
                   }

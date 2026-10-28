@@ -31,17 +31,15 @@ class HomeController extends GetxController {
   void changeTab(int index) {
     currentIndex.value = index;
 
-    // Handle Reel playback when switching tabs
+    // Handle Reel playback when switching tabs (Reels is index 1)
     if (Get.isRegistered<ReelController>()) {
       final reelController = Get.find<ReelController>();
-      if (index == 3) {
+      if (index == 1) {
         reelController.resumeCurrentVideo();
       } else {
         reelController.pauseAllVideos();
       }
     }
-
-    if (index == 0) {}
   }
 
   Future<void> loadPosts() async {

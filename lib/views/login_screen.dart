@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../controllers/login_controller.dart';
+import 'package:momento/controllers/login_controller.dart';
 import '../routes/app_routes.dart';
 import '../utils/app_colors.dart';
 
@@ -44,13 +44,24 @@ class LoginScreen extends GetView<LoginController> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                TextField(
-                  controller: controller.passwordController,
-                  obscureText: true,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    hintText: 'Password',
-                    prefixIcon: Icon(Icons.lock_outline),
+                Obx(
+                  () => TextField(
+                    controller: controller.passwordController,
+                    obscureText: controller.obscurePassword.value,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Password',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          controller.obscurePassword.value
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          color: AppColors.grey,
+                        ),
+                        onPressed: controller.togglePasswordVisibility,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -123,7 +134,7 @@ class LoginScreen extends GetView<LoginController> {
                           Image.network(
                             'https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg',
                             height: 22,
-                            errorBuilder: (_, __, ___) => const Icon(
+                            errorBuilder: (_, _, _) => const Icon(
                               Icons.g_mobiledata,
                               color: Colors.white,
                               size: 28,

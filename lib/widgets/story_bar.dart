@@ -47,6 +47,8 @@ class StoryBar extends StatelessWidget {
                 isCurrentUser: true,
                 userStories: myStories,
                 profileImage: profileImage,
+                onAddTap: () =>
+                    _showCreateStoryOptions(context, storyController),
                 onTap: () {
                   if (myStories != null && myStories.stories.isNotEmpty) {
                     final myIndex = storyController.userStories.indexWhere(

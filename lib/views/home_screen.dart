@@ -17,6 +17,10 @@ class HomeScreen extends GetView<HomeController> {
         backgroundColor: Colors.black,
         elevation: 0,
         centerTitle: true,
+        leading: IconButton(
+          onPressed: () => Get.toNamed('/create'),
+          icon: const Icon(Icons.add, color: Colors.white, size: 28),
+        ),
         title: Text(
           'Momento',
           style: GoogleFonts.grandHotel(
@@ -28,21 +32,8 @@ class HomeScreen extends GetView<HomeController> {
         ),
         actions: [
           IconButton(
-            tooltip: 'AR Camera',
-            onPressed: () => Get.toNamed('/ar-camera'),
-            icon: const Icon(
-              Icons.auto_awesome,
-              color: Colors.purpleAccent,
-              size: 26,
-            ),
-          ),
-          IconButton(
             onPressed: () => Get.toNamed('/notifications'),
             icon: const Icon(Icons.favorite_border, size: 28),
-          ),
-          IconButton(
-            onPressed: () => Get.toNamed('/chat-list'),
-            icon: const Icon(Icons.chat_bubble_outline, size: 26),
           ),
         ],
       ),

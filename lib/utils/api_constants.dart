@@ -1,9 +1,13 @@
+import 'dart:io';
+
+import 'package:flutter/widgets.dart';
+
 class ApiConstants {
   // Toggle this for Production vs Development
   static const bool isProduction = true;
 
   // Official Momento Backend (Production)
-  static const String prodServerUrl = "https://momento-api-9-o0ze.onrender.com";
+  static const String prodServerUrl = "https://momento-api-3-pf62.onrender.com";
 
   // Local Machine IP (Development) - Using the IP from your logs
   static const String devServerUrl = "http://192.168.31.240:5000";
@@ -83,6 +87,33 @@ class ApiConstants {
     print("ApiService: Requesting ${isVideo ? 'Video' : 'Image'} -> $fullUrl");
 
     return fullUrl;
+  }
+
+  static ImageProvider? getImageProvider(String? path) {
+    if (path == null || path.trim().isEmpty || path == "null") return null;
+    final fullUrl = getFullUrl(path);
+    if (fullUrl.isEmpty) return null;
+
+    if (fullUrl.startsWith("http://") || fullUrl.startsWith("https://")) {
+      return NetworkImage(fullUrl);
+    }
+
+    String cleanLocalPath = fullUrl;
+    if (cleanLocalPath.startsWith("file://")) {
+      cleanLocalPath = cleanLocalPath.replaceFirst(RegExp(r'^file://+'), '');
+      if (!Platform.isWindows && !cleanLocalPath.startsWith('/')) {
+        cleanLocalPath = '/$cleanLocalPath';
+      }
+    }
+
+    try {
+      final file = File(cleanLocalPath);
+      if (file.existsSync()) {
+        return FileImage(file);
+      }
+    } catch (_) {}
+
+    return null;
   }
 
   // Mock data completely disabled

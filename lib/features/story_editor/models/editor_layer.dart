@@ -30,34 +30,34 @@ class EditorLayer {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'type': type.name,
-        'content': content,
-        'x': position.dx,
-        'y': position.dy,
-        'scale': scale,
-        'rotation': rotation,
-        'color': color.value,
-        'fontSize': fontSize,
-        'fontFamily': fontFamily,
-        'hasBackground': hasBackground,
-        'textAlign': textAlign.index,
-      };
+    'id': id,
+    'type': type.name,
+    'content': content,
+    'x': position.dx,
+    'y': position.dy,
+    'scale': scale,
+    'rotation': rotation,
+    'color': color.toARGB32(),
+    'fontSize': fontSize,
+    'fontFamily': fontFamily,
+    'hasBackground': hasBackground,
+    'textAlign': textAlign.index,
+  };
 
   factory EditorLayer.fromJson(Map<String, dynamic> json) => EditorLayer(
-        id: json['id'] ?? '',
-        type: LayerType.values.firstWhere(
-          (e) => e.name == json['type'],
-          orElse: () => LayerType.text,
-        ),
-        content: json['content'] ?? '',
-        position: Offset(json['x'] ?? 150.0, json['y'] ?? 300.0),
-        scale: json['scale'] ?? 1.0,
-        rotation: json['rotation'] ?? 0.0,
-        color: Color(json['color'] ?? Colors.white.value),
-        fontSize: json['fontSize'] ?? 24.0,
-        fontFamily: json['fontFamily'],
-        hasBackground: json['hasBackground'] ?? false,
-        textAlign: TextAlign.values[json['textAlign'] ?? 0],
-      );
+    id: json['id'] ?? '',
+    type: LayerType.values.firstWhere(
+      (e) => e.name == json['type'],
+      orElse: () => LayerType.text,
+    ),
+    content: json['content'] ?? '',
+    position: Offset(json['x'] ?? 150.0, json['y'] ?? 300.0),
+    scale: json['scale'] ?? 1.0,
+    rotation: json['rotation'] ?? 0.0,
+    color: Color(json['color'] ?? Colors.white.toARGB32()),
+    fontSize: json['fontSize'] ?? 24.0,
+    fontFamily: json['fontFamily'],
+    hasBackground: json['hasBackground'] ?? false,
+    textAlign: TextAlign.values[json['textAlign'] ?? 0],
+  );
 }

@@ -118,6 +118,11 @@ public class DeepArPlugin implements FlutterPlugin, AREventListener, ActivityAwa
 
             case MethodStrings.switchEffect: // Switch Effect
                 String effect = ((String) arguments.get("effect"));
+                if (effect == null || effect.equals("null")) {
+                    deepAR.switchEffect("effect", "null");
+                    result.success("switchEffect called & reset success");
+                    return;
+                }
                 try {
                     InputStream inputStream = _getAssetFileInputStream(effect);
                     deepAR.switchEffect("effect", inputStream);

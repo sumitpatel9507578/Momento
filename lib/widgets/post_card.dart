@@ -363,22 +363,18 @@ class _PostCardState extends State<PostCard> {
                         CircleAvatar(
                           radius: 16,
                           backgroundColor: AppColors.darkGrey,
-                          backgroundImage:
-                              (widget.post.repostUserAvatar != null &&
-                                  widget.post.repostUserAvatar!.isNotEmpty)
-                              ? NetworkImage(
-                                  ApiConstants.getFullUrl(
-                                    widget.post.repostUserAvatar!,
-                                  ),
-                                )
-                              : null,
+                          backgroundImage: ApiConstants.getImageProvider(
+                            widget.post.repostUserAvatar,
+                          ),
                           child:
-                              (widget.post.repostUserAvatar == null ||
-                                  widget.post.repostUserAvatar!.isEmpty)
+                              ApiConstants.getImageProvider(
+                                    widget.post.repostUserAvatar,
+                                  ) ==
+                                  null
                               ? const Icon(
                                   Icons.person,
                                   color: Colors.white70,
-                                  size: 16,
+                                  size: 18,
                                 )
                               : null,
                         ),
@@ -515,7 +511,7 @@ class _PostCardState extends State<PostCard> {
                     isScrollControlled: true,
                   ),
                   icon: const Icon(
-                    Icons.mode_comment_outlined,
+                    Icons.chat_bubble_outline_rounded,
                     color: Colors.white,
                     size: 24,
                   ),
@@ -855,6 +851,24 @@ class _PostVideoPlayerState extends State<_PostVideoPlayer>
                   ),
                 ),
               ),
+
+            // Video Scrubber Timeline
+            if (_controller != null && isInitialized.value)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: VideoProgressIndicator(
+                  _controller!,
+                  allowScrubbing: true,
+                  padding: EdgeInsets.zero,
+                  colors: const VideoProgressColors(
+                    playedColor: AppColors.purple,
+                    bufferedColor: Colors.white24,
+                    backgroundColor: Colors.white12,
+                  ),
+                ),
+              ),
           ],
         ),
       );
@@ -877,7 +891,7 @@ class _PostCarouselWidget extends StatefulWidget {
 
 class _PostCarouselWidgetState extends State<_PostCarouselWidget> {
   final PageController _pageController = PageController();
-  int _currentPage = 0;
+  final _currentPage = 0.obs;
 
   @override
   void dispose() {
@@ -896,9 +910,7 @@ class _PostCarouselWidgetState extends State<_PostCarouselWidget> {
             controller: _pageController,
             itemCount: widget.mediaUrls.length,
             onPageChanged: (index) {
-              setState(() {
-                _currentPage = index;
-              });
+              _currentPage.value = index;
             },
             itemBuilder: (context, index) {
               final url = widget.mediaUrls[index];
@@ -932,18 +944,20 @@ class _PostCarouselWidgetState extends State<_PostCarouselWidget> {
           Positioned(
             top: 12,
             right: 12,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.7),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Text(
-                '${_currentPage + 1}/${widget.mediaUrls.length}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.bold,
+            child: Obx(
+              () => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(
+                  '${_currentPage.value + 1}/${widget.mediaUrls.length}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
@@ -952,21 +966,23 @@ class _PostCarouselWidgetState extends State<_PostCarouselWidget> {
           // Bottom Center Active Page Dots
           Positioned(
             bottom: 10,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: List.generate(widget.mediaUrls.length, (index) {
-                final isCurrent = _currentPage == index;
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  width: isCurrent ? 7 : 5,
-                  height: isCurrent ? 7 : 5,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isCurrent ? AppColors.purple : Colors.white54,
-                  ),
-                );
-              }),
+            child: Obx(
+              () => Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(widget.mediaUrls.length, (index) {
+                  final isCurrent = _currentPage.value == index;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    width: isCurrent ? 7 : 5,
+                    height: isCurrent ? 7 : 5,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isCurrent ? AppColors.purple : Colors.white54,
+                    ),
+                  );
+                }),
+              ),
             ),
           ),
         ],

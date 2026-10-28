@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:deepar_flutter/deepar_flutter.dart';
 import 'package:flutter/foundation.dart';
@@ -69,10 +68,6 @@ class ArCameraController extends GetxController {
       isInitializing.value = true;
       initError.value = '';
 
-      final platformKey = Platform.isAndroid
-          ? ArConfig.androidLicenseKey
-          : ArConfig.iosLicenseKey;
-
       await deepArController.initialize(
         androidLicenseKey: ArConfig.androidLicenseKey,
         iosLicenseKey: ArConfig.iosLicenseKey,
@@ -110,16 +105,27 @@ class ArCameraController extends GetxController {
     try {
       if (deepArController.isInitialized) {
         debugPrint(
-          'Applying AR Filter: ${filter.name} (${filter.category.name}) -> ${filter.assetPath}',
+          'Applying AR Filter: ${filter.name} (${filter.category.name}) [Type: ${filter.filterType.name}] -> ${filter.assetPath}',
         );
+
+        // Reset/clear active slots first to avoid overlapping or blocked filters
         try {
-          await deepArController.switchEffect(filter.assetPath);
-        } catch (_) {
-          try {
+          await deepArController.switchEffect('null');
+          await deepArController.switchFaceMask('null');
+          await deepArController.switchFilter('null');
+        } catch (_) {}
+
+        switch (filter.filterType) {
+          case ArFilterType.mask:
             await deepArController.switchFaceMask(filter.assetPath);
-          } catch (_) {
+            break;
+          case ArFilterType.filter:
             await deepArController.switchFilter(filter.assetPath);
-          }
+            break;
+          case ArFilterType.effect:
+          default:
+            await deepArController.switchEffect(filter.assetPath);
+            break;
         }
       } else {
         debugPrint('DeepAR controller not initialized yet for ${filter.name}');

@@ -15,6 +15,7 @@ class AppRoutes {
   static const String storyEditor = '/story-editor';
   static const String notifications = '/notifications';
   static const String create = '/create';
+  static const String upload = '/upload';
   static const String saved = '/saved';
   static const String savePostReel = '/save-post-reel';
   static const String chatList = '/chat-list';

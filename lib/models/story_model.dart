@@ -13,6 +13,8 @@ class StoryModel {
   final int likesCount;
   final int viewsCount;
   final List<Map<String, dynamic>> viewers;
+  final String audioUrl;
+  final String songTitle;
 
   StoryModel({
     required this.storyId,
@@ -27,6 +29,8 @@ class StoryModel {
     this.likesCount = 0,
     this.viewsCount = 0,
     this.viewers = const [],
+    this.audioUrl = '',
+    this.songTitle = '',
   });
 
   factory StoryModel.fromJson(Map<String, dynamic> json) {
@@ -35,27 +39,38 @@ class StoryModel {
     }
     final user = json['user'] is Map ? json['user'] : null;
 
-    final rawViewers = json['viewers'] ?? json['views'] ?? json['viewedBy'] ?? [];
+    final rawViewers =
+        json['viewers'] ?? json['views'] ?? json['viewedBy'] ?? [];
     List<Map<String, dynamic>> parsedViewers = [];
     if (rawViewers is List) {
-      parsedViewers = rawViewers.map((v) {
-        if (v is Map) {
-          final u = v['user'] is Map ? v['user'] : v;
-          return {
-            'id': (u['id'] ?? u['uid'] ?? u['_id'] ?? '').toString(),
-            'name': (u['name'] ?? u['full_name'] ?? u['username'] ?? 'User').toString(),
-            'username': (u['username'] ?? '').toString(),
-            'profileImage': (u['profileImage'] ?? u['profile_image'] ?? '').toString(),
-            'viewedAt': (v['createdAt'] ?? v['viewedAt'] ?? DateTime.now().toIso8601String()).toString(),
-            'liked': v['liked'] == true || v['isLiked'] == true,
-          };
-        }
-        return <String, dynamic>{};
-      }).where((v) => v.isNotEmpty).toList();
+      parsedViewers = rawViewers
+          .map((v) {
+            if (v is Map) {
+              final u = v['user'] is Map ? v['user'] : v;
+              return {
+                'id': (u['id'] ?? u['uid'] ?? u['_id'] ?? '').toString(),
+                'name': (u['name'] ?? u['full_name'] ?? u['username'] ?? 'User')
+                    .toString(),
+                'username': (u['username'] ?? '').toString(),
+                'profileImage': (u['profileImage'] ?? u['profile_image'] ?? '')
+                    .toString(),
+                'viewedAt':
+                    (v['createdAt'] ??
+                            v['viewedAt'] ??
+                            DateTime.now().toIso8601String())
+                        .toString(),
+                'liked': v['liked'] == true || v['isLiked'] == true,
+              };
+            }
+            return <String, dynamic>{};
+          })
+          .where((v) => v.isNotEmpty)
+          .toList();
     }
 
     return StoryModel(
-      storyId: (json['id'] ?? json['storyId'] ?? json['story_id'] ?? '').toString(),
+      storyId: (json['id'] ?? json['storyId'] ?? json['story_id'] ?? '')
+          .toString(),
       userId:
           (json['userId'] ??
                   json['user_id'] ??
@@ -86,10 +101,31 @@ class StoryModel {
             .toString(),
       ).toLocal(),
       viewed: json['viewed'] == 1 || json['viewed'] == true,
-      isLiked: json['isLiked'] == true || json['is_liked'] == true || json['liked'] == true,
-      likesCount: json['likesCount'] ?? json['likes_count'] ?? (json['likes'] is List ? (json['likes'] as List).length : 0),
-      viewsCount: json['viewsCount'] ?? json['views_count'] ?? (json['views'] is List ? (json['views'] as List).length : parsedViewers.length),
+      isLiked:
+          json['isLiked'] == true ||
+          json['is_liked'] == true ||
+          json['liked'] == true,
+      likesCount:
+          json['likesCount'] ??
+          json['likes_count'] ??
+          (json['likes'] is List ? (json['likes'] as List).length : 0),
+      viewsCount:
+          json['viewsCount'] ??
+          json['views_count'] ??
+          (json['views'] is List
+              ? (json['views'] as List).length
+              : parsedViewers.length),
       viewers: parsedViewers,
+      audioUrl: (json['audioUrl'] ?? json['audio_url'] ?? json['audio'] ?? '')
+          .toString(),
+      songTitle:
+          (json['songTitle'] ??
+                  json['song_title'] ??
+                  json['song'] ??
+                  (json['caption']?.toString().startsWith('🎵 ') == true
+                      ? json['caption'].toString()
+                      : ''))
+              .toString(),
     );
   }
 
@@ -106,6 +142,8 @@ class StoryModel {
     int? likesCount,
     int? viewsCount,
     List<Map<String, dynamic>>? viewers,
+    String? audioUrl,
+    String? songTitle,
   }) {
     return StoryModel(
       storyId: storyId ?? this.storyId,
@@ -120,6 +158,8 @@ class StoryModel {
       likesCount: likesCount ?? this.likesCount,
       viewsCount: viewsCount ?? this.viewsCount,
       viewers: viewers ?? this.viewers,
+      audioUrl: audioUrl ?? this.audioUrl,
+      songTitle: songTitle ?? this.songTitle,
     );
   }
 }

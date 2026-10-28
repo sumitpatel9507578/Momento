@@ -1,12 +1,14 @@
 import 'dart:io';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:momento/controllers/chat_controller.dart';
+import 'package:momento/controllers/story_controller.dart';
+import 'package:momento/models/story_model.dart';
 
-import '../controllers/chat_controller.dart';
-import '../controllers/story_controller.dart';
-import '../models/story_model.dart';
 import '../services/api_service.dart';
+import 'package:momento/services/jamendo_service.dart';
 import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
 import '../widgets/user_avatar.dart';
@@ -21,7 +23,10 @@ class StoryViewerScreen extends StatefulWidget {
 class _StoryViewerScreenState extends State<StoryViewerScreen> {
   final StoryController controller = Get.find<StoryController>();
   final TextEditingController _replyController = TextEditingController();
-  String currentUserId = '';
+  final AudioPlayer _storyAudioPlayer = AudioPlayer();
+  final currentUserId = ''.obs;
+  Worker? _storyIndexWorker;
+  Worker? _userIndexWorker;
 
   @override
   void initState() {
@@ -29,15 +34,22 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
     _loadCurrentUserId();
     controller.progress.value = 0.0;
     controller.startTimer();
+
+    _storyIndexWorker = ever(controller.currentStoryIndex, (_) {
+      _playStoryAudio();
+    });
+    _userIndexWorker = ever(controller.currentUserStoriesIndex, (_) {
+      _playStoryAudio();
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _playStoryAudio();
+    });
   }
 
   Future<void> _loadCurrentUserId() async {
     final uid = await Get.find<ApiService>().getUserId();
-    if (mounted) {
-      setState(() {
-        currentUserId = uid ?? '';
-      });
-    }
+    currentUserId.value = uid ?? '';
   }
 
   Future<void> _playStoryAudio() async {
@@ -55,8 +67,23 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
         'STORY VIEWER AUDIO -> url: "${story.audioUrl}" | title: "${story.songTitle}"',
       );
 
-      if (story.audioUrl.isNotEmpty) {
-        await _storyAudioPlayer.play(UrlSource(story.audioUrl));
+      String audioToPlay = story.audioUrl;
+
+      // Fallback: If audioUrl is empty, search Jamendo for story.songTitle
+      if (audioToPlay.isEmpty && story.songTitle.isNotEmpty) {
+        try {
+          final query = story.songTitle
+              .replaceFirst(RegExp(r'•.*$'), '')
+              .trim();
+          final results = await JamendoService().searchSongs(query);
+          if (results.isNotEmpty && results.first.audioUrl.isNotEmpty) {
+            audioToPlay = results.first.audioUrl;
+          }
+        } catch (_) {}
+      }
+
+      if (audioToPlay.isNotEmpty) {
+        await _storyAudioPlayer.play(UrlSource(audioToPlay));
       }
     } catch (e) {
       debugPrint('Story AudioPlayer Error: $e');
@@ -83,9 +110,15 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
       body: GestureDetector(
         onLongPressStart: (_) {
           controller.pauseStory();
+          try {
+            _storyAudioPlayer.pause();
+          } catch (_) {}
         },
         onLongPressEnd: (_) {
           controller.resumeStory();
+          try {
+            _storyAudioPlayer.resume();
+          } catch (_) {}
         },
         onTapDown: (details) {
           final x = details.globalPosition.dx;
@@ -241,24 +274,60 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
                                 : null,
                           ),
                           const SizedBox(width: 12),
-                          Text(
-                            userStoryGroup.username,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      userStoryGroup.username,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      _formatTime(story.timestamp),
+                                      style: const TextStyle(
+                                        color: Colors.white60,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                if (story.songTitle.isNotEmpty) ...[
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.music_note,
+                                        color: Colors.white,
+                                        size: 12,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          story.songTitle,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _formatTime(story.timestamp),
-                            style: const TextStyle(
-                              color: Colors.white60,
-                              fontSize: 12,
-                            ),
-                          ),
-                          const Spacer(),
-                          if (story.userId == currentUserId)
+                          if (story.userId == currentUserId.value)
                             PopupMenuButton<String>(
                               icon: const Icon(
                                 Icons.more_vert,
@@ -314,27 +383,32 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
                   return const SizedBox.shrink();
                 }
                 final groupIndex = controller.currentUserStoriesIndex.value;
-                if (groupIndex < 0 || groupIndex >= controller.userStories.length) {
+                if (groupIndex < 0 ||
+                    groupIndex >= controller.userStories.length) {
                   return const SizedBox.shrink();
                 }
                 final userStoryGroup = controller.userStories[groupIndex];
                 final storyIndex = controller.currentStoryIndex.value;
-                if (storyIndex < 0 || storyIndex >= userStoryGroup.stories.length) {
+                if (storyIndex < 0 ||
+                    storyIndex >= userStoryGroup.stories.length) {
                   return const SizedBox.shrink();
                 }
 
                 final story = userStoryGroup.stories[storyIndex];
-                final isMe = story.userId == currentUserId;
+                final isMe = story.userId == currentUserId.value;
 
                 if (isMe) {
                   final filteredViewers = story.viewers.where((v) {
-                    final vId = (v['id'] ?? v['userId'] ?? v['user_id'] ?? '').toString();
-                    return vId.isNotEmpty && vId != currentUserId;
+                    final vId = (v['id'] ?? v['userId'] ?? v['user_id'] ?? '')
+                        .toString();
+                    return vId.isNotEmpty && vId != currentUserId.value;
                   }).toList();
 
                   final viewsCount = filteredViewers.isNotEmpty
                       ? filteredViewers.length
-                      : (story.viewsCount > 0 ? (story.viewsCount - 1).clamp(0, 99999) : 0);
+                      : (story.viewsCount > 0
+                            ? (story.viewsCount - 1).clamp(0, 99999)
+                            : 0);
 
                   return GestureDetector(
                     onTap: () {
@@ -342,7 +416,10 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
                       _showViewersSheet(context, story);
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.black54,
                         borderRadius: BorderRadius.circular(24),
@@ -389,14 +466,24 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
                           ),
                           child: TextField(
                             controller: _replyController,
-                            style: const TextStyle(color: Colors.white, fontSize: 13.5),
-                            decoration: InputDecoration(
-                              hintText: 'Send message to ${userStoryGroup.username}...',
-                              hintStyle: const TextStyle(color: Colors.white54, fontSize: 13),
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13.5,
                             ),
-                            onSubmitted: (text) => _sendStoryReply(text, story, userStoryGroup),
+                            decoration: InputDecoration(
+                              hintText:
+                                  'Send message to ${userStoryGroup.username}...',
+                              hintStyle: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 13,
+                              ),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 12,
+                              ),
+                            ),
+                            onSubmitted: (text) =>
+                                _sendStoryReply(text, story, userStoryGroup),
                           ),
                         ),
                       ),
@@ -413,8 +500,12 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
-                            story.isLiked ? Icons.favorite : Icons.favorite_border,
-                            color: story.isLiked ? Colors.redAccent : Colors.white,
+                            story.isLiked
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            color: story.isLiked
+                                ? Colors.redAccent
+                                : Colors.white,
                             size: 24,
                           ),
                         ),
@@ -436,7 +527,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
 
     final displayViewers = rawViewers.where((v) {
       final vId = (v['id'] ?? v['userId'] ?? v['user_id'] ?? '').toString();
-      return vId.isNotEmpty && vId != currentUserId;
+      return vId.isNotEmpty && vId != currentUserId.value;
     }).toList();
 
     if (!mounted) return;
@@ -469,7 +560,11 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  const Icon(Icons.remove_red_eye, color: AppColors.purple, size: 20),
+                  const Icon(
+                    Icons.remove_red_eye,
+                    color: AppColors.purple,
+                    size: 20,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Story Viewers (${displayViewers.length})',
@@ -488,7 +583,10 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
                     ? const Center(
                         child: Text(
                           'No viewers yet',
-                          style: TextStyle(color: Colors.white38, fontSize: 13.5),
+                          style: TextStyle(
+                            color: Colors.white38,
+                            fontSize: 13.5,
+                          ),
                         ),
                       )
                     : ListView.builder(
@@ -555,10 +653,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
 
     if (Get.isRegistered<ChatController>()) {
       final chatCtrl = Get.find<ChatController>();
-      await chatCtrl.sendMessage(
-        group.userId,
-        'Replied to story: $msg',
-      );
+      await chatCtrl.sendMessage(group.userId, 'Replied to story: $msg');
       Get.snackbar(
         'Sent',
         'Reply sent to ${group.username}',
@@ -586,8 +681,10 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
               Get.back();
               controller.resumeStory();
             },
-            child:
-                const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white54),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {

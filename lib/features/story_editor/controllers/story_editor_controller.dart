@@ -3,11 +3,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:momento/controllers/home_controller.dart';
+import 'package:momento/controllers/music_controller.dart';
 import 'package:momento/controllers/profile_controller.dart';
 import 'package:momento/controllers/reel_controller.dart';
 import 'package:momento/controllers/story_controller.dart';
 import 'package:momento/features/story_editor/models/editor_layer.dart';
 import 'package:momento/features/story_editor/models/story_draft.dart';
+import 'package:momento/models/song_model.dart';
 import 'package:momento/services/reel_service.dart';
 import 'package:momento/services/story_service.dart';
 import 'package:momento/utils/image_filter_utils.dart';
@@ -17,8 +19,8 @@ class StoryEditorController extends GetxController {
   ReelService get _reelService => Get.find<ReelService>();
 
   late String mediaPath;
-  late String mediaType; // 'image' or 'video'
-  late String contentType; // 'story' or 'reel'
+  late String mediaType;
+  late String contentType;
 
   final isReelMode = false.obs;
 
@@ -137,11 +139,61 @@ class StoryEditorController extends GetxController {
       layer.scale = (layer.scale * scaleFactor).clamp(0.5, 4.0);
       layer.rotation += rotationFactor;
       layers[index] = layer;
+      layers.refresh();
     }
   }
 
   void setMusic(Map<String, dynamic>? music) {
     selectedMusic.value = music;
+    if (music != null) {
+      final title = music['title'] ?? music['name'] ?? 'Song';
+      final artist = music['artist'] ?? music['primary_artists'] ?? 'Artist';
+
+      try {
+        final musicCtrl = Get.isRegistered<MusicController>()
+            ? Get.find<MusicController>()
+            : Get.put(MusicController());
+        final songModel = SongModel.fromJson(music);
+        musicCtrl.selectSongForMedia(songModel);
+
+        if (Get.isRegistered<StoryController>()) {
+          Get.find<StoryController>().selectedSong.value = songModel;
+        }
+      } catch (e) {
+        debugPrint('Error selecting story music: $e');
+        Get.snackbar(
+          'Error',
+          'Failed to load song data.',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.redAccent.withValues(alpha: 0.8),
+          colorText: Colors.white,
+        );
+      }
+
+      // Remove existing music stickers first to avoid duplicates
+      layers.removeWhere((l) => l.content.startsWith('🎵 '));
+
+      final layer = EditorLayer(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        type: LayerType.text,
+        content: '🎵 $title - $artist',
+        position: const Offset(80, 200),
+        color: Colors.white,
+        fontSize: 22.0,
+        hasBackground: true,
+      );
+      layers.add(layer);
+      selectedLayerId.value = layer.id;
+      layers.refresh();
+
+      Get.snackbar(
+        'Music Attached',
+        '🎵 $title by $artist added to story!',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.purple.withValues(alpha: 0.8),
+        colorText: Colors.white,
+      );
+    }
   }
 
   void setFilter(String filterName) {
@@ -197,10 +249,29 @@ class StoryEditorController extends GetxController {
           songId: songId,
         );
       } else {
+        String? songId;
+        String? audioUrl;
+        String? songTitle;
+        if (selectedMusic.value != null) {
+          songId =
+              selectedMusic.value!['id']?.toString() ??
+              selectedMusic.value!['songId']?.toString();
+          audioUrl =
+              selectedMusic.value!['audioUrl']?.toString() ??
+              selectedMusic.value!['url']?.toString();
+          final titleStr = selectedMusic.value!['title']?.toString() ?? '';
+          final artistStr = selectedMusic.value!['artist']?.toString() ?? '';
+          songTitle = titleStr.isNotEmpty
+              ? '$titleStr${artistStr.isNotEmpty ? " • $artistStr" : ""}'
+              : null;
+        }
         success = await _storyService.createStory(
           uploadPath,
           draft.mediaType,
           caption: captionText,
+          songId: songId,
+          audioUrl: audioUrl,
+          songTitle: songTitle,
         );
       }
 

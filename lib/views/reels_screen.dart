@@ -319,7 +319,7 @@ class _ReelPageItemState extends State<_ReelPageItem>
               (reel.repostNote != null && reel.repostNote!.trim().isNotEmpty))
             Positioned(
               left: 16,
-              bottom: 105,
+              bottom: 120,
               child: GestureDetector(
                 onTap: _openRepostNoteSheet,
                 child: Column(
@@ -367,18 +367,14 @@ class _ReelPageItemState extends State<_ReelPageItem>
                         CircleAvatar(
                           radius: 20,
                           backgroundColor: AppColors.darkGrey,
-                          backgroundImage:
-                              (reel.repostUserAvatar != null &&
-                                  reel.repostUserAvatar!.isNotEmpty)
-                              ? NetworkImage(
-                                  ApiConstants.getFullUrl(
-                                    reel.repostUserAvatar!,
-                                  ),
-                                )
-                              : null,
+                          backgroundImage: ApiConstants.getImageProvider(
+                            reel.repostUserAvatar,
+                          ),
                           child:
-                              (reel.repostUserAvatar == null ||
-                                  reel.repostUserAvatar!.isEmpty)
+                              ApiConstants.getImageProvider(
+                                    reel.repostUserAvatar,
+                                  ) ==
+                                  null
                               ? const Icon(
                                   Icons.person,
                                   color: Colors.white70,
@@ -415,7 +411,7 @@ class _ReelPageItemState extends State<_ReelPageItem>
           // Content Overlay
           Positioned(
             left: 16,
-            bottom: 24,
+            bottom: 36,
             right: 80,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -456,7 +452,7 @@ class _ReelPageItemState extends State<_ReelPageItem>
           // Right Sidebar Actions
           Positioned(
             right: 12,
-            bottom: 24,
+            bottom: 36,
             child: Column(
               children: [
                 _buildActionItem(
@@ -466,7 +462,7 @@ class _ReelPageItemState extends State<_ReelPageItem>
                   color: reel.isLiked ? Colors.redAccent : Colors.white,
                 ),
                 _buildActionItem(
-                  Icons.comment,
+                  Icons.chat_bubble_outline_rounded,
                   '${reel.commentsCount}',
                   _openComments,
                 ),
