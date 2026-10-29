@@ -32,11 +32,54 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
   Worker? _storyIndexWorker;
   Worker? _userIndexWorker;
 
+  StreamSubscription? _playerStateSubscription;
+  StreamSubscription? _playerCompleteSubscription;
+  Timer? _fallbackTimer;
+  int _playSessionId = 0;
+  static final Map<String, String> _jamendoCache = {};
+
   @override
   void initState() {
     super.initState();
     _loadCurrentUserId();
     controller.progress.value = 0.0;
+
+    _playerStateSubscription = _storyAudioPlayer.onPlayerStateChanged.listen((
+      state,
+    ) {
+      if (state == PlayerState.playing) {
+        if (mounted && isAudioLoading.value) {
+          isAudioLoading.value = false;
+          _fallbackTimer?.cancel();
+          controller.startTimer();
+          controller.resumeStory();
+        }
+      }
+    });
+
+    _playerCompleteSubscription = _storyAudioPlayer.onPlayerComplete.listen((
+      _,
+    ) {
+      if (!mounted) return;
+      try {
+        if (controller.userStories.isEmpty) return;
+        final groupIdx = controller.currentUserStoriesIndex.value;
+        if (groupIdx < 0 || groupIdx >= controller.userStories.length) return;
+        final group = controller.userStories[groupIdx];
+        final storyIdx = controller.currentStoryIndex.value;
+        if (storyIdx < 0 || storyIdx >= group.stories.length) return;
+        final story = group.stories[storyIdx];
+
+        if (story.clipStart > 0) {
+          _storyAudioPlayer.seek(
+            Duration(milliseconds: (story.clipStart * 1000).toInt()),
+          );
+        } else {
+          _storyAudioPlayer.seek(Duration.zero);
+        }
+        _storyAudioPlayer.resume();
+      } catch (_) {}
+    });
 
     _storyIndexWorker = ever(controller.currentStoryIndex, (_) {
       _playStoryAudio();
@@ -56,8 +99,13 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
   }
 
   Future<void> _playStoryAudio() async {
+    final currentSession = ++_playSessionId;
+    _fallbackTimer?.cancel();
+
     try {
-      await _storyAudioPlayer.stop();
+      try {
+        await _storyAudioPlayer.stop();
+      } catch (_) {}
 
       if (controller.userStories.isEmpty) return;
       final groupIdx = controller.currentUserStoriesIndex.value;
@@ -73,9 +121,11 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
 
       // If no audio attached, resume timer immediately
       if (story.audioUrl.isEmpty && story.songTitle.isEmpty) {
-        isAudioLoading.value = false;
-        controller.startTimer();
-        controller.resumeStory();
+        if (currentSession == _playSessionId) {
+          isAudioLoading.value = false;
+          controller.startTimer();
+          controller.resumeStory();
+        }
         return;
       }
 
@@ -85,59 +135,85 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
 
       String audioToPlay = story.audioUrl;
 
-      // Fallback: If audioUrl is empty, search Jamendo
+      // Fallback: If audioUrl is empty, search Jamendo and cache result
       if (audioToPlay.isEmpty && story.songTitle.isNotEmpty) {
-        try {
-          final query = story.songTitle
-              .replaceFirst(RegExp(r'•.*$'), '')
-              .trim();
-          final results = await JamendoService().searchSongs(query);
-          if (results.isNotEmpty && results.first.audioUrl.isNotEmpty) {
-            audioToPlay = results.first.audioUrl;
-          }
-        } catch (_) {}
+        final queryKey = story.songTitle
+            .replaceFirst(RegExp(r'•.*$'), '')
+            .trim();
+        if (_jamendoCache.containsKey(queryKey)) {
+          audioToPlay = _jamendoCache[queryKey]!;
+        } else {
+          try {
+            final results = await JamendoService().searchSongs(queryKey);
+            if (results.isNotEmpty && results.first.audioUrl.isNotEmpty) {
+              audioToPlay = results.first.audioUrl;
+              _jamendoCache[queryKey] = audioToPlay;
+            }
+          } catch (_) {}
+        }
       }
 
-      if (audioToPlay.isNotEmpty) {
-        // Retrieve or download local MP3 path (0ms instant playback if cached)
-        final localCachedPath = await StoryAudioCache.getCachedAudioPath(
-          audioToPlay,
-        );
+      if (currentSession != _playSessionId) return;
 
-        // Fallback timer: max 1.2s wait if network buffering is slow
-        Timer(const Duration(milliseconds: 1200), () {
-          if (mounted && isAudioLoading.value) {
-            isAudioLoading.value = false;
-            controller.startTimer();
-            controller.resumeStory();
-          }
-        });
+      if (audioToPlay.isEmpty) {
+        isAudioLoading.value = false;
+        controller.startTimer();
+        controller.resumeStory();
+        return;
+      }
 
-        if (localCachedPath != null && File(localCachedPath).existsSync()) {
-          await _storyAudioPlayer.play(
-            DeviceFileSource(localCachedPath),
-            mode: PlayerMode.mediaPlayer,
-          );
-        } else {
-          await _storyAudioPlayer.play(
-            UrlSource(audioToPlay),
-            mode: PlayerMode.mediaPlayer,
-          );
+      // Fallback timer: max 1.0s wait if network buffering is slow
+      _fallbackTimer = Timer(const Duration(milliseconds: 1000), () {
+        if (currentSession == _playSessionId &&
+            mounted &&
+            isAudioLoading.value) {
+          isAudioLoading.value = false;
+          controller.startTimer();
+          controller.resumeStory();
         }
+      });
 
-        isAudioLoading.value = false;
-        controller.startTimer();
-        controller.resumeStory();
+      // Retrieve local MP3 path if cached or download via HTTP client
+      String? localCachedPath = StoryAudioCache.getFastCachedAudioPath(
+        audioToPlay,
+      );
+
+      if (localCachedPath == null || !File(localCachedPath).existsSync()) {
+        localCachedPath = await StoryAudioCache.getCachedAudioPath(audioToPlay);
+      }
+
+      if (currentSession != _playSessionId) return;
+
+      if (localCachedPath != null && File(localCachedPath).existsSync()) {
+        await _storyAudioPlayer.play(
+          DeviceFileSource(localCachedPath),
+          mode: PlayerMode.mediaPlayer,
+        );
       } else {
-        isAudioLoading.value = false;
-        controller.startTimer();
-        controller.resumeStory();
+        await _storyAudioPlayer.play(
+          UrlSource(audioToPlay),
+          mode: PlayerMode.mediaPlayer,
+        );
+      }
+
+      if (currentSession != _playSessionId) {
+        await _storyAudioPlayer.stop();
+        return;
+      }
+
+      // Seek to clip start time if specified
+      if (story.clipStart > 0) {
+        await _storyAudioPlayer.seek(
+          Duration(milliseconds: (story.clipStart * 1000).toInt()),
+        );
       }
     } catch (e) {
       debugPrint('Story AudioPlayer Error: $e');
-      isAudioLoading.value = false;
-      controller.startTimer();
-      controller.resumeStory();
+      if (currentSession == _playSessionId) {
+        isAudioLoading.value = false;
+        controller.startTimer();
+        controller.resumeStory();
+      }
     }
   }
 
@@ -149,7 +225,14 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
         if (nextStory.audioUrl.isNotEmpty) {
           StoryAudioCache.preloadAudio(nextStory.audioUrl);
         }
-      } else if (groupIdx + 1 < controller.userStories.length) {
+      }
+      if (storyIdx + 2 < group.stories.length) {
+        final nextStory2 = group.stories[storyIdx + 2];
+        if (nextStory2.audioUrl.isNotEmpty) {
+          StoryAudioCache.preloadAudio(nextStory2.audioUrl);
+        }
+      }
+      if (groupIdx + 1 < controller.userStories.length) {
         final nextGroup = controller.userStories[groupIdx + 1];
         if (nextGroup.stories.isNotEmpty &&
             nextGroup.stories.first.audioUrl.isNotEmpty) {
@@ -161,10 +244,15 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
 
   @override
   void dispose() {
+    _playerStateSubscription?.cancel();
+    _playerCompleteSubscription?.cancel();
+    _fallbackTimer?.cancel();
     _storyIndexWorker?.dispose();
     _userIndexWorker?.dispose();
-    _storyAudioPlayer.stop();
-    _storyAudioPlayer.dispose();
+    try {
+      _storyAudioPlayer.stop();
+      _storyAudioPlayer.dispose();
+    } catch (_) {}
     _replyController.dispose();
     controller.stopTimer();
     super.dispose();
@@ -580,6 +668,11 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
   }
 
   void _showViewersSheet(BuildContext context, StoryModel story) {
+    controller.pauseStory();
+    try {
+      _storyAudioPlayer.pause();
+    } catch (_) {}
+
     final initialViewers = story.viewers.where((v) {
       final vId = (v['id'] ?? v['userId'] ?? v['user_id'] ?? '').toString();
       return vId.isNotEmpty && vId != currentUserId.value;
@@ -731,6 +824,9 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
       },
     ).then((_) {
       controller.resumeStory();
+      try {
+        _storyAudioPlayer.resume();
+      } catch (_) {}
     });
   }
 
@@ -754,6 +850,9 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
 
   void _confirmDeleteStory(BuildContext context, String storyId) {
     controller.pauseStory();
+    try {
+      _storyAudioPlayer.pause();
+    } catch (_) {}
     Get.dialog(
       AlertDialog(
         backgroundColor: AppColors.surface,
@@ -770,6 +869,9 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
             onPressed: () {
               Get.back();
               controller.resumeStory();
+              try {
+                _storyAudioPlayer.resume();
+              } catch (_) {}
             },
             child: const Text(
               'Cancel',

@@ -61,6 +61,12 @@ class SongModel {
               .toString();
     }
 
+    // Clean audio URL and upgrade HTTP to HTTPS to avoid CDN restrictions/cleartext blocks
+    audioUrl = audioUrl.replaceAll('&amp;', '&').trim();
+    if (audioUrl.startsWith('http://')) {
+      audioUrl = audioUrl.replaceFirst('http://', 'https://');
+    }
+
     // 2. Image URL Parsing
     String imageUrl = '';
     if (json['image'] is List && (json['image'] as List).isNotEmpty) {

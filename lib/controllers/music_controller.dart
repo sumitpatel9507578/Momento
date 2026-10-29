@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:get/get.dart';
 import '../models/song_model.dart';
 import '../services/api_service.dart';
 import '../services/music_service.dart';
+import '../services/story_audio_cache.dart';
 
 enum MusicRepeatMode { off, one, all }
 
@@ -214,7 +216,16 @@ class MusicController extends GetxController {
 
       await _audioPlayer.stop();
       if (song.audioUrl.isNotEmpty) {
-        await _audioPlayer.play(UrlSource(song.audioUrl));
+        String? cachedPath = StoryAudioCache.getFastCachedAudioPath(song.audioUrl);
+        if (cachedPath == null || !File(cachedPath).existsSync()) {
+          cachedPath = await StoryAudioCache.getCachedAudioPath(song.audioUrl);
+        }
+
+        if (cachedPath != null && File(cachedPath).existsSync()) {
+          await _audioPlayer.play(DeviceFileSource(cachedPath));
+        } else {
+          await _audioPlayer.play(UrlSource(song.audioUrl));
+        }
         isPlaying.value = true;
       } else {
         Get.snackbar(
