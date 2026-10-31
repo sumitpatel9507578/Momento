@@ -1,6 +1,1 @@
-package com.example.momento;
-
-import io.flutter.embedding.android.FlutterActivity;
-
-public class MainActivity extends FlutterActivity {
-}
+// Legacy package file moved to com.edugaon.momentz.MainActivity

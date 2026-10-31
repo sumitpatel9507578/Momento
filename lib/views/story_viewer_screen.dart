@@ -161,8 +161,6 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
         controller.resumeStory();
         return;
       }
-
-      // Fallback timer: max 1.0s wait if network buffering is slow
       _fallbackTimer = Timer(const Duration(milliseconds: 1000), () {
         if (currentSession == _playSessionId &&
             mounted &&

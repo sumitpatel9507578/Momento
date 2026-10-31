@@ -17,7 +17,7 @@
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">
         <activity
-            android:name="com.example.momento.MainActivity"
+            android:name="com.edugaon.momentz.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""

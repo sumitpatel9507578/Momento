@@ -86,6 +86,46 @@ class ApiService {
     });
   }
 
+  bool _checkResponseForBlockStatus(http.Response response) {
+    if (response.statusCode == 403 ||
+        response.statusCode == 401 ||
+        response.statusCode == 400) {
+      final bodyStr = response.body.toLowerCase();
+      if (bodyStr.contains('blocked') ||
+          bodyStr.contains('isblocked') ||
+          bodyStr.contains('account is blocked')) {
+        _handleBlockedUser();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void _handleBlockedUser() async {
+    if (Get.currentRoute == '/login' || Get.currentRoute == '/register') {
+      return;
+    }
+
+    print("ApiService: Account is blocked by admin! Clearing token & redirecting.");
+    await deleteToken();
+    await deleteUser();
+
+    Get.snackbar(
+      'Account Blocked',
+      'This account is blocked by admin',
+      backgroundColor: Colors.redAccent.withValues(alpha: 0.9),
+      colorText: Colors.white,
+      duration: const Duration(seconds: 4),
+      snackPosition: SnackPosition.BOTTOM,
+    );
+
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (Get.currentRoute != '/login') {
+        Get.offAllNamed('/login');
+      }
+    });
+  }
+
   void _handleTimeout(String url) {
     Get.snackbar(
       'Server is waking up',
@@ -169,6 +209,7 @@ class ApiService {
 
         if (response.statusCode >= 400) {
           print("API Error Body: ${response.body}");
+          if (_checkResponseForBlockStatus(response)) return response;
         }
 
         if (response.statusCode == 401) {
@@ -198,6 +239,7 @@ class ApiService {
 
         if (response.statusCode >= 400) {
           print("API Error Body: ${response.body}");
+          if (_checkResponseForBlockStatus(response)) return response;
         }
 
         if (response.statusCode == 401) {
@@ -226,6 +268,7 @@ class ApiService {
 
         if (response.statusCode >= 400) {
           print("API Error Body: ${response.body}");
+          if (_checkResponseForBlockStatus(response)) return response;
         }
 
         if (response.statusCode == 401) {

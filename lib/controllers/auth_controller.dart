@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -28,6 +29,24 @@ class AuthController extends GetxController {
     try {
       final userMap = await _apiService.getUser();
       if (userMap != null) {
+        final isBlocked =
+            userMap['isBlocked'] == true ||
+            userMap['is_blocked'] == true ||
+            userMap['status'] == 'blocked' ||
+            userMap['status'] == 'inactive';
+
+        if (isBlocked) {
+          await logout();
+          Get.snackbar(
+            'Account Blocked',
+            'This account is blocked by admin',
+            backgroundColor: Colors.redAccent.withValues(alpha: 0.9),
+            colorText: Colors.white,
+            duration: const Duration(seconds: 4),
+            snackPosition: SnackPosition.BOTTOM,
+          );
+          return;
+        }
         currentUser.value = UserModel.fromMap(userMap);
       }
     } catch (_) {}
@@ -53,6 +72,26 @@ class AuthController extends GetxController {
       if (body['success'] == true && body['data'] != null) {
         final token = body['data']['token'];
         final userData = body['data']['user'];
+
+        if (userData != null) {
+          final isBlocked =
+              userData['isBlocked'] == true ||
+              userData['is_blocked'] == true ||
+              userData['status'] == 'blocked' ||
+              userData['status'] == 'inactive';
+
+          if (isBlocked) {
+            Get.snackbar(
+              'Account Blocked',
+              'This account is blocked by admin',
+              backgroundColor: Colors.redAccent.withValues(alpha: 0.9),
+              colorText: Colors.white,
+              duration: const Duration(seconds: 4),
+              snackPosition: SnackPosition.BOTTOM,
+            );
+            return false;
+          }
+        }
 
         if (token != null) {
           if (kDebugMode) {
@@ -272,6 +311,26 @@ class AuthController extends GetxController {
       if (body['success'] == true && body['data'] != null) {
         final token = body['data']['token'];
         final userData = body['data']['user'];
+
+        if (userData != null) {
+          final isBlocked =
+              userData['isBlocked'] == true ||
+              userData['is_blocked'] == true ||
+              userData['status'] == 'blocked' ||
+              userData['status'] == 'inactive';
+
+          if (isBlocked) {
+            Get.snackbar(
+              'Account Blocked',
+              'This account is blocked by admin',
+              backgroundColor: Colors.redAccent.withValues(alpha: 0.9),
+              colorText: Colors.white,
+              duration: const Duration(seconds: 4),
+              snackPosition: SnackPosition.BOTTOM,
+            );
+            return false;
+          }
+        }
         if (token != null) {
           await _apiService.saveToken(token.toString());
           if (userData != null) {

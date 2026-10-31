@@ -16,39 +16,28 @@ class MiraAiService {
     required String language,
     required String length,
   }) async {
-    final endpoints = [
-      "${ApiConstants.baseUrl}/ai/captions",
-      "${ApiConstants.baseUrl}/mira/captions",
-      "${ApiConstants.baseUrl}/captions",
-    ];
+    final primaryUrl = "${ApiConstants.baseUrl}/ai/captions";
+    try {
+      final response = await _apiService.post(primaryUrl, {
+        'prompt': prompt,
+        'tone': tone,
+        'language': language,
+        'length': length,
+      });
 
-    for (final url in endpoints) {
-      try {
-        final response = await _apiService.post(url, {
-          'prompt': prompt,
-          'tone': tone,
-          'language': language,
-          'length': length,
-        });
-
-        debugPrint(
-          "MiraAiService generateCaptions [$url] status: ${response.statusCode}",
-        );
-
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          final parsed = _parseCaptionResponse(data);
-          if (parsed['captions']!.isNotEmpty) {
-            return {
-              'success': true,
-              'captions': parsed['captions'],
-              'hashtags': parsed['hashtags'],
-            };
-          }
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final parsed = _parseCaptionResponse(data);
+        if (parsed['captions']!.isNotEmpty) {
+          return {
+            'success': true,
+            'captions': parsed['captions'],
+            'hashtags': parsed['hashtags'],
+          };
         }
-      } catch (e) {
-        debugPrint("MiraAiService generateCaptions error [$url]: $e");
       }
+    } catch (e) {
+      debugPrint("MiraAiService generateCaptions error [$primaryUrl]: $e");
     }
 
     return {
@@ -73,47 +62,36 @@ class MiraAiService {
     required String tone,
     required String language,
   }) async {
-    final endpoints = [
-      "${ApiConstants.baseUrl}/ai/vision",
-      "${ApiConstants.baseUrl}/mira/vision",
-      "${ApiConstants.baseUrl}/vision",
-    ];
-
-    for (final url in endpoints) {
-      try {
-        final request = http.MultipartRequest('POST', Uri.parse(url));
-        request.fields['tone'] = tone;
-        request.fields['language'] = language;
-        if (imagePath.isNotEmpty && File(imagePath).existsSync()) {
-          request.files.add(
-            await http.MultipartFile.fromPath('image', imagePath),
-          );
-        }
-
-        final streamedResponse = await request.send().timeout(
-          const Duration(seconds: 30),
+    final primaryUrl = "${ApiConstants.baseUrl}/ai/vision";
+    try {
+      final request = http.MultipartRequest('POST', Uri.parse(primaryUrl));
+      request.fields['tone'] = tone;
+      request.fields['language'] = language;
+      if (imagePath.isNotEmpty && File(imagePath).existsSync()) {
+        request.files.add(
+          await http.MultipartFile.fromPath('image', imagePath),
         );
-        final response = await http.Response.fromStream(streamedResponse);
-
-        debugPrint(
-          "MiraAiService generateVisionCaption [$url] status: ${response.statusCode}",
-        );
-
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          final parsed = _parseCaptionResponse(data);
-          if (parsed['captions']!.isNotEmpty) {
-            return {
-              'success': true,
-              'captions': parsed['captions'],
-              'hashtags': parsed['hashtags'],
-              'description': data['description'] ?? (parsed['captions']!.first),
-            };
-          }
-        }
-      } catch (e) {
-        debugPrint("MiraAiService generateVisionCaption error [$url]: $e");
       }
+
+      final streamedResponse = await request.send().timeout(
+        const Duration(seconds: 30),
+      );
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final parsed = _parseCaptionResponse(data);
+        if (parsed['captions']!.isNotEmpty) {
+          return {
+            'success': true,
+            'captions': parsed['captions'],
+            'hashtags': parsed['hashtags'],
+            'description': data['description'] ?? (parsed['captions']!.first),
+          };
+        }
+      }
+    } catch (e) {
+      debugPrint("MiraAiService generateVisionCaption error [$primaryUrl]: $e");
     }
 
     return {
@@ -131,32 +109,21 @@ class MiraAiService {
   Future<List<String>> generateChatReplies({
     required List<String> recentMessages,
   }) async {
-    final endpoints = [
-      "${ApiConstants.baseUrl}/ai/chat-replies",
-      "${ApiConstants.baseUrl}/mira/chat-replies",
-      "${ApiConstants.baseUrl}/chat-replies",
-    ];
+    final primaryUrl = "${ApiConstants.baseUrl}/ai/chat-replies";
+    try {
+      final response = await _apiService.post(primaryUrl, {
+        'recentMessages': recentMessages,
+      });
 
-    for (final url in endpoints) {
-      try {
-        final response = await _apiService.post(url, {
-          'recentMessages': recentMessages,
-        });
-
-        debugPrint(
-          "MiraAiService generateChatReplies [$url] status: ${response.statusCode}",
-        );
-
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          if (data['replies'] is List) {
-            final replies = List<String>.from(data['replies']);
-            if (replies.isNotEmpty) return replies;
-          }
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['replies'] is List) {
+          final replies = List<String>.from(data['replies']);
+          if (replies.isNotEmpty) return replies;
         }
-      } catch (e) {
-        debugPrint("MiraAiService generateChatReplies error [$url]: $e");
       }
+    } catch (e) {
+      debugPrint("MiraAiService generateChatReplies error [$primaryUrl]: $e");
     }
 
     return _buildSituationalChatReplies(recentMessages);
@@ -166,33 +133,22 @@ class MiraAiService {
     required String postCaption,
     String? parentComment,
   }) async {
-    final endpoints = [
-      "${ApiConstants.baseUrl}/ai/comment-replies",
-      "${ApiConstants.baseUrl}/mira/comment-replies",
-      "${ApiConstants.baseUrl}/comment-replies",
-    ];
+    final primaryUrl = "${ApiConstants.baseUrl}/ai/comment-replies";
+    try {
+      final response = await _apiService.post(primaryUrl, {
+        'postCaption': postCaption,
+        'parentComment': parentComment ?? '',
+      });
 
-    for (final url in endpoints) {
-      try {
-        final response = await _apiService.post(url, {
-          'postCaption': postCaption,
-          'parentComment': parentComment ?? '',
-        });
-
-        debugPrint(
-          "MiraAiService generateCommentReplies [$url] status: ${response.statusCode}",
-        );
-
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          if (data['replies'] is List) {
-            final replies = List<String>.from(data['replies']);
-            if (replies.isNotEmpty) return replies;
-          }
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['replies'] is List) {
+          final replies = List<String>.from(data['replies']);
+          if (replies.isNotEmpty) return replies;
         }
-      } catch (e) {
-        debugPrint("MiraAiService generateCommentReplies error [$url]: $e");
       }
+    } catch (e) {
+      debugPrint("MiraAiService generateCommentReplies error [$primaryUrl]: $e");
     }
 
     return _buildSituationalCommentReplies(postCaption, parentComment);

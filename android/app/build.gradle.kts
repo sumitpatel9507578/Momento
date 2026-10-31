@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.momento"
+    namespace = "com.edugaon.momentz"
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
@@ -15,7 +15,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.momentz"
+        applicationId = "com.edugaon.momentz"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
