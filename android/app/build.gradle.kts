@@ -34,10 +34,6 @@ android {
         versionName = flutter.versionName
     }
 
-    sourceSets {
-        getByName("main").java.srcDirs("src/main/kotlin")
-    }
-
     signingConfigs {
         create("release") {
             keyAlias = keystoreProperties.getProperty("keyAlias") ?: ""
