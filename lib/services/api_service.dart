@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get/get.dart';
@@ -106,9 +107,12 @@ class ApiService {
       return;
     }
 
-    print("ApiService: Account is blocked by admin! Clearing token & redirecting.");
+    if (kDebugMode) {
+      print(
+        "ApiService: Account is blocked by admin! Clearing token & redirecting.",
+      );
+    }
     await deleteToken();
-    await deleteUser();
 
     Get.snackbar(
       'Account Blocked',
@@ -452,6 +456,10 @@ class ApiService {
 
   Future<void> deleteToken() async {
     await _storage.delete(key: 'auth_token');
+    await _storage.delete(key: 'user_data');
+  }
+
+  Future<void> deleteUser() async {
     await _storage.delete(key: 'user_data');
   }
 

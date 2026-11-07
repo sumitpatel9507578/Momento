@@ -16,6 +16,8 @@ class ReelModel {
   final String? repostNote;
   final String? repostUserAvatar;
   final String? repostUsername;
+  final bool isDeletedByAdmin;
+  final String deleteReason;
 
   ReelModel({
     required this.id,
@@ -35,6 +37,8 @@ class ReelModel {
     this.repostNote,
     this.repostUserAvatar,
     this.repostUsername,
+    this.isDeletedByAdmin = false,
+    this.deleteReason = 'This reel was removed by Admin for violating community guidelines or Terms of Service.',
   });
 
   factory ReelModel.fromJson(Map<String, dynamic> json) {
@@ -92,6 +96,25 @@ class ReelModel {
     }
     if (extractedCreatorName.isEmpty) extractedCreatorName = 'Anonymous';
 
+    final bool isDeletedAdmin =
+        json['isDeletedByAdmin'] == true ||
+        json['is_deleted_by_admin'] == true ||
+        json['deletedByAdmin'] == true ||
+        json['deleted_by_admin'] == true ||
+        json['status'] == 'deleted_by_admin' ||
+        json['status'] == 'deleted' ||
+        json['status'] == 'blocked' ||
+        (json['caption']?.toString().toLowerCase().contains('deleted by admin') == true);
+
+    final String adminDeleteReason = (
+      json['deleteReason'] ??
+      json['delete_reason'] ??
+      json['adminNote'] ??
+      json['admin_note'] ??
+      json['reason'] ??
+      'This reel was removed by Admin for violating community guidelines or Terms of Service.'
+    ).toString();
+
     return ReelModel(
       id: (json['reelId'] ?? json['reel_id'] ?? json['_id'] ?? json['id'] ?? '')
           .toString(),
@@ -140,6 +163,8 @@ class ReelModel {
               ?.toString(),
       repostUsername: (json['repostUsername'] ?? json['repost_username'])
           ?.toString(),
+      isDeletedByAdmin: isDeletedAdmin,
+      deleteReason: adminDeleteReason,
     );
   }
 
@@ -170,6 +195,8 @@ class ReelModel {
     String? repostNote,
     String? repostUserAvatar,
     String? repostUsername,
+    bool? isDeletedByAdmin,
+    String? deleteReason,
   }) {
     return ReelModel(
       id: id ?? this.id,
@@ -189,6 +216,8 @@ class ReelModel {
       repostNote: repostNote ?? this.repostNote,
       repostUserAvatar: repostUserAvatar ?? this.repostUserAvatar,
       repostUsername: repostUsername ?? this.repostUsername,
+      isDeletedByAdmin: isDeletedByAdmin ?? this.isDeletedByAdmin,
+      deleteReason: deleteReason ?? this.deleteReason,
     );
   }
 }

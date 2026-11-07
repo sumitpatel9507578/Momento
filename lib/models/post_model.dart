@@ -21,6 +21,8 @@ class PostModel {
   final String? repostUsername;
   final DateTime timestamp;
   final String? location;
+  final bool isDeletedByAdmin;
+  final String deleteReason;
 
   PostModel({
     required this.postId,
@@ -45,6 +47,9 @@ class PostModel {
     this.repostUsername,
     required this.timestamp,
     this.location,
+    this.isDeletedByAdmin = false,
+    this.deleteReason =
+        'This post was removed by Admin for violating community guidelines or Terms of Service.',
   });
 
   bool get isCarousel => mediaUrls.length > 1;
@@ -123,23 +128,33 @@ class PostModel {
     }
     if (extractedUsername.isEmpty) extractedUsername = 'Anonymous';
 
-    final singleUrl = (json['mediaUrl'] ??
-            json['media_url'] ??
-            json['url'] ??
-            json['media'] ??
-            '')
+    final singleUrl =
+        (json['mediaUrl'] ??
+                json['media_url'] ??
+                json['url'] ??
+                json['media'] ??
+                '')
+            .toString();
+    final singleType = (json['mediaType'] ?? json['media_type'] ?? 'image')
         .toString();
-    final singleType = (json['mediaType'] ?? json['media_type'] ?? 'image').toString();
 
     List<String> parsedUrls = [];
-    final rawUrls = json['mediaUrls'] ?? json['media_urls'] ?? json['images'] ?? json['carousel'];
+    final rawUrls =
+        json['mediaUrls'] ??
+        json['media_urls'] ??
+        json['images'] ??
+        json['carousel'];
     if (rawUrls is List && rawUrls.isNotEmpty) {
-      parsedUrls = rawUrls.map((u) {
-        if (u is Map) {
-          return (u['url'] ?? u['mediaUrl'] ?? u['media_url'] ?? '').toString();
-        }
-        return u.toString();
-      }).where((u) => u.isNotEmpty).toList();
+      parsedUrls = rawUrls
+          .map((u) {
+            if (u is Map) {
+              return (u['url'] ?? u['mediaUrl'] ?? u['media_url'] ?? '')
+                  .toString();
+            }
+            return u.toString();
+          })
+          .where((u) => u.isNotEmpty)
+          .toList();
     }
 
     if (parsedUrls.isEmpty && singleUrl.isNotEmpty) {
@@ -166,7 +181,9 @@ class PostModel {
       userId: extractedUserId,
       username: extractedUsername,
       profileImage: extractedProfileImage,
-      mediaUrl: singleUrl.isNotEmpty ? singleUrl : (parsedUrls.isNotEmpty ? parsedUrls.first : ''),
+      mediaUrl: singleUrl.isNotEmpty
+          ? singleUrl
+          : (parsedUrls.isNotEmpty ? parsedUrls.first : ''),
       mediaType: singleType,
       mediaUrls: parsedUrls,
       mediaTypes: parsedTypes,
@@ -217,6 +234,26 @@ class PostModel {
             json['date'],
       ),
       location: json['location'],
+      isDeletedByAdmin:
+          json['isDeletedByAdmin'] == true ||
+          json['is_deleted_by_admin'] == true ||
+          json['deletedByAdmin'] == true ||
+          json['deleted_by_admin'] == true ||
+          json['status'] == 'deleted_by_admin' ||
+          json['status'] == 'deleted' ||
+          json['status'] == 'blocked' ||
+          (json['caption']?.toString().toLowerCase().contains(
+                'deleted by admin',
+              ) ==
+              true),
+      deleteReason:
+          (json['deleteReason'] ??
+                  json['delete_reason'] ??
+                  json['adminNote'] ??
+                  json['admin_note'] ??
+                  json['reason'] ??
+                  'This post was removed by Admin for violating community guidelines or Terms of Service.')
+              .toString(),
     );
   }
 
@@ -262,6 +299,8 @@ class PostModel {
     String? repostUsername,
     DateTime? timestamp,
     String? location,
+    bool? isDeletedByAdmin,
+    String? deleteReason,
   }) {
     return PostModel(
       postId: postId ?? this.postId,
@@ -286,6 +325,8 @@ class PostModel {
       repostUsername: repostUsername ?? this.repostUsername,
       timestamp: timestamp ?? this.timestamp,
       location: location ?? this.location,
+      isDeletedByAdmin: isDeletedByAdmin ?? this.isDeletedByAdmin,
+      deleteReason: deleteReason ?? this.deleteReason,
     );
   }
 }

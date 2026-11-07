@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -39,6 +41,83 @@ class PostCard extends StatefulWidget {
 
   @override
   State<PostCard> createState() => _PostCardState();
+
+  static void showSeeWhySheet(
+    BuildContext context,
+    String type,
+    String reason,
+  ) {
+    Get.bottomSheet(
+      Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 38,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Icon(
+              Icons.admin_panel_settings_rounded,
+              color: Colors.redAccent,
+              size: 48,
+            ),
+            const SizedBox(height: 14),
+            Text(
+              '$type Removed by Admin',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              reason.isNotEmpty
+                  ? reason
+                  : 'This $type was removed by Admin for violating community guidelines or Terms of Service.',
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 13.5,
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Get.back(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.purple,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                child: const Text(
+                  'Got it',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   static void showPostOptionsBottomSheet(
     BuildContext context,
@@ -428,67 +507,72 @@ class _PostCardState extends State<PostCard> {
             ),
 
           // Content
-          GestureDetector(
-            onDoubleTap: () {
-              if (!widget.post.isLiked) widget.onLike();
-              _showHeart.value = true;
-              Future.delayed(
-                const Duration(milliseconds: 700),
-                () => _showHeart.value = false,
-              );
-            },
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                if (widget.post.isCarousel)
-                  _PostCarouselWidget(
-                    mediaUrls: widget.post.mediaUrls,
-                    mediaTypes: widget.post.mediaTypes,
-                  )
-                else if (widget.post.mediaUrl.toLowerCase().endsWith('.mp4') ||
-                    widget.post.mediaType == 'video')
-                  _PostVideoPlayer(videoUrl: widget.post.mediaUrl)
-                else
-                  Image.network(
-                    ApiConstants.getFullUrl(widget.post.mediaUrl),
-                    width: double.infinity,
-                    fit: BoxFit.fitWidth,
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Container(
-                        height: 350,
+          if (widget.post.isDeletedByAdmin)
+            _buildAdminDeletedPostOverlay(context, widget.post)
+          else
+            GestureDetector(
+              onDoubleTap: () {
+                if (!widget.post.isLiked) widget.onLike();
+                _showHeart.value = true;
+                Future.delayed(
+                  const Duration(milliseconds: 700),
+                  () => _showHeart.value = false,
+                );
+              },
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  if (widget.post.isCarousel)
+                    _PostCarouselWidget(
+                      mediaUrls: widget.post.mediaUrls,
+                      mediaTypes: widget.post.mediaTypes,
+                    )
+                  else if (widget.post.mediaUrl.toLowerCase().endsWith(
+                        '.mp4',
+                      ) ||
+                      widget.post.mediaType == 'video')
+                    _PostVideoPlayer(videoUrl: widget.post.mediaUrl)
+                  else
+                    Image.network(
+                      ApiConstants.getFullUrl(widget.post.mediaUrl),
+                      width: double.infinity,
+                      fit: BoxFit.fitWidth,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Container(
+                          height: 350,
+                          color: AppColors.surface,
+                          child: const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        height: 250,
                         color: AppColors.surface,
                         child: const Center(
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      height: 250,
-                      color: AppColors.surface,
-                      child: const Center(
-                        child: Icon(
-                          Icons.image_not_supported_outlined,
-                          color: Colors.white24,
-                          size: 40,
+                          child: Icon(
+                            Icons.image_not_supported_outlined,
+                            color: Colors.white24,
+                            size: 40,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                Obx(
-                  () => AnimatedScale(
-                    duration: const Duration(milliseconds: 200),
-                    scale: _showHeart.value ? 1.0 : 0.0,
-                    child: const Icon(
-                      Icons.favorite,
-                      color: Colors.white,
-                      size: 110,
+                  Obx(
+                    () => AnimatedScale(
+                      duration: const Duration(milliseconds: 200),
+                      scale: _showHeart.value ? 1.0 : 0.0,
+                      child: const Icon(
+                        Icons.favorite,
+                        color: Colors.white,
+                        size: 110,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
           // Actions
           Padding(
@@ -679,6 +763,115 @@ class _PostCardState extends State<PostCard> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAdminDeletedPostOverlay(BuildContext context, PostModel post) {
+    return Container(
+      width: double.infinity,
+      height: 350,
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      color: Colors.grey[900],
+      child: ClipRRect(
+        child: Stack(
+          alignment: Alignment.center,
+          fit: StackFit.expand,
+          children: [
+            if (post.mediaUrl.isNotEmpty)
+              ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Image.network(
+                  ApiConstants.getFullUrl(post.mediaUrl),
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      Container(color: Colors.black87),
+                ),
+              )
+            else
+              Container(color: Colors.black87),
+
+            Container(color: Colors.black.withValues(alpha: 0.7)),
+
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.redAccent, width: 1.5),
+                      ),
+                      child: const Icon(
+                        Icons.admin_panel_settings_rounded,
+                        color: Colors.redAccent,
+                        size: 38,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'This post deleted by admin',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.2,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            Positioned(
+              bottom: 12,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: TextButton(
+                  onPressed: () => PostCard.showSeeWhySheet(
+                    context,
+                    'Post',
+                    post.deleteReason,
+                  ),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'See why',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.underline,
+                          decorationColor: Colors.white70,
+                        ),
+                      ),
+                      SizedBox(width: 4),
+                      Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        color: Colors.white70,
+                        size: 12,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -946,7 +1139,10 @@ class _PostCarouselWidgetState extends State<_PostCarouselWidget> {
             right: 12,
             child: Obx(
               () => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(14),

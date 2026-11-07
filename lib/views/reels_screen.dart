@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -6,6 +8,7 @@ import 'package:momento/models/reel_model.dart';
 import 'package:momento/utils/api_constants.dart';
 import 'package:momento/utils/app_colors.dart';
 import 'package:momento/widgets/comment_bottom_sheet.dart';
+import 'package:momento/widgets/post_card.dart';
 import 'package:momento/widgets/share_bottom_sheet.dart';
 import 'package:momento/widgets/user_avatar.dart';
 import 'package:momento/widgets/verification_badge.dart';
@@ -220,6 +223,112 @@ class _ReelPageItemState extends State<_ReelPageItem>
     final isInitialized =
         videoController != null && videoController.value.isInitialized;
     final isPlaying = isInitialized && videoController.value.isPlaying;
+
+    if (reel.isDeletedByAdmin) {
+      try {
+        videoController?.pause();
+      } catch (_) {}
+
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          if (isInitialized)
+            ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+              child: FittedBox(
+                fit: BoxFit.cover,
+                child: SizedBox(
+                  width: videoController.value.size.width,
+                  height: videoController.value.size.height,
+                  child: VideoPlayer(videoController),
+                ),
+              ),
+            )
+          else
+            Container(color: Colors.black87),
+
+          Container(color: Colors.black.withValues(alpha: 0.7)),
+
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.redAccent, width: 2),
+                    ),
+                    child: const Icon(
+                      Icons.admin_panel_settings_rounded,
+                      color: Colors.redAccent,
+                      size: 48,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'This reel deleted by admin',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.3,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          Positioned(
+            bottom: MediaQuery.of(context).padding.bottom + 28,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: TextButton(
+                onPressed: () => PostCard.showSeeWhySheet(
+                  context,
+                  'Reel',
+                  reel.deleteReason,
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'See why',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        decoration: TextDecoration.underline,
+                        decorationColor: Colors.white70,
+                      ),
+                    ),
+                    SizedBox(width: 4),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      color: Colors.white70,
+                      size: 12,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
 
     return GestureDetector(
       onTap: _onTapVideo,
