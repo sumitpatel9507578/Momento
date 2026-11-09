@@ -216,14 +216,11 @@ class MusicController extends GetxController {
 
       await _audioPlayer.stop();
       if (song.audioUrl.isNotEmpty) {
-        String? cachedPath = StoryAudioCache.getFastCachedAudioPath(song.audioUrl);
-        if (cachedPath == null || !File(cachedPath).existsSync()) {
-          cachedPath = await StoryAudioCache.getCachedAudioPath(song.audioUrl);
-        }
-
+        final cachedPath = StoryAudioCache.getFastCachedAudioPath(song.audioUrl);
         if (cachedPath != null && File(cachedPath).existsSync()) {
           await _audioPlayer.play(DeviceFileSource(cachedPath));
         } else {
+          StoryAudioCache.preloadAudio(song.audioUrl);
           await _audioPlayer.play(UrlSource(song.audioUrl));
         }
         isPlaying.value = true;

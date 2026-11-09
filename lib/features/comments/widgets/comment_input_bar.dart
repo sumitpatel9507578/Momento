@@ -13,8 +13,8 @@ class CommentInputBar extends StatefulWidget {
   final VoidCallback? onCancelReply;
   final String currentUsername;
   final String? currentProfileImage;
-  final String? postCaption; // For context
-  final String? parentCommentText; // For context
+  final String? postCaption;
+  final String? parentCommentText;
 
   const CommentInputBar({
     super.key,
@@ -48,7 +48,8 @@ class _CommentInputBarState extends State<CommentInputBar> {
   void didUpdateWidget(CommentInputBar oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.replyingToUsername != widget.replyingToUsername ||
-        oldWidget.parentCommentText != widget.parentCommentText) {
+        oldWidget.parentCommentText != widget.parentCommentText ||
+        oldWidget.postCaption != widget.postCaption) {
       _fetchMiraSuggestions();
     }
   }

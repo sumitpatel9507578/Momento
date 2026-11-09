@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 import '../models/reel_model.dart';
 import '../utils/api_constants.dart';
 import 'api_service.dart';
@@ -44,8 +45,23 @@ class ReelService {
       );
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final List reelsJson = data['data'] ?? data['reels'] ?? [];
+        final decoded = jsonDecode(response.body);
+        final dynamic payload = decoded is Map
+            ? (decoded['data'] ??
+                  decoded['reels'] ??
+                  decoded['items'] ??
+                  decoded['results'] ??
+                  decoded['feed'] ??
+                  [])
+            : decoded;
+        final dynamic reelsPayload = payload is Map
+            ? (payload['reels'] ??
+                  payload['items'] ??
+                  payload['results'] ??
+                  payload['data'] ??
+                  [])
+            : payload;
+        final reelsJson = reelsPayload is List ? reelsPayload : <dynamic>[];
         final localLiked = await getLocalLikedReels();
 
         return reelsJson.map((json) {
@@ -118,7 +134,9 @@ class ReelService {
     if (data is! Map || data['success'] != true || data['data'] is! Map) {
       throw const FormatException('The reel response was invalid');
     }
-    final reel = ReelModel.fromJson(Map<String, dynamic>.from(data['data'] as Map));
+    final reel = ReelModel.fromJson(
+      Map<String, dynamic>.from(data['data'] as Map),
+    );
     final localLiked = await getLocalLikedReels();
     if (localLiked.contains(reel.id)) {
       return reel.copyWith(
@@ -198,8 +216,8 @@ class ReelService {
       final body = <String, dynamic>{
         'reelId': reelId,
         'reel_id': reelId,
-        'postId': reelId, // Backend might reuse post logic
-        'post_id': reelId, // Backend might reuse post logic
+        'postId': reelId,
+        'post_id': reelId,
         'targetId': reelId,
         'itemType': 'reel',
         if (userId.isNotEmpty) 'userId': userId,
@@ -209,7 +227,7 @@ class ReelService {
       final endpoints = [
         "${ApiConstants.reels}/$reelId/like",
         "${ApiConstants.reels}/$reelId/likes",
-        "${ApiConstants.posts}/$reelId/like", // Fallback to post like endpoint
+        "${ApiConstants.posts}/$reelId/like",
         "${ApiConstants.likes}/reel/$reelId",
         "${ApiConstants.likes}/reels/$reelId",
         "${ApiConstants.reels}/like/$reelId",

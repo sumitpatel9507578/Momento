@@ -87,23 +87,34 @@ class _ReelsScreenState extends State<ReelsScreen> {
           );
         }
 
-        return PageView.builder(
-          controller: controller.pageController,
-          scrollDirection: Axis.vertical,
-          itemCount: controller.reels.length,
-          onPageChanged: (index) {
-            controller.playVideo(index);
-            if (index >= controller.reels.length - 2) controller.loadMore();
-          },
-          itemBuilder: (context, index) {
-            final reel = controller.reels[index];
-            return _ReelPageItem(
-              key: ValueKey(reel.id),
-              reel: reel,
-              index: index,
-              controller: controller,
-            );
-          },
+        return SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(6, 8, 6, 8),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: PageView.builder(
+                controller: controller.pageController,
+                scrollDirection: Axis.vertical,
+                itemCount: controller.reels.length,
+                onPageChanged: (index) {
+                  controller.playVideo(index);
+                  if (index >= controller.reels.length - 2) {
+                    controller.loadMore();
+                  }
+                },
+                itemBuilder: (context, index) {
+                  final reel = controller.reels[index];
+                  return _ReelPageItem(
+                    key: ValueKey(reel.id),
+                    reel: reel,
+                    index: index,
+                    controller: controller,
+                  );
+                },
+              ),
+            ),
+          ),
         );
       }),
     );

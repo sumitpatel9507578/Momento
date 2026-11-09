@@ -171,14 +171,10 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
         }
       });
 
-      // Retrieve local MP3 path if cached or download via HTTP client
-      String? localCachedPath = StoryAudioCache.getFastCachedAudioPath(
+      // Use a cached file immediately; stream uncached audio while caching it in background.
+      final localCachedPath = StoryAudioCache.getFastCachedAudioPath(
         audioToPlay,
       );
-
-      if (localCachedPath == null || !File(localCachedPath).existsSync()) {
-        localCachedPath = await StoryAudioCache.getCachedAudioPath(audioToPlay);
-      }
 
       if (currentSession != _playSessionId) return;
 
@@ -188,6 +184,7 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
           mode: PlayerMode.mediaPlayer,
         );
       } else {
+        StoryAudioCache.preloadAudio(audioToPlay);
         await _storyAudioPlayer.play(
           UrlSource(audioToPlay),
           mode: PlayerMode.mediaPlayer,

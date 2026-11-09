@@ -18,7 +18,7 @@ class HomeScreen extends GetView<HomeController> {
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          onPressed: () => Get.toNamed('/create'),
+          onPressed: () => Get.toNamed('/new-post-picker'),
           icon: const Icon(Icons.add, color: Colors.white, size: 28),
         ),
         title: Text(

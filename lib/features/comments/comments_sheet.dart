@@ -48,6 +48,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
 
   final replyingToCommentId = RxnString();
   final replyingToUsername = RxnString();
+  final replyingToCommentText = RxnString();
   final currentUsername = RxnString();
   final currentProfileImage = RxnString();
   String? currentUserId;
@@ -207,6 +208,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
     final parentIdCopy = replyingToCommentId.value;
     replyingToCommentId.value = null;
     replyingToUsername.value = null;
+    replyingToCommentText.value = null;
     _incrementCommentCount();
 
     try {
@@ -480,6 +482,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
                         onReply: () {
                           replyingToCommentId.value = comment.id;
                           replyingToUsername.value = comment.username;
+                          replyingToCommentText.value = comment.text;
                           commentController.text = '@${comment.username} ';
                         },
                       );
@@ -509,9 +512,16 @@ class _CommentsSheetState extends State<CommentsSheet> {
                   'Photo comment feature coming soon',
                 ),
                 replyingToUsername: replyingToUsername.value,
+                parentCommentText: replyingToCommentText.value,
+                postCaption: widget.isReel && Get.isRegistered<ReelController>()
+                    ? Get.find<ReelController>().reels
+                          .firstWhereOrNull((reel) => reel.id == widget.id)
+                          ?.caption
+                    : null,
                 onCancelReply: () {
                   replyingToCommentId.value = null;
                   replyingToUsername.value = null;
+                  replyingToCommentText.value = null;
                 },
                 currentUsername: currentUsername.value ?? 'You',
                 currentProfileImage: currentProfileImage.value,

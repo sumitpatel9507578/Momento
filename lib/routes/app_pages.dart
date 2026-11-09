@@ -30,6 +30,7 @@ import 'package:momento/views/main_screen.dart';
 import 'package:momento/views/motion_settings_screen.dart';
 import 'package:momento/views/music_screen.dart';
 import 'package:momento/views/notifications_screen.dart';
+import 'package:momento/views/new_post_picker_screen.dart';
 import 'package:momento/views/post_details_screen.dart';
 import 'package:momento/views/profile_screen.dart';
 import 'package:momento/views/reels_screen.dart';
@@ -124,6 +125,11 @@ class AppPages {
     GetPage(
       name: AppRoutes.search,
       page: () => const SearchScreen(),
+      binding: HomeBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.newPostPicker,
+      page: () => const NewPostPickerScreen(),
       binding: HomeBinding(),
     ),
     GetPage(
