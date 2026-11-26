@@ -1,13 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:get/get.dart';
 
 import 'bindings/app_binding.dart';
+import 'firebase_options.dart';
+import 'notificationhelper.dart';
 import 'routes/app_pages.dart';
 import 'routes/app_routes.dart';
 import 'utils/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // Initialize Push Notifications & Local Notifications
+  await NotificationHelper().initNotification();
 
   runApp(const MomentoApp());
 }

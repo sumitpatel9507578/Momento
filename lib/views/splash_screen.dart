@@ -28,7 +28,7 @@ class SplashScreen extends StatelessWidget {
                 SizedBox(height: size.height * 0.025),
 
                 Text(
-                  'Momento',
+                  'Momentz',
                   style: GoogleFonts.grandHotel(
                     fontSize: 48,
                     fontWeight: FontWeight.w500,
