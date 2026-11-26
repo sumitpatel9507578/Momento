@@ -100,6 +100,13 @@ class SearchScreen extends GetView<ExploreController> {
           child: Image.network(
             ApiConstants.getFullUrl(post.mediaUrl),
             fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+              color: Colors.white10,
+              child: const Icon(
+                Icons.broken_image_outlined,
+                color: Colors.white38,
+              ),
+            ),
           ),
         );
       },

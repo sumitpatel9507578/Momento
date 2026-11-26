@@ -5,7 +5,7 @@ import '../controllers/chat_controller.dart';
 import '../utils/api_constants.dart';
 import '../utils/app_colors.dart';
 
-class UserAvatar extends StatelessWidget {
+class UserAvatar extends StatefulWidget {
   final String? userId;
   final String? imageUrl;
   final double radius;
@@ -28,18 +28,44 @@ class UserAvatar extends StatelessWidget {
   });
 
   @override
+  State<UserAvatar> createState() => _UserAvatarState();
+}
+
+class _UserAvatarState extends State<UserAvatar> {
+  bool _hasError = false;
+
+  @override
+  void didUpdateWidget(covariant UserAvatar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.imageUrl != widget.imageUrl) {
+      setState(() {
+        _hasError = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final effectiveRadius = size != null ? size! / 2 : radius;
-    final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
+    final effectiveRadius = widget.size != null ? widget.size! / 2 : widget.radius;
+    final hasImage = widget.imageUrl != null && widget.imageUrl!.isNotEmpty && !_hasError;
     final chatController = Get.isRegistered<ChatController>()
         ? Get.find<ChatController>()
         : null;
 
     Widget avatar = CircleAvatar(
       radius: effectiveRadius,
-      backgroundColor: backgroundColor ?? AppColors.surface,
+      backgroundColor: widget.backgroundColor ?? AppColors.surface,
       backgroundImage: hasImage
-          ? NetworkImage(ApiConstants.getFullUrl(imageUrl!))
+          ? NetworkImage(ApiConstants.getFullUrl(widget.imageUrl!))
+          : null,
+      onBackgroundImageError: hasImage
+          ? (exception, stackTrace) {
+              if (mounted && !_hasError) {
+                setState(() {
+                  _hasError = true;
+                });
+              }
+            }
           : null,
       child: !hasImage
           ? Icon(
@@ -50,7 +76,7 @@ class UserAvatar extends StatelessWidget {
           : null,
     );
 
-    if (showGradientBorder) {
+    if (widget.showGradientBorder) {
       avatar = Container(
         padding: const EdgeInsets.all(2),
         decoration: const BoxDecoration(
@@ -62,15 +88,15 @@ class UserAvatar extends StatelessWidget {
     }
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           avatar,
-          if (userId != null && userId!.isNotEmpty && chatController != null)
+          if (widget.userId != null && widget.userId!.isNotEmpty && chatController != null)
             Obx(() {
               final isOnline =
-                  chatController.onlineUserIds.contains(userId) &&
+                  chatController.onlineUserIds.contains(widget.userId) &&
                   chatController.showActivityStatus.value;
               if (!isOnline) return const SizedBox.shrink();
               final dotSize = effectiveRadius * 0.45;
@@ -84,7 +110,7 @@ class UserAvatar extends StatelessWidget {
                     color: const Color(0xFF2ED573),
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: borderColor ?? AppColors.background,
+                      color: widget.borderColor ?? AppColors.background,
                       width: 2,
                     ),
                   ),

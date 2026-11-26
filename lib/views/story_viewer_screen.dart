@@ -383,23 +383,9 @@ class _StoryViewerScreenState extends State<StoryViewerScreen> {
                       final story = userStoryGroup.stories[storyIndex];
                       return Row(
                         children: [
-                          CircleAvatar(
+                          UserAvatar(
+                            imageUrl: userStoryGroup.profileImage,
                             radius: 18,
-                            backgroundImage:
-                                userStoryGroup.profileImage.isNotEmpty
-                                ? NetworkImage(
-                                    ApiConstants.getFullUrl(
-                                      userStoryGroup.profileImage,
-                                    ),
-                                  )
-                                : null,
-                            child: userStoryGroup.profileImage.isEmpty
-                                ? const Icon(
-                                    Icons.person,
-                                    size: 18,
-                                    color: Colors.white38,
-                                  )
-                                : null,
                           ),
                           const SizedBox(width: 12),
                           Expanded(

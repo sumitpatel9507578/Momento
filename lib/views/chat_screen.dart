@@ -757,23 +757,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 SizedBox(
                   width: 28,
                   child: showAvatar
-                      ? CircleAvatar(
+                      ? UserAvatar(
+                          imageUrl: user['profile_image'],
                           radius: 12,
                           backgroundColor: AppColors.darkGrey,
-                          backgroundImage: hasImage
-                              ? NetworkImage(
-                                  ApiConstants.getFullUrl(
-                                    user['profile_image'],
-                                  ),
-                                )
-                              : null,
-                          child: !hasImage
-                              ? const Icon(
-                                  Icons.person,
-                                  size: 12,
-                                  color: Colors.white38,
-                                )
-                              : null,
                         )
                       : null,
                 ),

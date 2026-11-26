@@ -7,7 +7,7 @@ import '../controllers/chat_controller.dart';
 import '../controllers/home_controller.dart';
 import '../controllers/network_controller.dart';
 import '../controllers/profile_controller.dart';
-import '../utils/api_constants.dart';
+import '../widgets/user_avatar.dart';
 import 'chat_list_screen.dart';
 import 'home_screen.dart';
 import 'profile_screen.dart';
@@ -206,15 +206,10 @@ class MainScreen extends StatelessWidget {
         ),
         child: Obx(() {
           final user = Get.find<ProfileController>(tag: 'me').currentUser.value;
-          return CircleAvatar(
+          return UserAvatar(
+            imageUrl: user?.profileImage,
             radius: 12,
             backgroundColor: Colors.grey[900],
-            backgroundImage: user != null && user.profileImage.isNotEmpty
-                ? NetworkImage(ApiConstants.getFullUrl(user.profileImage))
-                : null,
-            child: user == null || user.profileImage.isEmpty
-                ? const Icon(Icons.person, size: 18, color: Colors.white)
-                : null,
           );
         }),
       ),
